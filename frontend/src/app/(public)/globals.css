@@ -1,0 +1,40 @@
+.form-control,
+.form-select {
+  background-color: rgb(246, 246, 246) !important;
+}
+
+.bg-blue {
+  background: #1C4D8D !important;
+  color: white !important;
+
+}
+
+.btn-blue {
+  background: #1C4D8D !important;
+
+}
+
+.text-blue {
+  color: #1C4D8D !important;
+
+}
+
+.text-light-blue {
+  color: #1C4D8D !important;
+
+}
+
+.text-lighter-blue {
+  color: #4988C4 !important;
+
+}
+
+.btn-lighter-blue {
+  background: #4988C4 !important;
+
+}
+
+.text-sky-blue {
+  color: #BDE8F5 !important;
+
+}

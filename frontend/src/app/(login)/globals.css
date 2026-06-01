@@ -1,0 +1,350 @@
+/* ═══════════════════════════════════════════════════════════════
+   FORM CONTROLS & BUTTONS - Premium Golden Luxury Theme
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Form Controls */
+.form-control,
+.form-select {
+    background-color: #faf8f4 !important;
+    border: 1px solid rgba(184, 145, 42, 0.2) !important;
+    border-radius: 10px !important;
+    padding: 0.625rem 1rem !important;
+    color: #1a1712 !important;
+    font-size: 0.9rem !important;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    font-family: 'DM Sans', system-ui, sans-serif !important;
+}
+
+.form-control:focus,
+.form-select:focus {
+    background-color: #ffffff !important;
+    border-color: #d4a93a !important;
+    box-shadow: 0 0 0 3px rgba(184, 145, 42, 0.1),
+        0 0 20px rgba(184, 145, 42, 0.1) !important;
+    outline: none !important;
+}
+
+.form-control::placeholder {
+    color: #9a9080 !important;
+    font-weight: 300;
+}
+
+.form-control:hover,
+.form-select:hover {
+    border-color: rgba(184, 145, 42, 0.4) !important;
+    background-color: #fff !important;
+}
+
+/* Labels */
+.form-label {
+    color: #5a5448 !important;
+    font-weight: 500;
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.02em;
+}
+
+/* ── Primary Button (Gold) ── */
+.btn-gold {
+    background: linear-gradient(135deg, #d4a93a 0%, #b8912a 100%) !important;
+    color: #1a1712 !important;
+    border: 1px solid rgba(184, 145, 42, 0.3) !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.05em !important;
+    text-transform: uppercase !important;
+    font-size: 0.8rem !important;
+    padding: 0.625rem 1.5rem !important;
+    border-radius: 10px !important;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    box-shadow: 0 2px 12px rgba(184, 145, 42, 0.22) !important;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-gold::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, #e8c96b 0%, #d4a93a 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.btn-gold:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 8px 32px rgba(184, 145, 42, 0.35) !important;
+    color: #1a1712 !important;
+}
+
+.btn-gold:hover::before {
+    opacity: 1;
+}
+
+.btn-gold:active {
+    transform: translateY(0) !important;
+    box-shadow: 0 2px 8px rgba(184, 145, 42, 0.2) !important;
+}
+
+.btn-gold span,
+.btn-gold i {
+    position: relative;
+    z-index: 1;
+}
+
+/* ── Secondary Button (Outline Gold) ── */
+.btn-outline-gold {
+    background: transparent !important;
+    color: #b8912a !important;
+    border: 1.5px solid rgba(184, 145, 42, 0.4) !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.05em !important;
+    text-transform: uppercase !important;
+    font-size: 0.8rem !important;
+    padding: 0.625rem 1.5rem !important;
+    border-radius: 10px !important;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.btn-outline-gold:hover {
+    background: linear-gradient(135deg, rgba(184, 145, 42, 0.08), rgba(212, 169, 58, 0.12)) !important;
+    border-color: #d4a93a !important;
+    color: #9a7820 !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 16px rgba(184, 145, 42, 0.2) !important;
+}
+
+.btn-outline-gold:active {
+    transform: translateY(0) !important;
+}
+
+/* ── Dark Button (Dark Gold/Bronze) ── */
+.btn-dark-gold {
+    background: linear-gradient(135deg, #9a7820 0%, #7a5e18 100%) !important;
+    color: #f7e7a3 !important;
+    border: 1px solid rgba(154, 120, 32, 0.4) !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.05em !important;
+    text-transform: uppercase !important;
+    font-size: 0.8rem !important;
+    padding: 0.625rem 1.5rem !important;
+    border-radius: 10px !important;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    box-shadow: 0 2px 12px rgba(154, 120, 32, 0.3) !important;
+}
+
+.btn-dark-gold:hover {
+    background: linear-gradient(135deg, #b8912a 0%, #9a7820 100%) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 24px rgba(154, 120, 32, 0.4) !important;
+}
+
+/* ── Light Button (Light Gold/Cream) ── */
+.btn-light-gold {
+    background: linear-gradient(135deg, #faf8f4 0%, #f0ece2 100%) !important;
+    color: #b8912a !important;
+    border: 1px solid rgba(184, 145, 42, 0.3) !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.05em !important;
+    text-transform: uppercase !important;
+    font-size: 0.8rem !important;
+    padding: 0.625rem 1.5rem !important;
+    border-radius: 10px !important;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.btn-light-gold:hover {
+    background: linear-gradient(135deg, #ffffff 0%, #f4f1eb 100%) !important;
+    border-color: #d4a93a !important;
+    color: #9a7820 !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 16px rgba(184, 145, 42, 0.15) !important;
+}
+
+/* ── Accent Rose Button ── */
+.btn-rose {
+    background: linear-gradient(135deg, #d94f6b 0%, #c0392b 100%) !important;
+    color: #fff !important;
+    border: 1px solid rgba(217, 79, 107, 0.3) !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.05em !important;
+    text-transform: uppercase !important;
+    font-size: 0.8rem !important;
+    padding: 0.625rem 1.5rem !important;
+    border-radius: 10px !important;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    box-shadow: 0 2px 12px rgba(217, 79, 107, 0.2) !important;
+}
+
+.btn-rose:hover {
+    background: linear-gradient(135deg, #e96a82 0%, #d94f6b 100%) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 24px rgba(217, 79, 107, 0.3) !important;
+}
+
+/* ── Danger/Delete Button ── */
+.btn-danger-gold {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%) !important;
+    color: #fff !important;
+    border: 1px solid rgba(220, 53, 69, 0.3) !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.05em !important;
+    text-transform: uppercase !important;
+    font-size: 0.8rem !important;
+    padding: 0.625rem 1.5rem !important;
+    border-radius: 10px !important;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.btn-danger-gold:hover {
+    background: linear-gradient(135deg, #e4606d 0%, #dc3545 100%) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 16px rgba(220, 53, 69, 0.3) !important;
+}
+
+/* ── Text Colors ── */
+.text-gold {
+    color: #b8912a !important;
+}
+
+.text-gold-light {
+    color: #d4a93a !important;
+}
+
+.text-gold-deep {
+    color: #9a7820 !important;
+}
+
+.text-primary-dark {
+    color: #1a1712 !important;
+}
+
+.text-secondary-muted {
+    color: #5a5448 !important;
+}
+
+.text-muted-light {
+    color: #9a9080 !important;
+}
+
+.text-accent-rose {
+    color: #d94f6b !important;
+}
+
+.text-accent-blue {
+    color: #2f6fbf !important;
+}
+
+.text-accent-teal {
+    color: #0f9e8a !important;
+}
+
+/* ── Background Colors ── */
+.bg-gold {
+    background: #b8912a !important;
+    color: #fff !important;
+}
+
+.bg-gold-light {
+    background: #d4a93a !important;
+    color: #1a1712 !important;
+}
+
+.bg-gold-pale {
+    background: rgba(184, 145, 42, 0.1) !important;
+}
+
+.bg-cream {
+    background: #faf8f4 !important;
+}
+
+.bg-cream-alt {
+    background: #f4f1eb !important;
+}
+
+.bg-surface {
+    background: #f0ece2 !important;
+}
+
+.bg-white-soft {
+    background: #ffffff !important;
+}
+
+/* ── Badge Styles ── */
+.badge-gold {
+    background: linear-gradient(135deg, #d4a93a, #b8912a) !important;
+    color: #1a1712 !important;
+    font-weight: 600;
+    padding: 0.25rem 0.75rem;
+    border-radius: 100px;
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.badge-outline-gold {
+    background: transparent !important;
+    color: #b8912a !important;
+    border: 1px solid rgba(184, 145, 42, 0.4);
+    font-weight: 600;
+    padding: 0.25rem 0.75rem;
+    border-radius: 100px;
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+/* ── Checkbox & Radio ── */
+.form-check-input:checked {
+    background-color: #b8912a !important;
+    border-color: #b8912a !important;
+    box-shadow: 0 0 0 3px rgba(184, 145, 42, 0.15) !important;
+}
+
+.form-check-input:focus {
+    border-color: #d4a93a !important;
+    box-shadow: 0 0 0 3px rgba(184, 145, 42, 0.1) !important;
+}
+
+/* ── Disabled State ── */
+.btn:disabled,
+.form-control:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+}
+
+/* ── Button Sizes ── */
+.btn-lg {
+    padding: 0.875rem 2rem !important;
+    font-size: 0.9rem !important;
+}
+
+.btn-sm {
+    padding: 0.4rem 1rem !important;
+    font-size: 0.75rem !important;
+}
+
+/* ── Loading State ── */
+.btn-loading {
+    position: relative;
+    pointer-events: none;
+    opacity: 0.8;
+}
+
+.btn-loading::after {
+    content: '';
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(26, 23, 18, 0.2);
+    border-top-color: #1a1712;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    position: absolute;
+    right: 1rem;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
