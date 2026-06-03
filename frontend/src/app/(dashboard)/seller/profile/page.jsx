@@ -2,85 +2,29 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import "./ProfilePage.css";
 
 // Toast Component
 const Toast = ({ message, type, onClose }) => {
   useEffect(() => {
-    const timer = setTimeout(() => {
-      onClose();
-    }, 3000);
+    const timer = setTimeout(onClose, 3000);
     return () => clearTimeout(timer);
   }, [onClose]);
 
-  const getIcon = () => {
-    switch (type) {
-      case "success":
-        return "bi-check-circle-fill";
-      case "error":
-        return "bi-exclamation-circle-fill";
-      case "warning":
-        return "bi-exclamation-triangle-fill";
-      case "info":
-        return "bi-info-circle-fill";
-      default:
-        return "bi-bell-fill";
-    }
-  };
-
-  const getBgColor = () => {
-    switch (type) {
-      case "success":
-        return "bg-success";
-      case "error":
-        return "bg-danger";
-      case "warning":
-        return "bg-warning";
-      case "info":
-        return "bg-info";
-      default:
-        return "bg-primary";
-    }
+  const icons = {
+    success: "bi-check-circle-fill",
+    error: "bi-exclamation-circle-fill",
+    warning: "bi-exclamation-triangle-fill",
+    info: "bi-info-circle-fill",
   };
 
   return (
-    <div
-      className={`toast-notification ${getBgColor()} text-white`}
-      role="alert"
-    >
-      <i className={`bi ${getIcon()} me-2`}></i>
-      <span className="flex-grow-1">{message}</span>
-      <button
-        type="button"
-        className="btn-close btn-close-white ms-3"
-        onClick={onClose}
-      ></button>
-      <style jsx>{`
-        .toast-notification {
-          position: fixed;
-          top: 20px;
-          right: 20px;
-          min-width: 300px;
-          max-width: 400px;
-          padding: 1rem 1.25rem;
-          border-radius: 0.5rem;
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-          display: flex;
-          align-items: center;
-          z-index: 9999;
-          animation: slideIn 0.3s ease forwards;
-        }
-        @keyframes slideIn {
-          from {
-            transform: translateX(100%);
-            opacity: 0;
-          }
-          to {
-            transform: translateX(0);
-            opacity: 1;
-          }
-        }
-      `}</style>
+    <div className={`toast-notification toast-${type}`}>
+      <i className={`bi ${icons[type] || "bi-bell-fill"} toast-icon`}></i>
+      <span className="toast-message">{message}</span>
+      <button className="toast-close-btn" onClick={onClose}>
+        <i className="bi bi-x-lg"></i>
+      </button>
     </div>
   );
 };
@@ -94,6 +38,7 @@ const EditProfileModal = ({ show, onClose, profile, onUpdate }) => {
     address: "",
   });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (profile) {
@@ -108,11 +53,13 @@ const EditProfileModal = ({ show, onClose, profile, onUpdate }) => {
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    setError("");
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError("");
 
     try {
       const token = localStorage.getItem("token");
@@ -138,7 +85,7 @@ const EditProfileModal = ({ show, onClose, profile, onUpdate }) => {
       onClose();
     } catch (error) {
       console.error("Error updating profile:", error);
-      alert(error.message);
+      setError(error.message);
     } finally {
       setLoading(false);
     }
@@ -147,93 +94,78 @@ const EditProfileModal = ({ show, onClose, profile, onUpdate }) => {
   if (!show) return null;
 
   return (
-    <div
-      className="modal show d-block"
-      style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-      onClick={onClose}
-    >
-      <div
-        className="modal-dialog modal-dialog-centered"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="modal-content">
-          <div className="modal-header">
-            <h5 className="modal-title">Edit Profile</h5>
-            <button
-              type="button"
-              className="btn-close"
-              onClick={onClose}
-            ></button>
-          </div>
-          <form onSubmit={handleSubmit}>
-            <div className="modal-body">
-              <div className="mb-3">
-                <label className="form-label">Full Name</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  name="fullname"
-                  value={formData.fullname}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-              <div className="mb-3">
-                <label className="form-label">Email</label>
-                <input
-                  type="email"
-                  className="form-control"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                  disabled
-                />
-                <small className="text-muted">Email cannot be changed</small>
-              </div>
-              <div className="mb-3">
-                <label className="form-label">Phone</label>
-                <input
-                  type="tel"
-                  className="form-control"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleChange}
-                />
-              </div>
-              <div className="mb-3">
-                <label className="form-label">Address</label>
-                <textarea
-                  className="form-control"
-                  name="address"
-                  rows="2"
-                  value={formData.address}
-                  onChange={handleChange}
-                ></textarea>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={onClose}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={loading}
-              >
-                {loading ? (
-                  <span className="spinner-border spinner-border-sm me-2"></span>
-                ) : (
-                  "Save Changes"
-                )}
-              </button>
-            </div>
-          </form>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h5 className="modal-title">
+            <i className="bi bi-pencil-square"></i>
+            Edit Profile
+          </h5>
+          <button className="modal-close" onClick={onClose}>
+            <i className="bi bi-x-lg"></i>
+          </button>
         </div>
+        <form onSubmit={handleSubmit}>
+          <div className="modal-body">
+            <div className="form-group">
+              <label>
+                Full Name <span className="required">*</span>
+              </label>
+              <input
+                type="text"
+                className="form-input"
+                name="fullname"
+                value={formData.fullname}
+                onChange={handleChange}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>Email</label>
+              <input
+                type="email"
+                className="form-input"
+                value={formData.email}
+                disabled
+              />
+              <small className="form-hint">Email cannot be changed</small>
+            </div>
+            <div className="form-group">
+              <label>Phone</label>
+              <input
+                type="tel"
+                className="form-input"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+              />
+            </div>
+            <div className="form-group">
+              <label>Address</label>
+              <textarea
+                className="form-textarea"
+                name="address"
+                rows="3"
+                value={formData.address}
+                onChange={handleChange}
+              />
+            </div>
+            {error && (
+              <div className="error-message">
+                <i className="bi bi-exclamation-triangle-fill"></i>
+                {error}
+              </div>
+            )}
+          </div>
+          <div className="modal-footer">
+            <button type="button" className="btn-secondary" onClick={onClose}>
+              Cancel
+            </button>
+            <button type="submit" className="btn-primary" disabled={loading}>
+              {loading ? <span className="spinner"></span> : "Save Changes"}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
@@ -288,83 +220,71 @@ const StripeConnectModal = ({
   if (!show) return null;
 
   return (
-    <div
-      className="modal show d-block"
-      style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-      onClick={onClose}
-    >
-      <div
-        className="modal-dialog modal-dialog-centered"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="modal-content">
-          <div className="modal-header">
-            <h5 className="modal-title">
-              {isReconnect ? "Complete Stripe Setup" : "Connect Stripe Account"}
-            </h5>
-            <button
-              type="button"
-              className="btn-close"
-              onClick={onClose}
-            ></button>
-          </div>
-          <div className="modal-body">
-            <p className="mb-3">
-              {isReconnect
-                ? "Your Stripe account setup is incomplete. Please complete the onboarding to receive payouts."
-                : "To receive payouts from your sales, you need to connect a Stripe account. This allows us to securely transfer your earnings to your bank account."}
-            </p>
-            {!isReconnect && (
-              <div className="mb-3">
-                <label className="form-label">Country</label>
-                <select
-                  className="form-select"
-                  value={country}
-                  onChange={(e) => setCountry(e.target.value)}
-                >
-                  <option value="US">United States</option>
-                  <option value="CA">Canada</option>
-                  <option value="GB">United Kingdom</option>
-                  <option value="AU">Australia</option>
-                  <option value="DE">Germany</option>
-                  <option value="FR">France</option>
-                  <option value="IN">India</option>
-                  <option value="PK">Pakistan</option>
-                </select>
-                <small className="text-muted">
-                  Select the country where your bank account is located
-                </small>
-              </div>
-            )}
-            <div className="alert alert-info">
-              <i className="bi bi-shield-check me-2"></i>
-              You'll be redirected to Stripe's secure onboarding page to
-              complete the setup.
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h5 className="modal-title">
+            <i className="bi bi-stripe"></i>
+            {isReconnect ? "Complete Stripe Setup" : "Connect Stripe Account"}
+          </h5>
+          <button className="modal-close" onClick={onClose}>
+            <i className="bi bi-x-lg"></i>
+          </button>
+        </div>
+        <div className="modal-body">
+          <div className="info-alert info">
+            <i className="bi bi-shield-check"></i>
+            <div>
+              <strong>Secure Payouts with Stripe</strong>
+              <p>
+                {isReconnect
+                  ? "Your Stripe account setup is incomplete. Please complete the onboarding to receive payouts."
+                  : "To receive payouts from your sales, you need to connect a Stripe account. This allows us to securely transfer your earnings to your bank account."}
+              </p>
             </div>
           </div>
-          <div className="modal-footer">
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={onClose}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={handleConnect}
-              disabled={loading}
-            >
-              {loading ? (
-                <span className="spinner-border spinner-border-sm me-2"></span>
-              ) : isReconnect ? (
-                "Complete Setup"
-              ) : (
-                "Connect with Stripe"
-              )}
-            </button>
-          </div>
+
+          {!isReconnect && (
+            <div className="form-group">
+              <label>Country</label>
+              <select
+                className="form-select"
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+              >
+                <option value="US">United States</option>
+                <option value="CA">Canada</option>
+                <option value="GB">United Kingdom</option>
+                <option value="AU">Australia</option>
+                <option value="DE">Germany</option>
+                <option value="FR">France</option>
+                <option value="IN">India</option>
+                <option value="PK">Pakistan</option>
+              </select>
+              <small className="form-hint">
+                Select where your bank account is located
+              </small>
+            </div>
+          )}
+        </div>
+        <div className="modal-footer">
+          <button type="button" className="btn-secondary" onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={handleConnect}
+            disabled={loading}
+          >
+            {loading ? (
+              <span className="spinner"></span>
+            ) : isReconnect ? (
+              "Complete Setup"
+            ) : (
+              "Connect with Stripe"
+            )}
+          </button>
         </div>
       </div>
     </div>
@@ -375,10 +295,23 @@ const StripeConnectModal = ({
 const WithdrawModal = ({ show, onClose, wallet, onSuccess }) => {
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const withdrawAmount = parseFloat(amount);
+
+    if (withdrawAmount <= 0) {
+      setError("Please enter a valid amount");
+      return;
+    }
+    if (withdrawAmount > (wallet?.availableBalance || 0)) {
+      setError("Amount exceeds available balance");
+      return;
+    }
+
     setLoading(true);
+    setError("");
 
     try {
       const token = localStorage.getItem("token");
@@ -390,7 +323,7 @@ const WithdrawModal = ({ show, onClose, wallet, onSuccess }) => {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ amount: parseFloat(amount) }),
+          body: JSON.stringify({ amount: withdrawAmount }),
         },
       );
 
@@ -405,7 +338,7 @@ const WithdrawModal = ({ show, onClose, wallet, onSuccess }) => {
       setAmount("");
     } catch (error) {
       console.error("Error processing withdrawal:", error);
-      alert(error.message);
+      setError(error.message);
     } finally {
       setLoading(false);
     }
@@ -416,179 +349,77 @@ const WithdrawModal = ({ show, onClose, wallet, onSuccess }) => {
   const maxAmount = wallet?.availableBalance || 0;
 
   return (
-    <div
-      className="modal show d-block"
-      style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-      onClick={onClose}
-    >
-      <div
-        className="modal-dialog modal-dialog-centered"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="modal-content">
-          <div className="modal-header">
-            <h5 className="modal-title">Withdraw Funds</h5>
-            <button
-              type="button"
-              className="btn-close"
-              onClick={onClose}
-            ></button>
-          </div>
-          <form onSubmit={handleSubmit}>
-            <div className="modal-body">
-              <div className="alert alert-info">
-                <strong>Available Balance:</strong> ${maxAmount.toFixed(2)}
-              </div>
-              <div className="mb-3">
-                <label className="form-label">Amount to Withdraw ($)</label>
-                <input
-                  type="number"
-                  className="form-control"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  min="1"
-                  max={maxAmount}
-                  step="0.01"
-                  required
-                />
-              </div>
-              <p className="text-muted small">
-                Funds will be transferred to your Stripe account and then to
-                your bank account within 2-7 business days.
-              </p>
-            </div>
-            <div className="modal-footer">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={onClose}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={loading || !amount || amount > maxAmount}
-              >
-                {loading ? (
-                  <span className="spinner-border spinner-border-sm me-2"></span>
-                ) : (
-                  "Withdraw"
-                )}
-              </button>
-            </div>
-          </form>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header modal-header-success">
+          <h5 className="modal-title">
+            <i className="bi bi-cash-stack"></i>
+            Withdraw Funds
+          </h5>
+          <button className="modal-close" onClick={onClose}>
+            <i className="bi bi-x-lg"></i>
+          </button>
         </div>
-      </div>
-    </div>
-  );
-};
-
-// Reconnect Modal for incomplete accounts
-const ReconnectStripeModal = ({ show, onClose, onReconnect }) => {
-  const [loading, setLoading] = useState(false);
-
-  const handleReconnect = async () => {
-    setLoading(true);
-
-    try {
-      const token = localStorage.getItem("token");
-
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/seller/resume-onboarding`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to resume onboarding");
-      }
-
-      if (data.onboardingUrl) {
-        window.location.href = data.onboardingUrl;
-      }
-
-      onReconnect();
-    } catch (error) {
-      console.error("Error resuming onboarding:", error);
-      alert(error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (!show) return null;
-
-  return (
-    <div
-      className="modal show d-block"
-      style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-      onClick={onClose}
-    >
-      <div
-        className="modal-dialog modal-dialog-centered"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="modal-content">
-          <div className="modal-header">
-            <h5 className="modal-title">Complete Stripe Setup</h5>
-            <button
-              type="button"
-              className="btn-close"
-              onClick={onClose}
-            ></button>
-          </div>
+        <form onSubmit={handleSubmit}>
           <div className="modal-body">
-            <div className="text-center mb-4">
-              <div className="bg-warning bg-opacity-10 rounded-circle p-4 d-inline-flex mb-3">
-                <i className="bi bi-exclamation-triangle fs-1 text-warning"></i>
+            <div className="info-card">
+              <div className="info-row">
+                <span>Available Balance:</span>
+                <strong className="gold-text">${maxAmount.toFixed(2)}</strong>
               </div>
-              <h6 className="fw-semibold">Incomplete Stripe Account</h6>
-              <p className="text-muted small">
-                Your Stripe account setup is not complete. You won't be able to
-                receive payouts until you finish the verification process.
-              </p>
             </div>
-            <div className="alert alert-info">
-              <i className="bi bi-info-circle me-2"></i>
-              You'll be redirected to Stripe to complete your account setup.
-              This only takes a few minutes.
+
+            <div className="form-group">
+              <label>Amount to Withdraw ($)</label>
+              <input
+                type="number"
+                className="form-input"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                min="1"
+                max={maxAmount}
+                step="0.01"
+                placeholder="Enter amount"
+              />
+            </div>
+
+            {error && (
+              <div className="error-message">
+                <i className="bi bi-exclamation-triangle-fill"></i>
+                {error}
+              </div>
+            )}
+
+            <div className="info-alert info">
+              <i className="bi bi-clock-history"></i>
+              <div>
+                <strong>Processing Time</strong>
+                <p>
+                  Funds will be transferred to your Stripe account and then to
+                  your bank account within 2-7 business days.
+                </p>
+              </div>
             </div>
           </div>
           <div className="modal-footer">
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={onClose}
-            >
-              Later
+            <button type="button" className="btn-secondary" onClick={onClose}>
+              Cancel
             </button>
             <button
-              type="button"
-              className="btn btn-warning"
-              onClick={handleReconnect}
-              disabled={loading}
+              type="submit"
+              className="btn-success"
+              disabled={loading || !amount || parseFloat(amount) > maxAmount}
             >
-              {loading ? (
-                <span className="spinner-border spinner-border-sm me-2"></span>
-              ) : (
-                "Complete Setup Now"
-              )}
+              {loading ? <span className="spinner"></span> : "Withdraw Funds"}
             </button>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );
 };
 
+// Main Profile Page Component
 const ProfilePage = () => {
   const router = useRouter();
   const [profile, setProfile] = useState(null);
@@ -598,24 +429,25 @@ const ProfilePage = () => {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
 
-  // Modal states
   const [showEditModal, setShowEditModal] = useState(false);
   const [showStripeModal, setShowStripeModal] = useState(false);
   const [showReconnectModal, setShowReconnectModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
 
-  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const transactionsPerPage = 10;
 
   const showToast = (message, type = "success") => setToast({ message, type });
-  const closeToast = () => setToast(null);
 
-  // Fetch profile
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem("token");
+      if (!token) {
+        router.push("/login");
+        return;
+      }
+
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/profile/`,
         {
@@ -631,7 +463,6 @@ const ProfilePage = () => {
     }
   };
 
-  // Fetch wallet
   const fetchWallet = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -649,7 +480,6 @@ const ProfilePage = () => {
     }
   };
 
-  // Fetch Stripe account status
   const fetchStripeStatus = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -676,7 +506,6 @@ const ProfilePage = () => {
     }
   };
 
-  // Fetch transactions
   const fetchTransactions = async (page = 1) => {
     try {
       const token = localStorage.getItem("token");
@@ -694,7 +523,6 @@ const ProfilePage = () => {
     }
   };
 
-  // Check onboarding completion on mount
   useEffect(() => {
     const checkOnboarding = async () => {
       const urlParams = new URLSearchParams(window.location.search);
@@ -708,7 +536,6 @@ const ProfilePage = () => {
     checkOnboarding();
   }, [router]);
 
-  // Load all data
   const loadData = async () => {
     setLoading(true);
     await Promise.all([
@@ -734,8 +561,6 @@ const ProfilePage = () => {
       year: "numeric",
       month: "short",
       day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
     });
   };
 
@@ -749,36 +574,38 @@ const ProfilePage = () => {
   const getTransactionIcon = (type) => {
     switch (type) {
       case "received":
-        return "bi-arrow-down-circle-fill text-success";
+        return "bi-arrow-down-circle-fill";
       case "send":
-        return "bi-arrow-up-circle-fill text-danger";
+        return "bi-arrow-up-circle-fill";
       case "withdrawal":
-        return "bi-bank text-warning";
+        return "bi-bank2";
       case "refund":
-        return "bi-arrow-return-left text-info";
+        return "bi-arrow-return-left";
       default:
-        return "bi-circle-fill text-secondary";
+        return "bi-circle";
     }
   };
 
-  const getStatusBadge = (status) => {
-    const colors = {
-      pending: "warning",
-      locked: "info",
-      available: "success",
-      completed: "success",
-      failed: "danger",
-    };
-    return colors[status] || "secondary";
+  const getTransactionColor = (type) => {
+    switch (type) {
+      case "received":
+        return "success";
+      case "send":
+        return "danger";
+      case "withdrawal":
+        return "warning";
+      case "refund":
+        return "info";
+      default:
+        return "secondary";
+    }
   };
 
   if (loading) {
     return (
-      <div className="container py-5 text-center">
-        <div className="spinner-border text-primary mb-3" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
-        <h5 className="text-muted">Loading profile...</h5>
+      <div className="loading-container">
+        <div className="gold-spinner"></div>
+        <p>Loading profile...</p>
       </div>
     );
   }
@@ -788,9 +615,13 @@ const ProfilePage = () => {
   const isStripeVerified = stripeStatus?.isComplete;
 
   return (
-    <div className="container py-4">
+    <div className="profile-page">
       {toast && (
-        <Toast message={toast.message} type={toast.type} onClose={closeToast} />
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
       )}
 
       <EditProfileModal
@@ -802,17 +633,21 @@ const ProfilePage = () => {
           showToast("Profile updated successfully", "success");
         }}
       />
+
       <StripeConnectModal
         show={showStripeModal}
         onClose={() => setShowStripeModal(false)}
         onSuccess={() => {}}
         isReconnect={false}
       />
-      <ReconnectStripeModal
+
+      <StripeConnectModal
         show={showReconnectModal}
         onClose={() => setShowReconnectModal(false)}
-        onReconnect={() => {}}
+        onSuccess={() => {}}
+        isReconnect={true}
       />
+
       <WithdrawModal
         show={showWithdrawModal}
         onClose={() => setShowWithdrawModal(false)}
@@ -824,189 +659,194 @@ const ProfilePage = () => {
         }}
       />
 
-      {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <h1 className="h2 fw-bold mb-2">My Profile</h1>
-          <p className="text-muted mb-0">Manage your account and finances</p>
+      <div className="profile-container">
+        {/* Header */}
+        <div className="page-header">
+          <div>
+            <div className="header-badge">
+              <i className="bi bi-person-circle"></i>
+              <span>My Profile</span>
+            </div>
+            <h1 className="page-title">Account Settings</h1>
+            <p className="page-subtitle">Manage your account and finances</p>
+          </div>
+          <button
+            className="btn-primary-gold"
+            onClick={() => setShowEditModal(true)}
+          >
+            <i className="bi bi-pencil-square"></i>
+            Edit Profile
+          </button>
         </div>
-        <button
-          className="btn btn-primary"
-          onClick={() => setShowEditModal(true)}
-        >
-          <i className="bi bi-pencil-square me-2"></i>Edit Profile
-        </button>
-      </div>
 
-      <div className="row">
-        {/* Profile Information */}
-        <div className="col-lg-4 mb-4">
-          <div className="card border-0 shadow-sm h-100">
-            <div className="card-body">
-              <div className="text-center mb-4">
-                <div className="bg-light rounded-circle d-inline-flex p-4 mb-3">
-                  <i className="bi bi-person-circle fs-1 text-primary"></i>
-                </div>
-                <h4 className="fw-bold mb-1">{profile?.fullname}</h4>
-                <p className="text-muted mb-2">{profile?.email}</p>
-                <span
-                  className={`badge bg-${profile?.role === "seller" ? "success" : "info"} px-3 py-2`}
-                >
-                  {profile?.role?.toUpperCase()}
+        <div className="profile-grid">
+          {/* Profile Information Card */}
+          <div className="profile-card">
+            <div className="profile-avatar">
+              <div className="avatar-icon">
+                <i className="bi bi-person-circle"></i>
+              </div>
+              <h3 className="profile-name">{profile?.fullname}</h3>
+              <p className="profile-email">{profile?.email}</p>
+              <span
+                className={`role-badge ${profile?.role === "seller" ? "seller" : "buyer"}`}
+              >
+                {profile?.role?.toUpperCase()}
+              </span>
+            </div>
+
+            <div className="profile-divider"></div>
+
+            <div className="profile-info-section">
+              <h4 className="section-title-small">
+                <i className="bi bi-info-circle"></i>
+                Contact Information
+              </h4>
+              <div className="info-item">
+                <i className="bi bi-telephone"></i>
+                <span>{profile?.phone || "Not provided"}</span>
+              </div>
+              <div className="info-item">
+                <i className="bi bi-geo-alt"></i>
+                <span>{profile?.address || "Not provided"}</span>
+              </div>
+              <div className="info-item">
+                <i className="bi bi-calendar"></i>
+                <span>
+                  Joined{" "}
+                  {profile?.createdAt
+                    ? new Date(profile.createdAt).toLocaleDateString()
+                    : "N/A"}
                 </span>
               </div>
-              <hr />
-              <div className="mb-3">
-                <h6 className="fw-semibold mb-3">Contact Information</h6>
-                <div className="d-flex mb-2">
-                  <i className="bi bi-telephone me-3 text-muted"></i>
-                  <span>{profile?.phone || "Not provided"}</span>
-                </div>
-                <div className="d-flex mb-2">
-                  <i className="bi bi-geo-alt me-3 text-muted"></i>
-                  <span>{profile?.address || "Not provided"}</span>
-                </div>
-                <div className="d-flex">
-                  <i className="bi bi-calendar me-3 text-muted"></i>
-                  <span>
-                    Joined{" "}
-                    {profile?.createdAt
-                      ? new Date(profile.createdAt).toLocaleDateString()
-                      : "N/A"}
-                  </span>
-                </div>
-              </div>
-              {isSeller && (
-                <>
-                  <hr />
-                  <div className="mb-3">
-                    <h6 className="fw-semibold mb-3">Stripe Connect</h6>
-                    {hasStripeAccount ? (
-                      <div
-                        className={`alert ${isStripeVerified ? "alert-success" : "alert-warning"} mb-3`}
-                      >
-                        {isStripeVerified ? (
-                          <>
-                            <i className="bi bi-check-circle-fill me-2"></i>
-                            <strong>Verified</strong>
-                            <p className="small mb-0 mt-1">
-                              Your Stripe account is connected and verified.
-                            </p>
-                          </>
-                        ) : (
-                          <>
-                            <i className="bi bi-exclamation-triangle-fill me-2"></i>
-                            <strong>Incomplete Setup</strong>
-                            <p className="small mb-0 mt-1">
-                              Your Stripe account setup is not complete.
-                            </p>
-                            <button
-                              className="btn btn-sm btn-warning mt-2"
-                              onClick={() => setShowReconnectModal(true)}
-                            >
-                              <i className="bi bi-arrow-repeat me-1"></i>
-                              Complete Setup
-                            </button>
-                          </>
+            </div>
+
+            {isSeller && (
+              <>
+                <div className="profile-divider"></div>
+                <div className="profile-info-section">
+                  <h4 className="section-title-small">
+                    <i className="bi bi-stripe"></i>
+                    Stripe Connect
+                  </h4>
+                  {hasStripeAccount ? (
+                    <div
+                      className={`stripe-status ${isStripeVerified ? "verified" : "incomplete"}`}
+                    >
+                      <i
+                        className={`bi ${isStripeVerified ? "bi-check-circle-fill" : "bi-exclamation-triangle-fill"}`}
+                      ></i>
+                      <div>
+                        <strong>
+                          {isStripeVerified ? "Verified" : "Incomplete Setup"}
+                        </strong>
+                        <p>
+                          {isStripeVerified
+                            ? "Your Stripe account is connected and verified."
+                            : "Your Stripe account setup is not complete."}
+                        </p>
+                        {!isStripeVerified && (
+                          <button
+                            className="btn-small-warning"
+                            onClick={() => setShowReconnectModal(true)}
+                          >
+                            <i className="bi bi-arrow-repeat"></i>
+                            Complete Setup
+                          </button>
                         )}
                       </div>
-                    ) : (
-                      <button
-                        className="btn btn-outline-primary w-100 mb-3"
-                        onClick={() => setShowStripeModal(true)}
-                      >
-                        <i className="bi bi-stripe me-2"></i>Connect Stripe
-                        Account
-                      </button>
-                    )}
-                    {hasStripeAccount && isStripeVerified && (
-                      <div className="bg-light p-3 rounded">
-                        <div className="d-flex align-items-center">
-                          <i className="bi bi-bank2 me-3 text-primary fs-4"></i>
-                          <div>
-                            <div className="fw-semibold">Stripe Account</div>
-                            <small className="text-muted">
-                              Status: {stripeStatus?.status || "verified"}
-                            </small>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
+                    </div>
+                  ) : (
+                    <button
+                      className="btn-outline-gold w-100"
+                      onClick={() => setShowStripeModal(true)}
+                    >
+                      <i className="bi bi-stripe"></i>
+                      Connect Stripe Account
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
           </div>
-        </div>
 
-        {/* Wallet & Transactions */}
-        <div className="col-lg-8">
-          {/* Wallet Cards */}
-          <div className="row g-4 mb-4">
-            <div className="col-md-4">
-              <div className="card border-0 shadow-sm bg-primary bg-opacity-10 h-100">
-                <div className="card-body">
-                  <h6 className="text-muted mb-2">Available Balance</h6>
-                  <h3 className="fw-bold text-primary mb-0">
+          {/* Wallet & Transactions Section */}
+          <div className="wallet-section">
+            {/* Wallet Cards */}
+            <div className="wallet-grid">
+              <div className="wallet-card available">
+                <div className="wallet-icon">
+                  <i className="bi bi-cash-stack"></i>
+                </div>
+                <div className="wallet-info">
+                  <span className="wallet-label">Available Balance</span>
+                  <h3 className="wallet-amount">
                     {formatCurrency(wallet?.availableBalance || 0)}
                   </h3>
-                  <small className="text-muted">Ready for withdrawal</small>
+                  <small>Ready for withdrawal</small>
                 </div>
               </div>
-            </div>
-            <div className="col-md-4">
-              <div className="card border-0 shadow-sm bg-warning bg-opacity-10 h-100">
-                <div className="card-body">
-                  <h6 className="text-muted mb-2">Locked Balance</h6>
-                  <h3 className="fw-bold text-warning mb-0">
+
+              <div className="wallet-card locked">
+                <div className="wallet-icon">
+                  <i className="bi bi-shield-lock"></i>
+                </div>
+                <div className="wallet-info">
+                  <span className="wallet-label">Locked Balance</span>
+                  <h3 className="wallet-amount">
                     {formatCurrency(wallet?.lockedBalance || 0)}
                   </h3>
-                  <small className="text-muted">In escrow</small>
+                  <small>In escrow</small>
                 </div>
               </div>
-            </div>
-            <div className="col-md-4">
-              <div className="card border-0 shadow-sm bg-info bg-opacity-10 h-100">
-                <div className="card-body">
-                  <h6 className="text-muted mb-2">Total Earned</h6>
-                  <h3 className="fw-bold text-info mb-0">
+
+              <div className="wallet-card earned">
+                <div className="wallet-icon">
+                  <i className="bi bi-trophy"></i>
+                </div>
+                <div className="wallet-info">
+                  <span className="wallet-label">Total Earned</span>
+                  <h3 className="wallet-amount">
                     {formatCurrency(wallet?.totalEarned || 0)}
                   </h3>
-                  <small className="text-muted">Lifetime earnings</small>
+                  <small>Lifetime earnings</small>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Withdraw Button */}
-          {isSeller &&
-            wallet?.availableBalance > 0 &&
-            hasStripeAccount &&
-            isStripeVerified && (
-              <div className="mb-4">
-                <button
-                  className="btn btn-success w-100 py-3"
-                  onClick={() => setShowWithdrawModal(true)}
-                >
-                  <i className="bi bi-cash-stack me-2"></i>Withdraw Funds ($
-                  {wallet.availableBalance.toFixed(2)} available)
-                </button>
-              </div>
-            )}
-          {isSeller &&
-            wallet?.availableBalance > 0 &&
-            (!hasStripeAccount || !isStripeVerified) && (
-              <div className="mb-4">
-                <div className="alert alert-warning d-flex justify-content-between align-items-center">
+            {/* Withdraw Button */}
+            {isSeller &&
+              wallet?.availableBalance > 0 &&
+              hasStripeAccount &&
+              isStripeVerified && (
+                <div className="withdraw-section">
+                  <button
+                    className="btn-success-gold"
+                    onClick={() => setShowWithdrawModal(true)}
+                  >
+                    <i className="bi bi-cash-stack"></i>
+                    Withdraw Funds (${wallet.availableBalance.toFixed(2)}{" "}
+                    available)
+                  </button>
+                </div>
+              )}
+
+            {isSeller &&
+              wallet?.availableBalance > 0 &&
+              (!hasStripeAccount || !isStripeVerified) && (
+                <div className="alert-warning-card">
+                  <i className="bi bi-exclamation-triangle-fill"></i>
                   <div>
-                    <i className="bi bi-exclamation-triangle-fill me-2"></i>
-                    {!hasStripeAccount
-                      ? "Please connect your Stripe account to withdraw funds."
-                      : "Please complete your Stripe account setup to withdraw funds."}
+                    <strong>Withdrawal Unavailable</strong>
+                    <p>
+                      {!hasStripeAccount
+                        ? "Please connect your Stripe account to withdraw funds."
+                        : "Please complete your Stripe account setup to withdraw funds."}
+                    </p>
                   </div>
                   {hasStripeAccount && !isStripeVerified ? (
                     <button
-                      className="btn btn-sm btn-warning"
+                      className="btn-small-warning"
                       onClick={() => setShowReconnectModal(true)}
                     >
                       Complete Setup
@@ -1014,7 +854,7 @@ const ProfilePage = () => {
                   ) : (
                     !hasStripeAccount && (
                       <button
-                        className="btn btn-sm btn-primary"
+                        className="btn-small-gold"
                         onClick={() => setShowStripeModal(true)}
                       >
                         Connect Now
@@ -1022,111 +862,84 @@ const ProfilePage = () => {
                     )
                   )}
                 </div>
-              </div>
-            )}
+              )}
 
-          {/* Transaction History */}
-          <div className="card border-0 shadow-sm">
-            <div className="card-header bg-white border-0 py-3">
-              <h5 className="card-title fw-semibold mb-0">
-                <i className="bi bi-clock-history me-2"></i>Transaction History
-              </h5>
-            </div>
-            <div className="card-body p-0">
+            {/* Transaction History */}
+            <div className="transactions-card">
+              <div className="card-header-custom">
+                <h5 className="card-title-custom">
+                  <i className="bi bi-clock-history"></i>
+                  Transaction History
+                </h5>
+              </div>
+
               {transactions.length === 0 ? (
-                <div className="text-center py-5">
-                  <i className="bi bi-arrow-left-right display-1 text-muted"></i>
-                  <h6 className="mt-3 text-muted">No transactions yet</h6>
+                <div className="empty-transactions">
+                  <i className="bi bi-receipt"></i>
+                  <h6>No transactions yet</h6>
+                  <p>Your transaction history will appear here</p>
                 </div>
               ) : (
                 <>
-                  <div className="table-responsive">
-                    <table className="table table-hover align-middle mb-0">
-                      <thead className="bg-light">
-                        <tr>
-                          <th>Type</th>
-                          <th>Description</th>
-                          <th>Amount</th>
-                          <th>Status</th>
-                          <th>Date</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {transactions.map((tx, index) => (
-                          <tr key={index}>
-                            <td>
-                              <i
-                                className={`bi ${getTransactionIcon(tx.type)} me-2 fs-5`}
-                              ></i>
-                              <span className="text-capitalize">{tx.type}</span>
-                            </td>
-                            <td>{tx.description}</td>
-                            <td
-                              className={
-                                tx.amount > 0 ? "text-success" : "text-danger"
-                              }
-                            >
-                              <strong>
-                                {tx.amount > 0 ? "+" : ""}
-                                {formatCurrency(tx.amount)}
-                              </strong>
-                            </td>
-                            <td>
-                              <span
-                                className={`badge bg-${getStatusBadge(tx.status)}`}
-                              >
-                                {tx.status}
-                              </span>
-                            </td>
-                            <td>
-                              <small className="text-muted">
-                                {formatDate(tx.createdAt)}
-                              </small>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className="transactions-list">
+                    {transactions.map((tx, index) => (
+                      <div key={index} className="transaction-item">
+                        <div
+                          className={`transaction-icon ${getTransactionColor(tx.type)}`}
+                        >
+                          <i
+                            className={`bi ${getTransactionIcon(tx.type)}`}
+                          ></i>
+                        </div>
+                        <div className="transaction-details">
+                          <div className="transaction-header">
+                            <span className="transaction-type">{tx.type}</span>
+                            <span className="transaction-date">
+                              {formatDate(tx.createdAt)}
+                            </span>
+                          </div>
+                          <p className="transaction-description">
+                            {tx.description}
+                          </p>
+                          <span className={`transaction-status ${tx.status}`}>
+                            {tx.status}
+                          </span>
+                        </div>
+                        <div
+                          className={`transaction-amount ${tx.amount > 0 ? "positive" : "negative"}`}
+                        >
+                          {tx.amount > 0 ? "+" : ""}
+                          {formatCurrency(tx.amount)}
+                        </div>
+                      </div>
+                    ))}
                   </div>
+
                   {totalPages > 1 && (
-                    <div className="d-flex justify-content-center py-3">
-                      <nav>
-                        <ul className="pagination">
-                          <li
-                            className={`page-item ${currentPage === 1 ? "disabled" : ""}`}
-                          >
-                            <button
-                              className="page-link"
-                              onClick={() => handlePageChange(currentPage - 1)}
-                            >
-                              Previous
-                            </button>
-                          </li>
-                          {[...Array(totalPages)].map((_, i) => (
-                            <li
-                              key={i + 1}
-                              className={`page-item ${currentPage === i + 1 ? "active" : ""}`}
-                            >
-                              <button
-                                className="page-link"
-                                onClick={() => handlePageChange(i + 1)}
-                              >
-                                {i + 1}
-                              </button>
-                            </li>
-                          ))}
-                          <li
-                            className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}
-                          >
-                            <button
-                              className="page-link"
-                              onClick={() => handlePageChange(currentPage + 1)}
-                            >
-                              Next
-                            </button>
-                          </li>
-                        </ul>
-                      </nav>
+                    <div className="pagination">
+                      <button
+                        className={`page-btn ${currentPage === 1 ? "disabled" : ""}`}
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                      >
+                        <i className="bi bi-chevron-left"></i>
+                      </button>
+                      {[...Array(totalPages)].map((_, i) => (
+                        <button
+                          key={i}
+                          className={`page-btn ${currentPage === i + 1 ? "active" : ""}`}
+                          onClick={() => handlePageChange(i + 1)}
+                        >
+                          {i + 1}
+                        </button>
+                      ))}
+                      <button
+                        className={`page-btn ${currentPage === totalPages ? "disabled" : ""}`}
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                      >
+                        <i className="bi bi-chevron-right"></i>
+                      </button>
                     </div>
                   )}
                 </>
