@@ -132,7 +132,7 @@ const createPaymentSession = expressAsyncHandler(async (req, res) => {
 // @access Private (User / buyer)
 // ─────────────────────────────────────────────
 const confirmDelivery = expressAsyncHandler(async (req, res) => {
-  const { orderId, productId } = req.params; // ← both params now used
+  const { orderId, productId } = req.params;
 
   const order = await Order.findById(orderId)
     .populate("orderItems.seller")
@@ -148,7 +148,11 @@ const confirmDelivery = expressAsyncHandler(async (req, res) => {
     throw new Error("Not authorized to confirm this order");
   }
 
-  const item = order.orderItems.find((i) => i.product.toString() === productId);
+  // FIX: safe lookup — i.product may be ObjectId or populated object
+  const item = order.orderItems.find((i) => {
+    const pid = i.product?._id ?? i.product;
+    return pid?.toString() === productId;
+  });
 
   if (!item) {
     res.status(404);
@@ -165,25 +169,28 @@ const confirmDelivery = expressAsyncHandler(async (req, res) => {
     throw new Error("Product is cancelled");
   }
 
-  if (item.escrowStatus !== "held") {
+  // FIX: accept both item-level "held" and order-level "requires_capture"
+  const fundsInEscrow =
+    item.escrowStatus === "held" ||
+    order.paymentStatus === "requires_capture" ||
+    order.paymentStatus === "partial_captured";
+
+  if (!fundsInEscrow) {
     res.status(400);
     throw new Error("Funds for this product are not in escrow");
   }
 
   const { totalAmount, platformFee, sellerAmount } = calcItemAmounts(item);
 
-  // ── Capture the payment on Stripe (only on first release) ──────────────
-  // We capture once for the full order amount; partial payouts to sellers
-  // are handled via Stripe Transfers from the captured funds.
+  // FIX: replace i._id.equals(item._id) with safe toString comparison
   const allPreviouslyReleased = order.orderItems.every(
     (i) =>
-      i._id.equals(item._id) ||
+      i._id?.toString() === item._id?.toString() ||
       i.escrowStatus === "released" ||
       i.escrowStatus === "refunded",
   );
 
   if (allPreviouslyReleased) {
-    // This is the last / only item — capture the remaining intent amount
     try {
       const pi = await stripe.paymentIntents.retrieve(
         order.stripePaymentIntentId,
@@ -195,12 +202,10 @@ const confirmDelivery = expressAsyncHandler(async (req, res) => {
       }
     } catch (stripeErr) {
       console.error("Stripe capture error:", stripeErr.message);
-      // Non-fatal — funds may already be captured
     }
   }
 
-  // ── Transfer seller's share ─────────────────────────────────────────────
-  const sellerUser = await User.findById(item.seller._id || item.seller);
+  const sellerUser = await User.findById(item.seller?._id ?? item.seller);
   if (sellerUser?.stripeAccountId) {
     try {
       await stripe.transfers.create({
@@ -209,22 +214,20 @@ const confirmDelivery = expressAsyncHandler(async (req, res) => {
         destination: sellerUser.stripeAccountId,
         transfer_group: `order_${orderId}`,
         metadata: {
-          orderId: orderId,
+          orderId,
           productName: item.name,
-          sellerId: (item.seller._id || item.seller).toString(),
+          sellerId: (item.seller?._id ?? item.seller).toString(),
         },
       });
     } catch (stripeErr) {
       console.error("Stripe transfer error:", stripeErr.message);
-      // Log but don't fail — wallet still updated, admin can retry
     }
   }
 
-  // ── Update item & order status ──────────────────────────────────────────
   item.orderStatus = "delivered";
   item.escrowStatus = "released";
   item.deliveredAt = new Date();
-  item.autoReleaseAt = null; // Clear auto-release timer
+  item.autoReleaseAt = null;
 
   const allDone = order.orderItems.every(
     (i) => i.orderStatus === "delivered" || i.orderStatus === "cancelled",
@@ -248,8 +251,7 @@ const confirmDelivery = expressAsyncHandler(async (req, res) => {
 
   await order.save();
 
-  // ── Update seller wallet ────────────────────────────────────────────────
-  const sellerId = (item.seller._id || item.seller).toString();
+  const sellerId = (item.seller?._id ?? item.seller).toString();
   let sellerWallet = await Wallet.findOne({ user: sellerId });
 
   if (!sellerWallet) {
@@ -294,7 +296,6 @@ const confirmDelivery = expressAsyncHandler(async (req, res) => {
     await sellerWallet.save();
   }
 
-  // ── Update buyer wallet (transaction record only) ───────────────────────
   const buyerWallet = await Wallet.findOne({ user: order.user._id });
   if (buyerWallet) {
     await addWalletTransaction(buyerWallet, {
@@ -310,7 +311,6 @@ const confirmDelivery = expressAsyncHandler(async (req, res) => {
     await buyerWallet.save();
   }
 
-  // ── Notifications ───────────────────────────────────────────────────────
   await notify(sellerId, {
     title: "Payment received!",
     message: `$${sellerAmount.toFixed(2)} has been released to your wallet for "${item.name}".`,
@@ -548,29 +548,23 @@ const _processRefundForItem = async (order, item) => {
   item.escrowStatus = "refunded";
   item.cancelledAt = new Date();
 
-  // Attempt Stripe partial refund
   try {
     const pi = await stripe.paymentIntents.retrieve(
       order.stripePaymentIntentId,
     );
 
     if (pi.status === "requires_capture") {
-      // Funds not yet captured — nothing to refund on Stripe's side for this item.
-      // If ALL items are now refunded we can cancel the entire intent.
-      const allRefundedOrDone = order.orderItems.every(
-        (i) => i.escrowStatus === "refunded" || i.escrowStatus === "released",
-      );
+      // FIX: replace i._id.equals(item._id) with safe toString comparison
       const allRefunded = order.orderItems.every(
-        (i) => i.escrowStatus === "refunded" || i._id.equals(item._id),
+        (i) =>
+          i.escrowStatus === "refunded" ||
+          i._id?.toString() === item._id?.toString(),
       );
 
       if (allRefunded) {
         await stripe.paymentIntents.cancel(order.stripePaymentIntentId);
       }
-      // Otherwise the held funds simply won't be captured for this item's amount
-      // (partial capture is handled at release time)
     } else if (pi.status === "succeeded") {
-      // Funds already captured — issue a Stripe refund
       await stripe.refunds.create({
         payment_intent: order.stripePaymentIntentId,
         amount: Math.round(totalAmount * 100),
@@ -584,10 +578,8 @@ const _processRefundForItem = async (order, item) => {
     }
   } catch (stripeErr) {
     console.error("Stripe refund error:", stripeErr.message);
-    // Non-fatal — record in wallet and notify admin
   }
 
-  // Update order escrow/payment status
   const allRefunded = order.orderItems.every(
     (i) => i.escrowStatus === "refunded" || i.escrowStatus === "released",
   );
@@ -608,11 +600,8 @@ const _processRefundForItem = async (order, item) => {
 
   await order.save();
 
-  // ── Update buyer wallet (transaction + display balance) ─────────────────
   const buyerWallet = await Wallet.findOne({ user: order.user._id });
   if (buyerWallet) {
-    // Note: buyer's availableBalance here is display-only (they can't withdraw);
-    // we add it so they can see the refund tracked
     await addWalletTransaction(buyerWallet, {
       sender: "system",
       receiver: order.user._id.toString(),

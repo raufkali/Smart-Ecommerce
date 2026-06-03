@@ -1,9 +1,9 @@
-// Navbar.jsx - Complete rebuild with Role-Based Dropdowns
 "use client";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import React, { useState, useEffect } from "react";
 import "./Navbar.css";
+import NotificationBell from "./NotificationBell";
 
 const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" }) => {
   const router = useRouter();
@@ -153,7 +153,9 @@ const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" }) => {
                   </li>
                 );
               })}
-
+              <li className="nav-item">
+                <NotificationBell />
+              </li>
               {/* User Menu or Login */}
               {isLoggedIn ? (
                 <li className="nav-item user-menu">

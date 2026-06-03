@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const asyncHandler = require("express-async-handler");
 const Wallet = require("../models/Wallet");
 const Cart = require("../models/Cart");
+
 // GET ALL USERS
 const getAllUsers = asyncHandler(async (req, res) => {
   const allUsers = await User.find();
@@ -15,6 +16,7 @@ const getAllUsers = asyncHandler(async (req, res) => {
 
 // CREATE USER
 const createUser = asyncHandler(async (req, res) => {
+  const io = req.app.get("io");
   const data = req.body;
   console.log(data);
   // determine allowed roles
@@ -49,7 +51,7 @@ const createUser = asyncHandler(async (req, res) => {
     user: user._id,
     role: data.role,
   });
-  // generate JWT
+
   if (req.user && req.user.role == "admin") {
     res.status(201).json({
       status: "success",
@@ -66,7 +68,19 @@ const createUser = asyncHandler(async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: "7d" },
     );
-
+    io.to(user._id.toString()).emit("notification", {
+      type: "Account Created",
+      message:
+        "Welcome " +
+        user.fullname +
+        "! Your account has been created successfully",
+    });
+    if (data.role !== "admin") {
+      io.to("admin-room").emit("notification", {
+        type: "NEW_USER",
+        message: `New user registered: ${user.email}`,
+      });
+    }
     res.status(201).json({
       status: "success",
       message: "User created successfully",
@@ -106,7 +120,13 @@ const loginUser = asyncHandler(async (req, res) => {
     process.env.JWT_SECRET,
     { expiresIn: "7d" },
   );
-
+  const io = req.app.get("io");
+  io.to(user._id.toString()).emit("notification", {
+    type: "Login Alert",
+    message:
+      "Your account was just accessed. If this wasn't you, please secure your account immediately.",
+    timestamp: new Date().toISOString(), // ← add this to ALL emits
+  });
   res.status(200).json({
     message: "User logged in successfully",
     token,
@@ -119,19 +139,24 @@ const deleteUser = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error("Invalid Token or Invalid ID");
   }
-  const userId = req.user.id;
+  const userId = req.params.id;
   // delete user wallet
-  const wallet = await Wallet.findOne({ userId });
+  const wallet = await Wallet.findOne({ user: userId });
   if (wallet) {
     await Wallet.findByIdAndDelete(wallet._id);
   }
   // remove cart
-  const cart = await Cart.findOne({ userId });
+  const cart = await Cart.findOne({ user: userId });
   if (cart) {
     await Cart.findByIdAndDelete(cart._id);
   }
   // delete the user
   const user = await User.findByIdAndDelete(req.params.id);
+  const io = req.app.get("io");
+  io.to("admin-room").emit("notification", {
+    type: "USER_DELETED",
+    message: `User deleted: ${user.email}`,
+  });
   res.status(200).json({
     success: true,
     user,
@@ -163,7 +188,11 @@ const updateUser = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error("User not found");
   }
-
+  const io = req.app.get("io");
+  io.to(updatedUser._id.toString()).emit("notification", {
+    type: "Profile Updated",
+    message: "Your profile information has been updated successfully.",
+  });
   res.status(200).json({
     success: true,
     data: updatedUser,

@@ -1,6 +1,8 @@
 const express = require("express");
 const path = require("path");
 const dotenv = require("dotenv");
+const http = require("http");
+const { Server } = require("socket.io");
 
 const connectDB = require("./config/database");
 const cors = require("cors");
@@ -34,7 +36,30 @@ const sellerRoutes = require("./routes/sellerRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+  },
+});
+app.set("io", io);
 
+io.on("connection", (socket) => {
+  console.log("User connected:", socket.id);
+
+  // join user room
+  socket.on("joinRoom", ({ userId, role }) => {
+    socket.join(userId);
+    console.log(`User joined room: ${userId}`);
+    if (role == "admin") {
+      socket.join("admin-room");
+    }
+  });
+
+  socket.on("disconnect", () => {
+    console.log("User disconnected:", socket.id);
+  });
+});
 // Webhook MUST receive raw body before express.json() parses it
 app.use("/payment/webhook", express.raw({ type: "application/json" }));
 
@@ -77,6 +102,6 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 8080;
 
-app.listen(PORT, "0.0.0.0", () => {
+server.listen(PORT, "0.0.0.0", () => {
   console.log("App started on PORT:", PORT);
 });

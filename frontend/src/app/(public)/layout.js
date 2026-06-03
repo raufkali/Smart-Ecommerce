@@ -5,6 +5,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import { useState, useEffect } from "react";
 import Footer from "../components/Footer";
+import { NotificationProvider } from "../context/NotificationContext";
 
 export default function RootLayout({ children }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -120,15 +121,17 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body className="light-theme">
         <div className="app-wrapper">
-          <Navbar
-            items={navItems}
-            brandName="SHOPNEST"
-            brandLink="/"
-            isLoggedIn={isLoggedIn}
-            cartCount={cartCount}
-          />
-          <main className="main-content">{children}</main>
-          <Footer />
+          <NotificationProvider>
+            <Navbar
+              items={navItems}
+              brandName="SHOPNEST"
+              brandLink="/"
+              isLoggedIn={isLoggedIn}
+              cartCount={cartCount}
+            />
+            <main className="main-content">{children}</main>
+            <Footer />
+          </NotificationProvider>
         </div>
 
         <style jsx>{`
