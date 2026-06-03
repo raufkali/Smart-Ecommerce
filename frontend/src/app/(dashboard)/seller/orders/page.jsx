@@ -3,13 +3,12 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import "./SellerOrders.css";
 
 const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL;
 const token = () => localStorage.getItem("token");
 
-// ─────────────────────────────────────────────
-// Toast
-// ─────────────────────────────────────────────
+// Toast Component
 const Toast = ({ message, type, onClose }) => {
   useEffect(() => {
     const t = setTimeout(onClose, 3000);
@@ -22,59 +21,19 @@ const Toast = ({ message, type, onClose }) => {
     warning: "bi-exclamation-triangle-fill",
     info: "bi-info-circle-fill",
   };
-  const colors = {
-    success: "bg-success",
-    error: "bg-danger",
-    warning: "bg-warning",
-    info: "bg-info",
-  };
 
   return (
-    <div
-      className={`${colors[type] || "bg-primary"} text-white`}
-      role="alert"
-      style={{
-        position: "fixed",
-        top: 20,
-        right: 20,
-        minWidth: 300,
-        maxWidth: 400,
-        padding: "1rem 1.25rem",
-        borderRadius: "0.5rem",
-        boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
-        display: "flex",
-        alignItems: "center",
-        zIndex: 9999,
-        animation: "slideIn 0.3s ease forwards",
-      }}
-    >
-      <i className={`bi ${icons[type] || "bi-bell-fill"} me-2`}></i>
-      <span className="flex-grow-1">{message}</span>
-      <button
-        type="button"
-        className="btn-close btn-close-white ms-3"
-        onClick={onClose}
-      />
-      <style jsx>{`
-        @keyframes slideIn {
-          from {
-            transform: translateX(100%);
-            opacity: 0;
-          }
-          to {
-            transform: translateX(0);
-            opacity: 1;
-          }
-        }
-      `}</style>
+    <div className={`dashboard-toast dashboard-toast-${type}`} role="alert">
+      <i className={`bi ${icons[type] || "bi-bell-fill"}`}></i>
+      <span className="toast-message">{message}</span>
+      <button type="button" className="toast-close-btn" onClick={onClose}>
+        <i className="bi bi-x-lg"></i>
+      </button>
     </div>
   );
 };
 
-// ─────────────────────────────────────────────
 // Auto-release countdown badge
-// Shows how many days/hours remain until funds auto-release
-// ─────────────────────────────────────────────
 const AutoReleaseCountdown = ({ autoReleaseAt }) => {
   const [label, setLabel] = useState("");
 
@@ -91,53 +50,51 @@ const AutoReleaseCountdown = ({ autoReleaseAt }) => {
       setLabel(`Auto-releases in ${d}d ${h}h`);
     };
     calc();
-    const id = setInterval(calc, 60_000);
+    const id = setInterval(calc, 60000);
     return () => clearInterval(id);
   }, [autoReleaseAt]);
 
   if (!autoReleaseAt || !label) return null;
 
   return (
-    <small className="text-info d-block mt-1">
-      <i className="bi bi-clock me-1"></i>
+    <small className="auto-release-badge">
+      <i className="bi bi-clock-history"></i>
       {label}
     </small>
   );
 };
 
-// ─────────────────────────────────────────────
-// Dispute badge + respond button (shown in table rows and modal)
-// ─────────────────────────────────────────────
+// Dispute badge component
 const DisputeBadge = ({ item, onRespond }) => {
   if (!item.disputeStatus || item.disputeStatus === "none") return null;
 
   const configs = {
     open: {
-      label: "Refund requested",
+      label: "Refund Requested",
       color: "warning",
       icon: "bi-exclamation-triangle-fill",
       canAct: true,
     },
     approved: {
-      label: "Refund approved",
+      label: "Refund Approved",
       color: "success",
       icon: "bi-check-circle",
       canAct: false,
     },
     rejected: {
-      label: "Dispute escalated",
+      label: "Dispute Escalated",
       color: "danger",
       icon: "bi-shield-exclamation",
       canAct: false,
     },
     resolved_refund: {
-      label: "Admin: refunded",
+      label: "Admin Refunded",
       color: "secondary",
       icon: "bi-gavel",
       canAct: false,
     },
     resolved_release: {
-      label: "Admin: released",
+      label: "Admin Released",
       color: "info",
       icon: "bi-gavel",
       canAct: false,
@@ -152,21 +109,19 @@ const DisputeBadge = ({ item, onRespond }) => {
   };
 
   return (
-    <div className="mt-1">
-      <span className={`badge bg-${cfg.color} me-2`}>
-        <i className={`bi ${cfg.icon} me-1`}></i>
+    <div className="dispute-badge-wrapper">
+      <span className={`dispute-badge ${cfg.color}`}>
+        <i className={`bi ${cfg.icon}`}></i>
         {cfg.label}
       </span>
       {cfg.canAct && onRespond && (
-        <button
-          className="btn btn-sm btn-warning py-0 px-2"
-          onClick={onRespond}
-        >
-          <i className="bi bi-reply me-1"></i>Respond
+        <button className="respond-dispute-btn" onClick={onRespond}>
+          <i className="bi bi-reply-fill"></i>
+          Respond
         </button>
       )}
       {item.disputeStatus === "open" && item.disputeExpiresAt && (
-        <small className="text-muted ms-2">
+        <small className="dispute-expiry">
           Expires: {new Date(item.disputeExpiresAt).toLocaleDateString()}
         </small>
       )}
@@ -174,10 +129,7 @@ const DisputeBadge = ({ item, onRespond }) => {
   );
 };
 
-// ─────────────────────────────────────────────
 // Dispute Resolution Modal
-// Seller approves (refund buyer) or rejects (escalate to admin)
-// ─────────────────────────────────────────────
 const DisputeModal = ({ order, item, onClose, onResolved, showToast }) => {
   const [action, setAction] = useState("approve");
   const [notes, setNotes] = useState("");
@@ -187,7 +139,8 @@ const DisputeModal = ({ order, item, onClose, onResolved, showToast }) => {
 
   const productId = (item.product?._id || item.product).toString();
   const refundAmount = item.price * item.quantity + (item.shippingFee || 0);
-  const fmt = (v) =>
+
+  const formatCurrency = (v) =>
     new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
@@ -222,139 +175,122 @@ const DisputeModal = ({ order, item, onClose, onResolved, showToast }) => {
   };
 
   return (
-    <div
-      className="modal show d-block"
-      style={{ backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1060 }}
-      onClick={onClose}
-    >
+    <div className="modal-overlay" onClick={onClose}>
       <div
-        className="modal-dialog modal-dialog-centered"
+        className="modal-container dispute-modal"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="modal-content">
-          <div className="modal-header">
-            <h5 className="modal-title">
-              <i className="bi bi-shield-exclamation me-2 text-warning"></i>
-              Resolve Refund Dispute
-            </h5>
-            <button type="button" className="btn-close" onClick={onClose} />
-          </div>
-          <form onSubmit={handleSubmit}>
-            <div className="modal-body">
-              <div className="alert alert-warning mb-3">
-                <strong>Buyer&apos;s reason:</strong>{" "}
-                {item.disputeReason || "No reason provided"}
-              </div>
-              <div className="alert alert-info mb-3">
-                <strong>Product:</strong> {item.name}
-                <br />
-                <strong>Refund amount:</strong> {fmt(refundAmount)}
-              </div>
-
-              {/* Choice cards */}
-              <div className="mb-3">
-                <label className="form-label fw-semibold">Your decision</label>
-                <div className="d-flex gap-3">
-                  <div
-                    className={`border rounded p-3 flex-fill text-center ${
-                      action === "approve"
-                        ? "border-success bg-success bg-opacity-10"
-                        : "border-secondary"
-                    }`}
-                    style={{ cursor: "pointer" }}
-                    onClick={() => setAction("approve")}
-                  >
-                    <i className="bi bi-check-circle-fill text-success d-block mb-1 fs-4"></i>
-                    <strong className="text-success d-block">Approve</strong>
-                    <small className="text-muted">Buyer gets money back</small>
-                  </div>
-                  <div
-                    className={`border rounded p-3 flex-fill text-center ${
-                      action === "reject"
-                        ? "border-danger bg-danger bg-opacity-10"
-                        : "border-secondary"
-                    }`}
-                    style={{ cursor: "pointer" }}
-                    onClick={() => setAction("reject")}
-                  >
-                    <i className="bi bi-x-circle-fill text-danger d-block mb-1 fs-4"></i>
-                    <strong className="text-danger d-block">Reject</strong>
-                    <small className="text-muted">Escalate to admin</small>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mb-3">
-                <label className="form-label">
-                  Notes{" "}
-                  {action === "reject" && (
-                    <span className="text-danger">*</span>
-                  )}
-                  <span className="text-muted fw-normal">
-                    {" "}
-                    (optional for approve)
-                  </span>
-                </label>
-                <textarea
-                  className="form-control"
-                  rows={3}
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder={
-                    action === "approve"
-                      ? "Any message for the buyer…"
-                      : "Explain why you are rejecting this refund request…"
-                  }
-                  required={action === "reject"}
-                />
-              </div>
-
-              {action === "reject" && (
-                <div className="alert alert-danger mb-0">
-                  <i className="bi bi-info-circle me-2"></i>
-                  Rejecting escalates this to our admin team. Please provide a
-                  clear explanation.
-                </div>
-              )}
-            </div>
-            <div className="modal-footer">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={onClose}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className={`btn ${action === "approve" ? "btn-success" : "btn-danger"}`}
-                disabled={loading || (action === "reject" && !notes.trim())}
-              >
-                {loading ? (
-                  <span className="spinner-border spinner-border-sm me-2" />
-                ) : action === "approve" ? (
-                  <>
-                    <i className="bi bi-check-lg me-1"></i>Approve Refund
-                  </>
-                ) : (
-                  <>
-                    <i className="bi bi-x-lg me-1"></i>Reject & Escalate
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
+        <div className="modal-header">
+          <h5 className="modal-title">
+            <i className="bi bi-shield-exclamation"></i>
+            Resolve Refund Dispute
+          </h5>
+          <button className="modal-close" onClick={onClose}>
+            <i className="bi bi-x-lg"></i>
+          </button>
         </div>
+        <form onSubmit={handleSubmit}>
+          <div className="modal-body">
+            <div className="info-alert warning">
+              <i className="bi bi-chat-dots-fill"></i>
+              <div>
+                <strong>Buyer's reason:</strong>
+                <p>{item.disputeReason || "No reason provided"}</p>
+              </div>
+            </div>
+
+            <div className="info-alert info">
+              <i className="bi bi-box-seam"></i>
+              <div>
+                <strong>{item.name}</strong>
+                <p>Refund amount: {formatCurrency(refundAmount)}</p>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Your decision</label>
+              <div className="decision-cards">
+                <div
+                  className={`decision-card ${action === "approve" ? "active approve" : ""}`}
+                  onClick={() => setAction("approve")}
+                >
+                  <i className="bi bi-check-circle-fill"></i>
+                  <strong>Approve Refund</strong>
+                  <small>Buyer gets money back</small>
+                </div>
+                <div
+                  className={`decision-card ${action === "reject" ? "active reject" : ""}`}
+                  onClick={() => setAction("reject")}
+                >
+                  <i className="bi bi-x-circle-fill"></i>
+                  <strong>Reject & Escalate</strong>
+                  <small>Admin will review</small>
+                </div>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">
+                Notes{" "}
+                {action === "reject" && <span className="required">*</span>}
+              </label>
+              <textarea
+                className="form-textarea"
+                rows={3}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder={
+                  action === "approve"
+                    ? "Add a message for the buyer (optional)..."
+                    : "Please explain why you're rejecting this refund request..."
+                }
+                required={action === "reject"}
+              />
+            </div>
+
+            {action === "reject" && (
+              <div className="info-alert danger">
+                <i className="bi bi-info-circle-fill"></i>
+                <div>
+                  <strong>Escalation Notice</strong>
+                  <p>
+                    This will escalate the dispute to our admin team for review.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="modal-footer">
+            <button type="button" className="btn-secondary" onClick={onClose}>
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className={`btn-${action === "approve" ? "success" : "danger"}`}
+              disabled={loading || (action === "reject" && !notes.trim())}
+            >
+              {loading ? (
+                <span className="spinner-small"></span>
+              ) : action === "approve" ? (
+                <>
+                  <i className="bi bi-check-lg"></i>
+                  Approve Refund
+                </>
+              ) : (
+                <>
+                  <i className="bi bi-shield-exclamation"></i>
+                  Escalate to Admin
+                </>
+              )}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
 };
 
-// ─────────────────────────────────────────────
 // Order Details Modal
-// Shows customer info, escrow status, per-item status controls,
-// dispute badges, auto-release countdown
-// ─────────────────────────────────────────────
 const OrderDetailsModal = ({
   show,
   onClose,
@@ -367,59 +303,48 @@ const OrderDetailsModal = ({
 
   if (!show || !order) return null;
 
-  const fmt = (v) =>
+  const formatCurrency = (v) =>
     new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
     }).format(v);
-  const fmtDate = (d) => new Date(d).toLocaleString();
 
-  const badgeColor = {
-    pending: "warning",
-    confirmed: "info",
-    processing: "primary",
-    shipped: "primary",
-    delivered: "success",
-    cancelled: "danger",
-    disputed: "danger",
-  };
-  const paymentLabel = {
-    pending: "Pending",
-    requires_payment_method: "Payment Failed",
-    requires_capture: "Held in Escrow",
-    partial_captured: "Partial Released",
-    captured: "Released",
-    paid: "Paid",
-    failed: "Failed",
-    refunded: "Refunded",
-    partial_refunded: "Partial Refunded",
-  };
-  const paymentColor = {
-    pending: "warning",
-    requires_payment_method: "danger",
-    requires_capture: "info",
-    partial_captured: "info",
-    captured: "success",
-    paid: "success",
-    failed: "danger",
-    refunded: "secondary",
-    partial_refunded: "warning",
+  const formatDate = (d) => new Date(d).toLocaleString();
+
+  const statusConfig = {
+    pending: { color: "warning", icon: "bi-hourglass-split" },
+    confirmed: { color: "info", icon: "bi-check2-circle" },
+    processing: { color: "primary", icon: "bi-arrow-repeat" },
+    shipped: { color: "primary", icon: "bi-truck" },
+    delivered: { color: "success", icon: "bi-check2-all" },
+    cancelled: { color: "danger", icon: "bi-x-circle" },
+    disputed: { color: "danger", icon: "bi-exclamation-triangle" },
   };
 
-  // Filter items that belong to this seller
+  const paymentConfig = {
+    pending: { label: "Pending", color: "warning" },
+    requires_payment_method: { label: "Payment Failed", color: "danger" },
+    requires_capture: { label: "In Escrow", color: "info" },
+    partial_captured: { label: "Partially Released", color: "info" },
+    captured: { label: "Released", color: "success" },
+    paid: { label: "Paid", color: "success" },
+    failed: { label: "Failed", color: "danger" },
+    refunded: { label: "Refunded", color: "secondary" },
+    partial_refunded: { label: "Partial Refund", color: "warning" },
+  };
+
   const sellerItems =
     order.orderItems?.filter(
       (item) =>
         item.seller === order.sellerId || item.seller?._id === order.sellerId,
     ) || [];
 
-  // Status flow — sellers cannot set "delivered"; that's buyer-triggered
   const nextStatuses = (current) =>
     ({
       pending: ["confirmed", "cancelled"],
       confirmed: ["processing", "cancelled"],
       processing: ["shipped", "cancelled"],
-      shipped: [], // buyer confirms or auto-release handles delivery
+      shipped: [],
       delivered: [],
       cancelled: [],
       disputed: [],
@@ -447,7 +372,7 @@ const OrderDetailsModal = ({
         newStatus === "cancelled"
           ? "Item cancelled and refunded successfully!"
           : newStatus === "shipped"
-            ? `Item marked as shipped. 10-day buyer review period started.`
+            ? "Item marked as shipped. 10-day buyer review period started."
             : `Status updated to ${newStatus}`;
       showToast(msg, "success");
       onUpdateStatus();
@@ -459,314 +384,271 @@ const OrderDetailsModal = ({
   };
 
   return (
-    <div
-      className="modal show d-block"
-      style={{ backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1050 }}
-      onClick={onClose}
-    >
+    <div className="modal-overlay" onClick={onClose}>
       <div
-        className="modal-dialog modal-lg modal-dialog-centered"
+        className="modal-container order-modal"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="modal-content">
-          <div className="modal-header">
-            <h5 className="modal-title">
-              Order Details #{order._id?.slice(-8).toUpperCase()}
-            </h5>
-            <button type="button" className="btn-close" onClick={onClose} />
+        <div className="modal-header">
+          <h5 className="modal-title">
+            <i className="bi bi-receipt"></i>
+            Order #{order._id?.slice(-8).toUpperCase()}
+          </h5>
+          <button className="modal-close" onClick={onClose}>
+            <i className="bi bi-x-lg"></i>
+          </button>
+        </div>
+
+        <div className="modal-body">
+          {/* Customer & Shipping */}
+          <div className="info-grid">
+            <div className="info-card">
+              <h6>
+                <i className="bi bi-person"></i> Customer
+              </h6>
+              <p>
+                <strong>Name:</strong>{" "}
+                {order.user?.fullname || order.shippingAddress?.fullName}
+              </p>
+              <p>
+                <strong>Email:</strong> {order.user?.email}
+              </p>
+              <p>
+                <strong>Phone:</strong> {order.shippingAddress?.phone}
+              </p>
+            </div>
+            <div className="info-card">
+              <h6>
+                <i className="bi bi-geo-alt"></i> Shipping Address
+              </h6>
+              <p>{order.shippingAddress?.address}</p>
+              <p>
+                {order.shippingAddress?.city},{" "}
+                {order.shippingAddress?.postalCode}
+              </p>
+              <p>{order.shippingAddress?.country}</p>
+            </div>
           </div>
 
-          <div className="modal-body">
-            {/* Customer + Shipping */}
-            <div className="row mb-4">
-              <div className="col-md-6">
-                <h6 className="fw-semibold mb-2">Customer</h6>
-                <p className="mb-1">
-                  <strong>Name:</strong>{" "}
-                  {order.user?.fullname || order.shippingAddress?.fullName}
+          {/* Order Summary */}
+          <div className="summary-grid">
+            <div className="summary-item">
+              <small>Order Date</small>
+              <strong>{formatDate(order.createdAt)}</strong>
+            </div>
+            <div className="summary-item">
+              <small>Payment Method</small>
+              <strong className="capitalize">{order.paymentMethod}</strong>
+            </div>
+            <div className="summary-item">
+              <small>Payment Status</small>
+              <span
+                className={`status-badge ${paymentConfig[order.paymentStatus]?.color || "secondary"}`}
+              >
+                {paymentConfig[order.paymentStatus]?.label ||
+                  order.paymentStatus}
+              </span>
+            </div>
+            <div className="summary-item">
+              <small>Your Earnings</small>
+              <strong className="gold-text">
+                {formatCurrency(
+                  sellerItems.reduce((s, i) => s + i.price * i.quantity, 0),
+                )}
+              </strong>
+            </div>
+          </div>
+
+          {/* Escrow Notice */}
+          {order.paymentStatus === "requires_capture" && (
+            <div className="info-alert info">
+              <i className="bi bi-shield-lock-fill"></i>
+              <div>
+                <strong>Funds held in escrow</strong>
+                <p>
+                  Payment of {formatCurrency(order.totalPrice)} is securely
+                  held. Funds release when the buyer confirms delivery or the
+                  10-day review window closes.
                 </p>
-                <p className="mb-1">
-                  <strong>Email:</strong> {order.user?.email}
-                </p>
-                <p className="mb-1">
-                  <strong>Phone:</strong> {order.shippingAddress?.phone}
-                </p>
-              </div>
-              <div className="col-md-6">
-                <h6 className="fw-semibold mb-2">Shipping Address</h6>
-                <p className="mb-1">{order.shippingAddress?.address}</p>
-                <p className="mb-1">
-                  {order.shippingAddress?.city},{" "}
-                  {order.shippingAddress?.postalCode}
-                </p>
-                <p className="mb-1">{order.shippingAddress?.country}</p>
               </div>
             </div>
+          )}
 
-            {/* Summary cards */}
-            <div className="row mb-4">
-              <div className="col-md-3">
-                <div className="bg-light p-3 rounded">
-                  <small className="text-muted d-block">Order Date</small>
-                  <strong>{fmtDate(order.createdAt)}</strong>
-                </div>
-              </div>
-              <div className="col-md-3">
-                <div className="bg-light p-3 rounded">
-                  <small className="text-muted d-block">Payment Method</small>
-                  <strong className="text-capitalize">
-                    {order.paymentMethod}
-                  </strong>
-                </div>
-              </div>
-              <div className="col-md-3">
-                <div className="bg-light p-3 rounded">
-                  <small className="text-muted d-block">Payment Status</small>
-                  <span
-                    className={`badge bg-${paymentColor[order.paymentStatus] || "secondary"}`}
-                  >
-                    {paymentLabel[order.paymentStatus] || order.paymentStatus}
-                  </span>
-                </div>
-              </div>
-              <div className="col-md-3">
-                <div className="bg-light p-3 rounded">
-                  <small className="text-muted d-block">Your Earnings</small>
-                  <strong className="text-primary">
-                    {fmt(
-                      sellerItems.reduce((s, i) => s + i.price * i.quantity, 0),
-                    )}
-                  </strong>
-                </div>
+          {order.paymentStatus === "captured" && (
+            <div className="info-alert success">
+              <i className="bi bi-check-circle-fill"></i>
+              <div>
+                <strong>Payment released</strong>
+                <p>Funds have been transferred to your wallet.</p>
               </div>
             </div>
+          )}
 
-            {/* Escrow / payment banners */}
-            {order.paymentStatus === "requires_capture" && (
-              <div className="alert alert-info mb-4">
-                <div className="d-flex">
-                  <i className="bi bi-shield-lock fs-4 me-3"></i>
-                  <div>
-                    <strong>Funds held in escrow</strong>
-                    <p className="mb-0 small">
-                      Payment of {fmt(order.totalPrice)} is securely held. Funds
-                      release when the buyer confirms delivery or the 10-day
-                      review window closes.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-            {order.paymentStatus === "captured" && (
-              <div className="alert alert-success mb-4">
-                <div className="d-flex">
-                  <i className="bi bi-check-circle fs-4 me-3"></i>
-                  <div>
-                    <strong>Payment released</strong>
-                    <p className="mb-0 small">
-                      Funds have been transferred to your wallet.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
+          {/* Products Table */}
+          <h6 className="section-title">
+            <i className="bi bi-grid"></i> Your Products
+          </h6>
+          <div className="orders-table-container">
+            <table className="orders-table">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Price</th>
+                  <th>Qty</th>
+                  <th>Total</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sellerItems.map((item, idx) => {
+                  const productId = (
+                    item.product._id || item.product
+                  ).toString();
+                  const nexts = nextStatuses(item.orderStatus);
+                  const hasOpenDispute = item.disputeStatus === "open";
+                  const status = statusConfig[item.orderStatus] || {
+                    color: "secondary",
+                    icon: "bi-question",
+                  };
 
-            {/* Products table */}
-            <h6 className="fw-semibold mb-3">Your products in this order</h6>
-            <div className="table-responsive">
-              <table className="table table-bordered align-middle mb-0">
-                <thead className="table-light">
-                  <tr>
-                    <th>Product</th>
-                    <th>Price</th>
-                    <th>Qty</th>
-                    <th>Total</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sellerItems.map((item, idx) => {
-                    const productId = (
-                      item.product._id || item.product
-                    ).toString();
-                    const nexts = nextStatuses(item.orderStatus);
-                    const hasOpenDispute = item.disputeStatus === "open";
-
-                    return (
-                      <tr key={idx}>
-                        <td>
-                          <div className="d-flex align-items-center gap-2">
-                            {item.product?.images?.[0] && (
-                              <img
-                                src={`${BACKEND}${item.product.images[0]}`}
-                                alt={item.name}
-                                style={{
-                                  width: 40,
-                                  height: 40,
-                                  objectFit: "cover",
-                                  borderRadius: 4,
-                                }}
-                              />
-                            )}
-                            <span>{item.name}</span>
-                          </div>
-                        </td>
-                        <td>{fmt(item.price)}</td>
-                        <td>{item.quantity}</td>
-                        <td>{fmt(item.price * item.quantity)}</td>
-                        <td>
-                          <span
-                            className={`badge bg-${badgeColor[item.orderStatus] || "secondary"}`}
-                          >
-                            {item.orderStatus}
-                          </span>
-                          {/* Dispute badge */}
-                          <DisputeBadge
-                            item={item}
-                            onRespond={() => onOpenDispute(order, item)}
+                  return (
+                    <tr key={idx}>
+                      <td className="product-cell">
+                        {item.product?.images?.[0] && (
+                          <img
+                            src={`${BACKEND}${item.product.images[0]}`}
+                            alt={item.name}
+                            className="product-thumb"
                           />
-                          {/* Auto-release countdown — visible after shipping */}
-                          {item.orderStatus === "shipped" &&
-                            item.autoReleaseAt && (
-                              <AutoReleaseCountdown
-                                autoReleaseAt={item.autoReleaseAt}
-                              />
-                            )}
-                        </td>
-                        <td>
-                          {/* Block status changes while a dispute is open */}
-                          {hasOpenDispute ? (
-                            <small className="text-warning">
-                              <i className="bi bi-lock me-1"></i>
-                              Dispute pending
-                            </small>
-                          ) : (
-                            <div className="d-flex gap-1 flex-wrap">
-                              {nexts.map((status) => (
-                                <button
-                                  key={status}
-                                  className={`btn btn-sm ${
-                                    status === "cancelled"
-                                      ? "btn-outline-danger"
-                                      : status === "shipped"
-                                        ? "btn-primary"
-                                        : `btn-${badgeColor[status] || "secondary"}`
-                                  }`}
-                                  onClick={() =>
-                                    handleStatusUpdate(productId, status)
-                                  }
-                                  disabled={updatingStatus}
-                                  title={
-                                    status === "shipped"
-                                      ? "Marking as shipped starts the 10-day buyer review period"
-                                      : undefined
-                                  }
-                                >
-                                  {status === "cancelled" ? (
-                                    <>
-                                      <i className="bi bi-x-circle me-1"></i>
-                                      Cancel & refund
-                                    </>
-                                  ) : status === "shipped" ? (
-                                    <>
-                                      <i className="bi bi-truck me-1"></i>Mark
-                                      shipped
-                                    </>
-                                  ) : (
-                                    status
-                                  )}
-                                </button>
-                              ))}
-                              {nexts.length === 0 &&
-                                item.orderStatus !== "shipped" && (
-                                  <span className="text-muted small">
-                                    No actions
-                                  </span>
+                        )}
+                        <span>{item.name}</span>
+                      </td>
+                      <td>{formatCurrency(item.price)}</td>
+                      <td>{item.quantity}</td>
+                      <td className="gold-text">
+                        {formatCurrency(item.price * item.quantity)}
+                      </td>
+                      <td>
+                        <span className={`status-badge ${status.color}`}>
+                          <i className={`bi ${status.icon}`}></i>
+                          {item.orderStatus}
+                        </span>
+                        <DisputeBadge
+                          item={item}
+                          onRespond={() => onOpenDispute(order, item)}
+                        />
+                        {item.orderStatus === "shipped" &&
+                          item.autoReleaseAt && (
+                            <AutoReleaseCountdown
+                              autoReleaseAt={item.autoReleaseAt}
+                            />
+                          )}
+                      </td>
+                      <td>
+                        {hasOpenDispute ? (
+                          <span className="blocked-message">
+                            <i className="bi bi-lock-fill"></i>
+                            Dispute pending
+                          </span>
+                        ) : (
+                          <div className="action-buttons">
+                            {nexts.map((status) => (
+                              <button
+                                key={status}
+                                className={`action-btn ${status}`}
+                                onClick={() =>
+                                  handleStatusUpdate(productId, status)
+                                }
+                                disabled={updatingStatus}
+                              >
+                                {status === "cancelled" && (
+                                  <i className="bi bi-x-circle"></i>
                                 )}
-                            </div>
-                          )}
+                                {status === "shipped" && (
+                                  <i className="bi bi-truck"></i>
+                                )}
+                                {status !== "cancelled" &&
+                                  status !== "shipped" &&
+                                  status}
+                                {status === "cancelled" && "Cancel"}
+                                {status === "shipped" && "Ship"}
+                              </button>
+                            ))}
+                            {nexts.length === 0 &&
+                              item.orderStatus !== "shipped" && (
+                                <span className="text-muted small">
+                                  No actions
+                                </span>
+                              )}
+                          </div>
+                        )}
+                        {item.orderStatus === "cancelled" && (
+                          <small className="refunded-text">
+                            <i className="bi bi-arrow-repeat"></i>
+                            Refunded to buyer
+                          </small>
+                        )}
+                        {item.orderStatus === "delivered" && (
+                          <small className="released-text">
+                            <i className="bi bi-check-circle"></i>
+                            Payment released
+                          </small>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
 
-                          {/* Terminal state labels */}
-                          {item.orderStatus === "cancelled" && (
-                            <small className="text-success d-block mt-1">
-                              <i className="bi bi-arrow-repeat me-1"></i>
-                              Refunded to buyer
-                            </small>
-                          )}
-                          {item.orderStatus === "delivered" && (
-                            <small className="text-info d-block mt-1">
-                              <i className="bi bi-check-circle me-1"></i>
-                              Payment released
-                            </small>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Order totals */}
-            <div className="row justify-content-end mt-4">
-              <div className="col-md-4">
-                <div className="bg-light p-3 rounded">
-                  <div className="d-flex justify-content-between mb-2">
-                    <span>Subtotal:</span>
-                    <strong>{fmt(order.itemsPrice)}</strong>
-                  </div>
-                  <div className="d-flex justify-content-between mb-2">
-                    <span>Shipping:</span>
-                    <strong>{fmt(order.shippingPrice)}</strong>
-                  </div>
-                  <div className="d-flex justify-content-between mb-2">
-                    <span>Tax:</span>
-                    <strong>{fmt(order.taxPrice)}</strong>
-                  </div>
-                  <hr />
-                  <div className="d-flex justify-content-between">
-                    <span className="fw-bold">Total:</span>
-                    <span className="fw-bold text-primary">
-                      {fmt(order.totalPrice)}
-                    </span>
-                  </div>
-                </div>
+          {/* Order Totals */}
+          <div className="totals-section">
+            <div className="totals-card">
+              <div className="total-row">
+                <span>Subtotal:</span>
+                <strong>{formatCurrency(order.itemsPrice)}</strong>
+              </div>
+              <div className="total-row">
+                <span>Shipping:</span>
+                <strong>{formatCurrency(order.shippingPrice)}</strong>
+              </div>
+              <div className="total-row">
+                <span>Tax:</span>
+                <strong>{formatCurrency(order.taxPrice)}</strong>
+              </div>
+              <hr />
+              <div className="total-row grand">
+                <span>Total:</span>
+                <strong className="gold-text">
+                  {formatCurrency(order.totalPrice)}
+                </strong>
               </div>
             </div>
           </div>
+        </div>
 
-          <div className="modal-footer">
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={onClose}
-            >
-              Close
-            </button>
-          </div>
+        <div className="modal-footer">
+          <button className="btn-secondary" onClick={onClose}>
+            Close
+          </button>
         </div>
       </div>
     </div>
   );
 };
 
-// ─────────────────────────────────────────────
-// Main SellerOrders page
-// ─────────────────────────────────────────────
+// Main SellerOrders Component
 const SellerOrders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
-
-  // Modal state
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [disputeOrder, setDisputeOrder] = useState(null);
   const [disputeItem, setDisputeItem] = useState(null);
   const [showDisputeModal, setShowDisputeModal] = useState(false);
-
-  // Filters
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
@@ -795,22 +677,21 @@ const SellerOrders = () => {
   }, []);
 
   const openDispute = (order, item) => {
-    // Close details modal first so both don't stack awkwardly
     setShowDetailsModal(false);
     setDisputeOrder(order);
     setDisputeItem(item);
     setShowDisputeModal(true);
   };
 
-  // ── Helpers ──────────────────────────────────────────────────────────────
-  const fmt = (v) =>
+  const formatCurrency = (v) =>
     new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
     }).format(v);
-  const fmtDate = (d) => new Date(d).toLocaleDateString();
 
-  const badgeColor = {
+  const formatDate = (d) => new Date(d).toLocaleDateString();
+
+  const statusConfig = {
     pending: "warning",
     confirmed: "info",
     processing: "primary",
@@ -819,30 +700,19 @@ const SellerOrders = () => {
     cancelled: "danger",
     disputed: "danger",
   };
-  const paymentLabel = {
-    pending: "Pending",
-    requires_payment_method: "Failed",
-    requires_capture: "Escrow",
-    partial_captured: "Part. Released",
-    captured: "Released",
-    paid: "Paid",
-    failed: "Failed",
-    refunded: "Refunded",
-    partial_refunded: "Part. Refund",
-  };
-  const paymentColor = {
-    pending: "warning",
-    requires_payment_method: "danger",
-    requires_capture: "info",
-    partial_captured: "info",
-    captured: "success",
-    paid: "success",
-    failed: "danger",
-    refunded: "secondary",
-    partial_refunded: "warning",
+
+  const paymentConfig = {
+    pending: { label: "Pending", color: "warning" },
+    requires_payment_method: { label: "Failed", color: "danger" },
+    requires_capture: { label: "Escrow", color: "info" },
+    partial_captured: { label: "Part. Released", color: "info" },
+    captured: { label: "Released", color: "success" },
+    paid: { label: "Paid", color: "success" },
+    failed: { label: "Failed", color: "danger" },
+    refunded: { label: "Refunded", color: "secondary" },
+    partial_refunded: { label: "Part. Refund", color: "warning" },
   };
 
-  // ── Stats ─────────────────────────────────────────────────────────────────
   const stats = {
     total: orders.length,
     pending: orders.filter((o) =>
@@ -865,7 +735,6 @@ const SellerOrders = () => {
     }, 0),
   };
 
-  // ── Filtering ─────────────────────────────────────────────────────────────
   const filteredOrders = orders.filter((order) => {
     const q = searchTerm.toLowerCase();
     const matchSearch =
@@ -899,9 +768,8 @@ const SellerOrders = () => {
     return matchSearch && matchStatus && matchPayment && matchDate;
   });
 
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="container-fluid py-4">
+    <div className="seller-orders">
       {toast && (
         <Toast
           message={toast.message}
@@ -910,7 +778,6 @@ const SellerOrders = () => {
         />
       )}
 
-      {/* Details modal */}
       <OrderDetailsModal
         show={showDetailsModal}
         onClose={() => {
@@ -926,7 +793,6 @@ const SellerOrders = () => {
         onOpenDispute={openDispute}
       />
 
-      {/* Dispute modal */}
       {showDisputeModal && (
         <DisputeModal
           order={disputeOrder}
@@ -941,89 +807,99 @@ const SellerOrders = () => {
         />
       )}
 
-      {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <h1 className="h2 fw-bold mb-2">Orders Management</h1>
-          <p className="text-muted mb-0">
-            Manage and track your customer orders
-          </p>
+      <div className="orders-container">
+        {/* Header */}
+        <div className="page-header">
+          <div>
+            <div className="header-badge">
+              <i className="bi bi-box-seam"></i>
+              <span>Order Management</span>
+            </div>
+            <h1 className="page-title">Orders Management</h1>
+            <p className="page-subtitle">
+              Manage and track your customer orders
+            </p>
+          </div>
         </div>
-      </div>
 
-      {/* Stats */}
-      <div className="row g-4 mb-4">
-        <div className="col-md-2">
-          <div className="card border-0 shadow-sm bg-primary bg-opacity-10">
-            <div className="card-body py-3">
-              <h6 className="text-muted mb-1 small">Total</h6>
-              <h3 className="fw-bold mb-0">{stats.total}</h3>
+        {/* Stats Grid */}
+        <div className="stats-grid">
+          <div className="stat-card">
+            <div className="stat-icon total">
+              <i className="bi bi-receipt"></i>
+            </div>
+            <div className="stat-content">
+              <h3 className="stat-value">{stats.total}</h3>
+              <p className="stat-label">Total Orders</p>
             </div>
           </div>
-        </div>
-        <div className="col-md-2">
-          <div className="card border-0 shadow-sm bg-warning bg-opacity-10">
-            <div className="card-body py-3">
-              <h6 className="text-muted mb-1 small">Pending</h6>
-              <h3 className="fw-bold mb-0">{stats.pending}</h3>
+
+          <div className="stat-card">
+            <div className="stat-icon pending">
+              <i className="bi bi-hourglass-split"></i>
+            </div>
+            <div className="stat-content">
+              <h3 className="stat-value">{stats.pending}</h3>
+              <p className="stat-label">Pending</p>
             </div>
           </div>
-        </div>
-        <div className="col-md-2">
-          <div className="card border-0 shadow-sm bg-primary bg-opacity-10">
-            <div className="card-body py-3">
-              <h6 className="text-muted mb-1 small">Shipped</h6>
-              <h3 className="fw-bold mb-0">{stats.shipped}</h3>
+
+          <div className="stat-card">
+            <div className="stat-icon shipped">
+              <i className="bi bi-truck"></i>
+            </div>
+            <div className="stat-content">
+              <h3 className="stat-value">{stats.shipped}</h3>
+              <p className="stat-label">Shipped</p>
             </div>
           </div>
-        </div>
-        <div className="col-md-2">
-          <div className="card border-0 shadow-sm bg-danger bg-opacity-10">
-            <div className="card-body py-3">
-              <h6 className="text-muted mb-1 small">Disputes</h6>
-              <h3 className="fw-bold mb-0 text-danger">{stats.disputes}</h3>
+
+          <div className="stat-card">
+            <div className="stat-icon disputes">
+              <i className="bi bi-exclamation-triangle-fill"></i>
+            </div>
+            <div className="stat-content">
+              <h3 className="stat-value text-danger">{stats.disputes}</h3>
+              <p className="stat-label">Disputes</p>
             </div>
           </div>
-        </div>
-        <div className="col-md-2">
-          <div className="card border-0 shadow-sm bg-info bg-opacity-10">
-            <div className="card-body py-3">
-              <h6 className="text-muted mb-1 small">In Escrow</h6>
-              <h3 className="fw-bold mb-0">{stats.inEscrow}</h3>
+
+          <div className="stat-card">
+            <div className="stat-icon escrow">
+              <i className="bi bi-shield-lock-fill"></i>
+            </div>
+            <div className="stat-content">
+              <h3 className="stat-value">{stats.inEscrow}</h3>
+              <p className="stat-label">In Escrow</p>
             </div>
           </div>
-        </div>
-        <div className="col-md-2">
-          <div className="card border-0 shadow-sm bg-success bg-opacity-10">
-            <div className="card-body py-3">
-              <h6 className="text-muted mb-1 small">Revenue</h6>
-              <h3 className="fw-bold mb-0" style={{ fontSize: "1.2rem" }}>
-                {fmt(stats.revenue)}
+
+          <div className="stat-card">
+            <div className="stat-icon revenue">
+              <i className="bi bi-currency-dollar"></i>
+            </div>
+            <div className="stat-content">
+              <h3 className="stat-value gold-text">
+                {formatCurrency(stats.revenue)}
               </h3>
+              <p className="stat-label">Revenue</p>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Filters */}
-      <div className="row g-3 mb-4">
-        <div className="col-md-4">
-          <div className="input-group">
-            <span className="input-group-text bg-white">
-              <i className="bi bi-search"></i>
-            </span>
+        {/* Filters */}
+        <div className="filters-bar">
+          <div className="search-box">
+            <i className="bi bi-search"></i>
             <input
               type="text"
-              className="form-control"
-              placeholder="Search order ID, customer, product…"
+              placeholder="Search order ID, customer, product..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-        </div>
-        <div className="col-md-2">
           <select
-            className="form-select"
+            className="filter-select"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
           >
@@ -1036,24 +912,18 @@ const SellerOrders = () => {
             <option value="cancelled">Cancelled</option>
             <option value="disputed">Disputed</option>
           </select>
-        </div>
-        <div className="col-md-2">
           <select
-            className="form-select"
+            className="filter-select"
             value={paymentFilter}
             onChange={(e) => setPaymentFilter(e.target.value)}
           >
             <option value="all">All Payments</option>
             <option value="requires_capture">In Escrow</option>
-            <option value="partial_captured">Part. Released</option>
             <option value="captured">Released</option>
-            <option value="paid">Paid</option>
             <option value="refunded">Refunded</option>
           </select>
-        </div>
-        <div className="col-md-2">
           <select
-            className="form-select"
+            className="filter-select"
             value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value)}
           >
@@ -1063,10 +933,8 @@ const SellerOrders = () => {
             <option value="week">Last 7 Days</option>
             <option value="month">Last 30 Days</option>
           </select>
-        </div>
-        <div className="col-md-2">
           <button
-            className="btn btn-outline-secondary w-100"
+            className="reset-btn"
             onClick={() => {
               setSearchTerm("");
               setStatusFilter("all");
@@ -1074,182 +942,183 @@ const SellerOrders = () => {
               setDateFilter("all");
             }}
           >
-            <i className="bi bi-arrow-counterclockwise me-1"></i>Reset
+            <i className="bi bi-arrow-counterclockwise"></i>
+            Reset
           </button>
         </div>
-      </div>
 
-      {/* Table */}
-      {loading ? (
-        <div className="text-center py-5">
-          <div className="spinner-border text-primary mb-3" role="status" />
-          <h5 className="text-muted">Loading orders…</h5>
-        </div>
-      ) : filteredOrders.length === 0 ? (
-        <div className="text-center py-5 bg-light rounded-3">
-          <i className="bi bi-box-seam display-1 text-muted"></i>
-          <h5 className="mt-3 text-muted">No orders found</h5>
-        </div>
-      ) : (
-        <div className="card border-0 shadow-sm">
-          <div className="table-responsive">
-            <table className="table table-hover align-middle mb-0">
-              <thead className="bg-light">
-                <tr>
-                  <th>Order ID</th>
-                  <th>Customer</th>
-                  <th>Date</th>
-                  <th>Products</th>
-                  <th>Your Total</th>
-                  <th>Status</th>
-                  <th>Payment</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredOrders.map((order) => {
-                  const sellerItems =
-                    order.orderItems?.filter(
-                      (i) =>
-                        i.seller === order.sellerId ||
-                        i.seller?._id === order.sellerId,
-                    ) || [];
-                  const sellerTotal = sellerItems.reduce(
-                    (s, i) => s + i.price * i.quantity,
-                    0,
-                  );
-                  const statuses = [
-                    ...new Set(sellerItems.map((i) => i.orderStatus)),
-                  ];
-                  const hasOpenDispute = sellerItems.some(
-                    (i) => i.disputeStatus === "open",
-                  );
-                  const hasShipped = sellerItems.some(
-                    (i) => i.orderStatus === "shipped" && i.autoReleaseAt,
-                  );
+        {/* Orders Table */}
+        {loading ? (
+          <div className="loading-state">
+            <div className="gold-spinner"></div>
+            <p>Loading orders...</p>
+          </div>
+        ) : filteredOrders.length === 0 ? (
+          <div className="empty-state">
+            <i className="bi bi-inbox"></i>
+            <h5>No orders found</h5>
+            <p>Try adjusting your filters</p>
+          </div>
+        ) : (
+          <div className="orders-card">
+            <div className="orders-table-container">
+              <table className="orders-table">
+                <thead>
+                  <tr>
+                    <th>Order ID</th>
+                    <th>Customer</th>
+                    <th>Date</th>
+                    <th>Products</th>
+                    <th>Your Total</th>
+                    <th>Status</th>
+                    <th>Payment</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredOrders.map((order) => {
+                    const sellerItems =
+                      order.orderItems?.filter(
+                        (i) =>
+                          i.seller === order.sellerId ||
+                          i.seller?._id === order.sellerId,
+                      ) || [];
+                    const sellerTotal = sellerItems.reduce(
+                      (s, i) => s + i.price * i.quantity,
+                      0,
+                    );
+                    const statuses = [
+                      ...new Set(sellerItems.map((i) => i.orderStatus)),
+                    ];
+                    const hasOpenDispute = sellerItems.some(
+                      (i) => i.disputeStatus === "open",
+                    );
+                    const hasShipped = sellerItems.some(
+                      (i) => i.orderStatus === "shipped" && i.autoReleaseAt,
+                    );
+                    const soonest = hasShipped
+                      ? sellerItems
+                          .filter(
+                            (i) =>
+                              i.orderStatus === "shipped" && i.autoReleaseAt,
+                          )
+                          .sort(
+                            (a, b) =>
+                              new Date(a.autoReleaseAt) -
+                              new Date(b.autoReleaseAt),
+                          )[0]
+                      : null;
 
-                  return (
-                    <tr
-                      key={order._id}
-                      className={hasOpenDispute ? "table-warning" : ""}
-                    >
-                      <td>
-                        <Link
-                          href="#"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setSelectedOrder(order);
-                            setShowDetailsModal(true);
-                          }}
-                          className="text-decoration-none fw-semibold"
-                        >
-                          #{order._id.slice(-8).toUpperCase()}
-                        </Link>
-                      </td>
-                      <td>
-                        {order.user?.fullname ||
-                          order.shippingAddress?.fullName}
-                      </td>
-                      <td>{fmtDate(order.createdAt)}</td>
-                      <td>
-                        <div className="small">
-                          {sellerItems.length} item(s)
-                        </div>
-                        <small className="text-muted">
-                          {sellerItems
-                            .map((i) => i.name)
-                            .join(", ")
-                            .substring(0, 30)}
-                          …
-                        </small>
-                        {hasOpenDispute && (
-                          <span className="badge bg-warning text-dark d-block mt-1">
-                            <i className="bi bi-exclamation-triangle-fill me-1"></i>
-                            Refund requested
-                          </span>
-                        )}
-                        {/* Show nearest auto-release in table */}
-                        {hasShipped &&
-                          (() => {
-                            const soonest = sellerItems
-                              .filter(
-                                (i) =>
-                                  i.orderStatus === "shipped" &&
-                                  i.autoReleaseAt,
-                              )
-                              .sort(
-                                (a, b) =>
-                                  new Date(a.autoReleaseAt) -
-                                  new Date(b.autoReleaseAt),
-                              )[0];
-                            return soonest ? (
-                              <AutoReleaseCountdown
-                                autoReleaseAt={soonest.autoReleaseAt}
-                              />
-                            ) : null;
-                          })()}
-                      </td>
-                      <td className="fw-bold text-primary">
-                        {fmt(sellerTotal)}
-                      </td>
-                      <td>
-                        {statuses.map((s, i) => (
-                          <span
-                            key={i}
-                            className={`badge bg-${badgeColor[s] || "secondary"} me-1`}
-                          >
-                            {s}
-                          </span>
-                        ))}
-                      </td>
-                      <td>
-                        <span
-                          className={`badge bg-${paymentColor[order.paymentStatus] || "secondary"}`}
-                        >
-                          {paymentLabel[order.paymentStatus] ||
-                            order.paymentStatus}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="d-flex gap-1">
-                          <button
-                            className="btn btn-sm btn-outline-primary"
-                            onClick={() => {
+                    return (
+                      <tr
+                        key={order._id}
+                        className={hasOpenDispute ? "dispute-row" : ""}
+                      >
+                        <td className="order-id">
+                          <a
+                            href="#"
+                            onClick={(e) => {
+                              e.preventDefault();
                               setSelectedOrder(order);
                               setShowDetailsModal(true);
                             }}
-                            title="View Details"
                           >
-                            <i className="bi bi-eye"></i>
-                          </button>
-                          {/* Quick respond button if there's an open dispute */}
-                          {hasOpenDispute &&
-                            (() => {
-                              const disputedItem = sellerItems.find(
-                                (i) => i.disputeStatus === "open",
-                              );
-                              return disputedItem ? (
-                                <button
-                                  className="btn btn-sm btn-warning"
-                                  onClick={() =>
-                                    openDispute(order, disputedItem)
-                                  }
-                                  title="Respond to refund request"
-                                >
-                                  <i className="bi bi-reply"></i>
-                                </button>
-                              ) : null;
-                            })()}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                            #{order._id.slice(-8).toUpperCase()}
+                          </a>
+                        </td>
+                        <td>
+                          {order.user?.fullname ||
+                            order.shippingAddress?.fullName}
+                        </td>
+                        <td>{formatDate(order.createdAt)}</td>
+                        <td className="products-cell">
+                          <div className="products-info">
+                            <span className="item-count">
+                              {sellerItems.length} item(s)
+                            </span>
+                            <span className="product-names">
+                              {sellerItems
+                                .map((i) => i.name)
+                                .join(", ")
+                                .substring(0, 40)}
+                              ...
+                            </span>
+                            {hasOpenDispute && (
+                              <span className="dispute-tag">
+                                <i className="bi bi-exclamation-triangle-fill"></i>
+                                Refund requested
+                              </span>
+                            )}
+                            {soonest && (
+                              <AutoReleaseCountdown
+                                autoReleaseAt={soonest.autoReleaseAt}
+                              />
+                            )}
+                          </div>
+                        </td>
+                        <td className="gold-text fw-bold">
+                          {formatCurrency(sellerTotal)}
+                        </td>
+                        <td>
+                          <div className="status-tags">
+                            {statuses.map((s, i) => (
+                              <span
+                                key={i}
+                                className={`status-badge ${statusConfig[s] || "secondary"}`}
+                              >
+                                {s}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td>
+                          <span
+                            className={`payment-badge ${paymentConfig[order.paymentStatus]?.color || "secondary"}`}
+                          >
+                            {paymentConfig[order.paymentStatus]?.label ||
+                              order.paymentStatus}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="action-buttons">
+                            <button
+                              className="icon-btn view"
+                              onClick={() => {
+                                setSelectedOrder(order);
+                                setShowDetailsModal(true);
+                              }}
+                              title="View Details"
+                            >
+                              <i className="bi bi-eye"></i>
+                            </button>
+                            {hasOpenDispute &&
+                              (() => {
+                                const disputedItem = sellerItems.find(
+                                  (i) => i.disputeStatus === "open",
+                                );
+                                return disputedItem ? (
+                                  <button
+                                    className="icon-btn respond"
+                                    onClick={() =>
+                                      openDispute(order, disputedItem)
+                                    }
+                                    title="Respond to refund request"
+                                  >
+                                    <i className="bi bi-reply-fill"></i>
+                                  </button>
+                                ) : null;
+                              })()}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
