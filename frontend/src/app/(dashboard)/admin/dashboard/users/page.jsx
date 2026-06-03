@@ -27,30 +27,28 @@ const AdminUsers = () => {
     role: "admin",
   });
 
-  // Get token safely
-  const [token, setToken] = useState(null);
+  // Get token safely - FIX: Use ref to avoid re-renders
+  const tokenRef = React.useRef(null);
 
   useEffect(() => {
-    const storedToken = localStorage.getItem("token");
-    setToken(storedToken);
+    tokenRef.current = localStorage.getItem("token");
+    // Only fetch once when component mounts
+    fetchUsers();
   }, []);
 
-  const authHeaders = token
-    ? {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    : {};
-
   // ================= FETCH USERS =================
-  const fetchUsers = useCallback(async () => {
+  const fetchUsers = async () => {
+    const token = tokenRef.current;
     if (!token) return;
 
     try {
       setLoading(true);
       setError("");
-      const res = await axios.get(`${API_URL}/users`, authHeaders);
+      const res = await axios.get(`${API_URL}/users`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       setUsers(res.data.users || []);
     } catch (err) {
       console.error(err);
@@ -58,11 +56,7 @@ const AdminUsers = () => {
     } finally {
       setLoading(false);
     }
-  }, [token, authHeaders]);
-
-  useEffect(() => {
-    if (token) fetchUsers();
-  }, [token]);
+  };
 
   // ================= HANDLE INPUT =================
   const handleChange = (e) => {
@@ -89,6 +83,7 @@ const AdminUsers = () => {
     setError("");
 
     try {
+      const token = tokenRef.current;
       await axios.post(
         `${API_URL}/create-admin`,
         {
@@ -97,7 +92,11 @@ const AdminUsers = () => {
           password: formData.password,
           role: formData.role,
         },
-        authHeaders,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
       );
 
       await fetchUsers();
@@ -118,7 +117,7 @@ const AdminUsers = () => {
       fullname: user.fullname || "",
       email: user.email || "",
       role: user.role || "user",
-      password: "", // Password field empty for edit
+      password: "",
     });
     setError("");
     setShowEditModal(true);
@@ -133,6 +132,7 @@ const AdminUsers = () => {
     setError("");
 
     try {
+      const token = tokenRef.current;
       await axios.put(
         `${API_URL}/update/${selectedUser._id}`,
         {
@@ -140,7 +140,11 @@ const AdminUsers = () => {
           email: formData.email,
           role: formData.role,
         },
-        authHeaders,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
       );
 
       await fetchUsers();
@@ -167,7 +171,12 @@ const AdminUsers = () => {
     setActionLoading(true);
 
     try {
-      await axios.delete(`${API_URL}/delete/${selectedUser._id}`, authHeaders);
+      const token = tokenRef.current;
+      await axios.delete(`${API_URL}/delete/${selectedUser._id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       await fetchUsers();
       setShowDeleteModal(false);
       setSelectedUser(null);
@@ -182,10 +191,15 @@ const AdminUsers = () => {
   // ================= TOGGLE USER STATUS =================
   const toggleUserStatus = async (user) => {
     try {
+      const token = tokenRef.current;
       await axios.put(
         `${API_URL}/update/${user._id}`,
         { isDeleted: !user.isDeleted },
-        authHeaders,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
       );
       await fetchUsers();
     } catch (err) {

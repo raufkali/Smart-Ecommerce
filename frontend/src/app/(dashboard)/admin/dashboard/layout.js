@@ -5,6 +5,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import AdminAuthGuard from "./adminAuthGuard";
 import { useState, useEffect } from "react";
+import "./admin-layout.css"; // Import the CSS file
 
 const header = "Admin Panel";
 const sidebarItems = [
@@ -55,10 +56,9 @@ export default function RootLayout({ children }) {
 
   return (
     <html lang="en">
-      <body style={{ overflowX: "hidden" }}>
+      <body>
         <AdminAuthGuard>
           <div className="admin-layout">
-            {/* Sidebar */}
             <Sidebar
               sidebarItems={sidebarItems}
               header={header}
@@ -66,14 +66,15 @@ export default function RootLayout({ children }) {
               onToggle={handleSidebarToggle}
             />
 
-            {/* Main Content Area */}
             <div
               className="main-content"
               style={{
                 marginLeft: isMobile ? 0 : sidebarCollapsed ? "80px" : "280px",
+                width: isMobile
+                  ? "100%"
+                  : `calc(100% - ${sidebarCollapsed ? "80px" : "280px"})`,
               }}
             >
-              {/* Navbar */}
               <Navbar
                 items={navItems}
                 brandName="Admin Dashboard"
@@ -82,46 +83,10 @@ export default function RootLayout({ children }) {
                 userRole="Administrator"
               />
 
-              {/* Page Content */}
               <div className="content-wrapper">{children}</div>
             </div>
           </div>
         </AdminAuthGuard>
-
-        <style jsx>{`
-          .admin-layout {
-            display: flex;
-            min-height: 100vh;
-            background-color: #f8f9fa;
-          }
-
-          .main-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            transition: margin-left 0.3s ease;
-            width: 100%;
-          }
-
-          .content-wrapper {
-            padding: 2rem;
-            margin-top: 60px;
-            min-height: calc(100vh - 60px);
-            background-color: #f8f9fa;
-          }
-
-          /* Responsive adjustments */
-          @media (max-width: 768px) {
-            .content-wrapper {
-              padding: 1rem;
-              margin-left: 0 !important;
-            }
-
-            .main-content {
-              margin-left: 0 !important;
-            }
-          }
-        `}</style>
       </body>
     </html>
   );
