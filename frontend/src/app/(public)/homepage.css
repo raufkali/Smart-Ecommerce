@@ -830,8 +830,7 @@ button {
    CATEGORIES
 ══════════════════════════════════════════════════════ */
 .categories-section {
-    padding: 88px 0 !important;
-    background: var(--bg) !important;
+    background: var(--bg-card) !important;
 }
 
 .category-card {
@@ -839,7 +838,6 @@ button {
     flex-direction: column;
     align-items: center;
     gap: 12px;
-    padding: 32px 20px;
     background: #fff;
     border: 1px solid var(--border);
     border-radius: 16px;
@@ -870,9 +868,10 @@ button {
 }
 
 .category-icon {
+    margin: 0;
     width: 60px;
     height: 60px;
-    border-radius: 14px;
+    border-radius: 50%;
     background: var(--bg-surface);
     border: 1px solid var(--border);
     display: flex;

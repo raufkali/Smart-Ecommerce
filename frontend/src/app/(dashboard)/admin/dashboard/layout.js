@@ -30,22 +30,7 @@ const sidebarItems = [
   },
 ];
 
-const navItems = [
-  {
-    name: "Profile",
-    link: "/admin/dashboard/profile",
-    icon: "profile",
-  },
-  {
-    name: "Settings",
-    link: "/admin/dashboard/settings",
-    icon: "settings",
-  },
-  {
-    name: "Logout",
-    link: "#",
-  },
-];
+const navItems = [];
 
 export default function RootLayout({ children }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);

@@ -727,39 +727,36 @@ const HomePage = () => {
       />
 
       {/* Categories */}
-      <section className="categories-section container py-5">
-        <SectionHeader
+      <section className="categories-section container-fluid py-4">
+        {/* <SectionHeader
           title="Shop by Category"
-          subtitle="Discover our curated collections"
+          // subtitle="Discover our curated collections"
           centered
-        />
-        <div className="row g-4">
+        /> */}
+        <div className="row d-flex align-items-center justify-content-center">
           {data.categories.map((category) => (
             <div
               key={category._id}
-              className="col-xl-3 col-lg-3 col-md-4 col-6"
+              className="col-xl-1 col-lg-1 col-md-2 col-5"
             >
-              <Link
-                href={`/products?category=${category._id}`}
-                className="category-card"
-              >
+              <Link href={`/products?category=${category._id}`} className="">
                 <div className="category-icon">
                   <i className={`bi bi-${getCategoryIcon(category.name)}`} />
                 </div>
-                <h3>{category.name}</h3>
-                {category.description && (
+                {/* <h3>{category.name}</h3> */}
+                {/* {category.description && (
                   <p>{category.description.substring(0, 50)}...</p>
-                )}
-                <span className="category-arrow">→</span>
+                )} */}
+                {/* <span className="category-arrow">→</span> */}
               </Link>
             </div>
           ))}
         </div>
-        <div className="text-center mt-5">
+        {/* <div className="text-center mt-5">
           <Link href="/categories" className="cta-button secondary">
             View All Categories
           </Link>
-        </div>
+        </div> */}
       </section>
 
       {/* Featured Products */}

@@ -3,8 +3,11 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import "./ProfilePage.css";
 
+// ─────────────────────────────────────────────
 // Toast Component
+// ─────────────────────────────────────────────
 const Toast = ({ message, type, onClose }) => {
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -13,79 +16,27 @@ const Toast = ({ message, type, onClose }) => {
     return () => clearTimeout(timer);
   }, [onClose]);
 
-  const getIcon = () => {
-    switch (type) {
-      case "success":
-        return "bi-check-circle-fill";
-      case "error":
-        return "bi-exclamation-circle-fill";
-      case "warning":
-        return "bi-exclamation-triangle-fill";
-      case "info":
-        return "bi-info-circle-fill";
-      default:
-        return "bi-bell-fill";
-    }
-  };
-
-  const getBgColor = () => {
-    switch (type) {
-      case "success":
-        return "bg-success";
-      case "error":
-        return "bg-danger";
-      case "warning":
-        return "bg-warning";
-      case "info":
-        return "bg-info";
-      default:
-        return "bg-primary";
-    }
+  const icons = {
+    success: "bi-check-circle-fill",
+    error: "bi-exclamation-circle-fill",
+    warning: "bi-exclamation-triangle-fill",
+    info: "bi-info-circle-fill",
   };
 
   return (
-    <div
-      className={`toast-notification ${getBgColor()} text-white`}
-      role="alert"
-    >
-      <i className={`bi ${getIcon()} me-2`}></i>
-      <span className="flex-grow-1">{message}</span>
-      <button
-        type="button"
-        className="btn-close btn-close-white ms-3"
-        onClick={onClose}
-      ></button>
-      <style jsx>{`
-        .toast-notification {
-          position: fixed;
-          top: 20px;
-          right: 20px;
-          min-width: 300px;
-          max-width: 400px;
-          padding: 1rem 1.25rem;
-          border-radius: 0.5rem;
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-          display: flex;
-          align-items: center;
-          z-index: 9999;
-          animation: slideIn 0.3s ease forwards;
-        }
-        @keyframes slideIn {
-          from {
-            transform: translateX(100%);
-            opacity: 0;
-          }
-          to {
-            transform: translateX(0);
-            opacity: 1;
-          }
-        }
-      `}</style>
+    <div className={`profile-toast ${type}`} role="alert">
+      <i className={`bi ${icons[type] || "bi-bell-fill"}`}></i>
+      <span>{message}</span>
+      <button className="toast-close-btn" onClick={onClose}>
+        ×
+      </button>
     </div>
   );
 };
 
+// ─────────────────────────────────────────────
 // Edit Profile Modal
+// ─────────────────────────────────────────────
 const EditProfileModal = ({ show, onClose, profile, onUpdate }) => {
   const [formData, setFormData] = useState({
     fullname: "",
@@ -106,17 +57,12 @@ const EditProfileModal = ({ show, onClose, profile, onUpdate }) => {
     }
   }, [profile]);
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
+  const handleChange = (e) =>
+    setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(
@@ -130,13 +76,9 @@ const EditProfileModal = ({ show, onClose, profile, onUpdate }) => {
           body: JSON.stringify(formData),
         },
       );
-
       const data = await response.json();
-
-      if (!response.ok) {
+      if (!response.ok)
         throw new Error(data.message || "Failed to update profile");
-      }
-
       onUpdate(data.user);
       onClose();
     } catch (error) {
@@ -150,105 +92,88 @@ const EditProfileModal = ({ show, onClose, profile, onUpdate }) => {
   if (!show) return null;
 
   return (
-    <div
-      className="modal show d-block"
-      style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-      onClick={onClose}
-    >
-      <div
-        className="modal-dialog modal-dialog-centered"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="modal-content">
-          <div className="modal-header">
-            <h5 className="modal-title">Edit Profile</h5>
+    <div className="profile-modal-overlay" onClick={onClose}>
+      <div className="profile-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <h5>Edit Profile</h5>
+          <button className="modal-close-btn" onClick={onClose}>
+            ×
+          </button>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="modal-body">
+            <div className="form-group">
+              <label>Full Name</label>
+              <input
+                type="text"
+                name="fullname"
+                value={formData.fullname}
+                onChange={handleChange}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>Email</label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                required
+                disabled
+              />
+              <p className="form-hint">Email cannot be changed</p>
+            </div>
+            <div className="form-group">
+              <label>Phone</label>
+              <input
+                type="tel"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+              />
+            </div>
+            <div className="form-group">
+              <label>Address</label>
+              <textarea
+                name="address"
+                rows="2"
+                value={formData.address}
+                onChange={handleChange}
+              ></textarea>
+            </div>
+          </div>
+          <div className="modal-foot">
             <button
               type="button"
-              className="btn-close"
+              className="btn-modal-cancel"
               onClick={onClose}
-            ></button>
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn-modal-submit"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <span className="btn-spinner"></span> Updating…
+                </>
+              ) : (
+                "Save Changes"
+              )}
+            </button>
           </div>
-          <form onSubmit={handleSubmit}>
-            <div className="modal-body">
-              <div className="mb-3">
-                <label className="form-label">Full Name</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  name="fullname"
-                  value={formData.fullname}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-              <div className="mb-3">
-                <label className="form-label">Email</label>
-                <input
-                  type="email"
-                  className="form-control"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                  disabled
-                />
-                <small className="text-muted">Email cannot be changed</small>
-              </div>
-              <div className="mb-3">
-                <label className="form-label">Phone</label>
-                <input
-                  type="tel"
-                  className="form-control"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleChange}
-                />
-              </div>
-              <div className="mb-3">
-                <label className="form-label">Address</label>
-                <textarea
-                  className="form-control"
-                  name="address"
-                  rows="2"
-                  value={formData.address}
-                  onChange={handleChange}
-                ></textarea>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={onClose}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <span
-                      className="spinner-border spinner-border-sm me-2"
-                      role="status"
-                    ></span>
-                    Updating...
-                  </>
-                ) : (
-                  "Save Changes"
-                )}
-              </button>
-            </div>
-          </form>
-        </div>
+        </form>
       </div>
     </div>
   );
 };
 
+// ─────────────────────────────────────────────
 // Add Bank Account Modal
+// ─────────────────────────────────────────────
 const AddBankModal = ({ show, onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
     accountHolderName: "",
@@ -258,17 +183,12 @@ const AddBankModal = ({ show, onClose, onSuccess }) => {
   });
   const [loading, setLoading] = useState(false);
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
+  const handleChange = (e) =>
+    setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(
@@ -282,13 +202,9 @@ const AddBankModal = ({ show, onClose, onSuccess }) => {
           body: JSON.stringify(formData),
         },
       );
-
       const data = await response.json();
-
-      if (!response.ok) {
+      if (!response.ok)
         throw new Error(data.message || "Failed to add bank account");
-      }
-
       onSuccess();
       onClose();
       setFormData({
@@ -308,112 +224,96 @@ const AddBankModal = ({ show, onClose, onSuccess }) => {
   if (!show) return null;
 
   return (
-    <div
-      className="modal show d-block"
-      style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-      onClick={onClose}
-    >
-      <div
-        className="modal-dialog modal-dialog-centered"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="modal-content">
-          <div className="modal-header">
-            <h5 className="modal-title">Add Bank Account</h5>
+    <div className="profile-modal-overlay" onClick={onClose}>
+      <div className="profile-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <h5>Add Bank Account</h5>
+          <button className="modal-close-btn" onClick={onClose}>
+            ×
+          </button>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="modal-body">
+            <div className="form-group">
+              <label>Account Holder Name</label>
+              <input
+                type="text"
+                name="accountHolderName"
+                value={formData.accountHolderName}
+                onChange={handleChange}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>Bank Name</label>
+              <input
+                type="text"
+                name="bankName"
+                value={formData.bankName}
+                onChange={handleChange}
+                required
+              />
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Routing Number</label>
+                <input
+                  type="text"
+                  name="routingNumber"
+                  value={formData.routingNumber}
+                  onChange={handleChange}
+                  required
+                  pattern="[0-9]{9}"
+                  title="9 digit routing number"
+                />
+              </div>
+              <div className="form-group">
+                <label>Account Number</label>
+                <input
+                  type="text"
+                  name="accountNumber"
+                  value={formData.accountNumber}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+            </div>
+            <p className="form-hint">
+              <i className="bi bi-shield-lock me-1"></i>
+              Your bank details are encrypted and secure
+            </p>
+          </div>
+          <div className="modal-foot">
             <button
               type="button"
-              className="btn-close"
+              className="btn-modal-cancel"
               onClick={onClose}
-            ></button>
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn-modal-submit"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <span className="btn-spinner"></span> Adding…
+                </>
+              ) : (
+                "Add Bank Account"
+              )}
+            </button>
           </div>
-          <form onSubmit={handleSubmit}>
-            <div className="modal-body">
-              <div className="mb-3">
-                <label className="form-label">Account Holder Name</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  name="accountHolderName"
-                  value={formData.accountHolderName}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-              <div className="mb-3">
-                <label className="form-label">Bank Name</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  name="bankName"
-                  value={formData.bankName}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-              <div className="row">
-                <div className="col-md-6 mb-3">
-                  <label className="form-label">Routing Number</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    name="routingNumber"
-                    value={formData.routingNumber}
-                    onChange={handleChange}
-                    required
-                    pattern="[0-9]{9}"
-                    title="9 digit routing number"
-                  />
-                </div>
-                <div className="col-md-6 mb-3">
-                  <label className="form-label">Account Number</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    name="accountNumber"
-                    value={formData.accountNumber}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-              </div>
-              <small className="text-muted">
-                Your bank details are encrypted and secure
-              </small>
-            </div>
-            <div className="modal-footer">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={onClose}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <span
-                      className="spinner-border spinner-border-sm me-2"
-                      role="status"
-                    ></span>
-                    Adding...
-                  </>
-                ) : (
-                  "Add Bank Account"
-                )}
-              </button>
-            </div>
-          </form>
-        </div>
+        </form>
       </div>
     </div>
   );
 };
 
+// ─────────────────────────────────────────────
 // Withdraw Modal
+// ─────────────────────────────────────────────
 const WithdrawModal = ({ show, onClose, wallet, onSuccess }) => {
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
@@ -421,7 +321,6 @@ const WithdrawModal = ({ show, onClose, wallet, onSuccess }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(
@@ -435,13 +334,9 @@ const WithdrawModal = ({ show, onClose, wallet, onSuccess }) => {
           body: JSON.stringify({ amount: parseFloat(amount) }),
         },
       );
-
       const data = await response.json();
-
-      if (!response.ok) {
+      if (!response.ok)
         throw new Error(data.message || "Failed to process withdrawal");
-      }
-
       onSuccess();
       onClose();
       setAmount("");
@@ -458,80 +353,69 @@ const WithdrawModal = ({ show, onClose, wallet, onSuccess }) => {
   const maxAmount = wallet?.availableBalance || 0;
 
   return (
-    <div
-      className="modal show d-block"
-      style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-      onClick={onClose}
-    >
-      <div
-        className="modal-dialog modal-dialog-centered"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="modal-content">
-          <div className="modal-header">
-            <h5 className="modal-title">Withdraw Funds</h5>
+    <div className="profile-modal-overlay" onClick={onClose}>
+      <div className="profile-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <h5>Withdraw Funds</h5>
+          <button className="modal-close-btn" onClick={onClose}>
+            ×
+          </button>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="modal-body">
+            <div className="modal-alert">
+              <i className="bi bi-shield-lock-fill"></i>
+              <span>
+                <strong>Available:</strong> ${maxAmount.toFixed(2)}
+              </span>
+            </div>
+            <div className="form-group">
+              <label>Amount to Withdraw (USD)</label>
+              <input
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                min="1"
+                max={maxAmount}
+                step="0.01"
+                required
+              />
+            </div>
+            <p className="form-hint">
+              Funds arrive in your bank account within 2–7 business days.
+            </p>
+          </div>
+          <div className="modal-foot">
             <button
               type="button"
-              className="btn-close"
+              className="btn-modal-cancel"
               onClick={onClose}
-            ></button>
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn-modal-submit"
+              disabled={loading || !amount || amount > maxAmount}
+            >
+              {loading ? (
+                <>
+                  <span className="btn-spinner"></span> Processing…
+                </>
+              ) : (
+                "Withdraw"
+              )}
+            </button>
           </div>
-          <form onSubmit={handleSubmit}>
-            <div className="modal-body">
-              <div className="alert alert-info">
-                <strong>Available Balance:</strong> ${maxAmount.toFixed(2)}
-              </div>
-              <div className="mb-3">
-                <label className="form-label">Amount to Withdraw ($)</label>
-                <input
-                  type="number"
-                  className="form-control"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  min="1"
-                  max={maxAmount}
-                  step="0.01"
-                  required
-                />
-              </div>
-              <p className="text-muted small">
-                Funds will be transferred to your bank account within 2-7
-                business days.
-              </p>
-            </div>
-            <div className="modal-footer">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={onClose}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={loading || !amount || amount > maxAmount}
-              >
-                {loading ? (
-                  <>
-                    <span
-                      className="spinner-border spinner-border-sm me-2"
-                      role="status"
-                    ></span>
-                    Processing...
-                  </>
-                ) : (
-                  "Withdraw"
-                )}
-              </button>
-            </div>
-          </form>
-        </div>
+        </form>
       </div>
     </div>
   );
 };
 
+// ─────────────────────────────────────────────
+// Main Profile Page
+// ─────────────────────────────────────────────
 const ProfilePage = () => {
   const router = useRouter();
   const [profile, setProfile] = useState(null);
@@ -540,12 +424,10 @@ const ProfilePage = () => {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
 
-  // Modal states
   const [showEditModal, setShowEditModal] = useState(false);
   const [showBankModal, setShowBankModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
 
-  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const transactionsPerPage = 10;
@@ -553,7 +435,6 @@ const ProfilePage = () => {
   const showToast = (message, type = "success") => setToast({ message, type });
   const closeToast = () => setToast(null);
 
-  // Fetch profile
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -563,7 +444,6 @@ const ProfilePage = () => {
           headers: { Authorization: `Bearer ${token}` },
         },
       );
-
       if (!response.ok) throw new Error("Failed to fetch profile");
       const data = await response.json();
       setProfile(data.user || data);
@@ -573,7 +453,6 @@ const ProfilePage = () => {
     }
   };
 
-  // Fetch wallet
   const fetchWallet = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -583,7 +462,6 @@ const ProfilePage = () => {
           headers: { Authorization: `Bearer ${token}` },
         },
       );
-
       if (!response.ok) throw new Error("Failed to fetch wallet");
       const data = await response.json();
       setWallet(data.wallet);
@@ -592,17 +470,13 @@ const ProfilePage = () => {
     }
   };
 
-  // Fetch transactions
   const fetchTransactions = async (page = 1) => {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/wallet/transactions?page=${page}&limit=${transactionsPerPage}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
+        { headers: { Authorization: `Bearer ${token}` } },
       );
-
       if (!response.ok) throw new Error("Failed to fetch transactions");
       const data = await response.json();
       setTransactions(data.transactions || []);
@@ -613,7 +487,6 @@ const ProfilePage = () => {
     }
   };
 
-  // Load all data
   const loadData = async () => {
     setLoading(true);
     await Promise.all([fetchProfile(), fetchWallet(), fetchTransactions()]);
@@ -629,56 +502,47 @@ const ProfilePage = () => {
     fetchTransactions(newPage);
   };
 
-  const formatDate = (date) => {
-    return new Date(date).toLocaleDateString("en-US", {
+  const formatDate = (date) =>
+    new Date(date).toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
     });
-  };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("en-US", {
+  const formatCurrency = (amount) =>
+    new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
     }).format(Math.abs(amount));
-  };
 
   const getTransactionIcon = (type) => {
-    switch (type) {
-      case "received":
-        return "bi-arrow-down-circle-fill text-success";
-      case "send":
-        return "bi-arrow-up-circle-fill text-danger";
-      case "withdrawal":
-        return "bi-bank text-warning";
-      case "refund":
-        return "bi-arrow-return-left text-info";
-      default:
-        return "bi-circle-fill text-secondary";
-    }
+    const map = {
+      received: "bi-arrow-down-circle-fill received",
+      send: "bi-arrow-up-circle-fill send",
+      withdrawal: "bi-bank withdrawal",
+      refund: "bi-arrow-return-left refund",
+    };
+    return map[type] || "bi-circle-fill default";
   };
 
-  const getStatusBadge = (status) => {
-    const colors = {
-      pending: "warning",
-      locked: "info",
-      available: "success",
-      completed: "success",
-      failed: "danger",
+  const getStatusClass = (status) => {
+    const map = {
+      pending: "pending",
+      locked: "locked",
+      available: "completed",
+      completed: "completed",
+      failed: "failed",
     };
-    return colors[status] || "secondary";
+    return map[status] || "pending";
   };
 
   if (loading) {
     return (
-      <div className="container py-5 text-center">
-        <div className="spinner-border text-primary mb-3" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
-        <h5 className="text-muted">Loading profile...</h5>
+      <div className="profile-loading">
+        <div className="loader-spinner"></div>
+        <p>Loading profile…</p>
       </div>
     );
   }
@@ -686,203 +550,190 @@ const ProfilePage = () => {
   const isSeller = profile?.role === "seller";
 
   return (
-    <div className="container py-4">
-      {/* Toast */}
-      {toast && (
-        <Toast message={toast.message} type={toast.type} onClose={closeToast} />
-      )}
+    <div className="profile-page">
+      <div className="container">
+        {/* Toast */}
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={closeToast}
+          />
+        )}
 
-      {/* Modals */}
-      <EditProfileModal
-        show={showEditModal}
-        onClose={() => setShowEditModal(false)}
-        profile={profile}
-        onUpdate={(updatedProfile) => {
-          setProfile(updatedProfile);
-          showToast("Profile updated successfully", "success");
-        }}
-      />
+        {/* Modals */}
+        <EditProfileModal
+          show={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          profile={profile}
+          onUpdate={(updated) => {
+            setProfile(updated);
+            showToast("Profile updated successfully");
+          }}
+        />
+        <AddBankModal
+          show={showBankModal}
+          onClose={() => setShowBankModal(false)}
+          onSuccess={() => {
+            fetchWallet();
+            showToast("Bank account added successfully");
+          }}
+        />
+        <WithdrawModal
+          show={showWithdrawModal}
+          onClose={() => setShowWithdrawModal(false)}
+          wallet={wallet}
+          onSuccess={() => {
+            fetchWallet();
+            fetchTransactions();
+            showToast("Withdrawal initiated successfully");
+          }}
+        />
 
-      <AddBankModal
-        show={showBankModal}
-        onClose={() => setShowBankModal(false)}
-        onSuccess={() => {
-          fetchWallet();
-          showToast("Bank account added successfully", "success");
-        }}
-      />
-
-      <WithdrawModal
-        show={showWithdrawModal}
-        onClose={() => setShowWithdrawModal(false)}
-        wallet={wallet}
-        onSuccess={() => {
-          fetchWallet();
-          fetchTransactions();
-          showToast("Withdrawal initiated successfully", "success");
-        }}
-      />
-
-      {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <h1 className="h2 fw-bold mb-2">My Profile</h1>
-          <p className="text-muted mb-0">Manage your account and finances</p>
+        {/* Page header */}
+        <div className="profile-header">
+          <div className="profile-header-left">
+            <h1>My Profile</h1>
+            <p>Manage your account and finances</p>
+          </div>
+          <button
+            className="btn-edit-profile"
+            onClick={() => setShowEditModal(true)}
+          >
+            <i className="bi bi-pencil-square"></i> Edit Profile
+          </button>
         </div>
-        <button
-          className="btn btn-primary"
-          onClick={() => setShowEditModal(true)}
-        >
-          <i className="bi bi-pencil-square me-2"></i>
-          Edit Profile
-        </button>
-      </div>
 
-      <div className="row">
-        {/* Profile Information */}
-        <div className="col-lg-4 mb-4">
-          <div className="card border-0 shadow-sm h-100">
-            <div className="card-body">
-              <div className="text-center mb-4">
-                <div className="bg-light rounded-circle d-inline-flex p-4 mb-3">
-                  <i className="bi bi-person-circle fs-1 text-primary"></i>
+        {/* Main grid */}
+        <div className="profile-grid">
+          {/* ── Left column: identity card ── */}
+          <div className="profile-card">
+            <div className="profile-card-body">
+              {/* Identity */}
+              <div className="identity-block">
+                <div className="avatar-ring">
+                  <i className="bi bi-person-fill"></i>
                 </div>
-                <h4 className="fw-bold mb-1">{profile?.fullname}</h4>
-                <p className="text-muted mb-2">{profile?.email}</p>
+                <h3 className="identity-name">{profile?.fullname}</h3>
+                <p className="identity-email">{profile?.email}</p>
                 <span
-                  className={`badge bg-${profile?.role === "seller" ? "success" : "info"} px-3 py-2`}
+                  className={`role-badge ${profile?.role === "seller" ? "seller" : "user"}`}
                 >
                   {profile?.role?.toUpperCase()}
                 </span>
               </div>
 
-              <hr />
-
-              <div className="mb-3">
-                <h6 className="fw-semibold mb-3">Contact Information</h6>
-                <div className="d-flex mb-2">
-                  <i className="bi bi-telephone me-3 text-muted"></i>
-                  <span>{profile?.phone || "Not provided"}</span>
-                </div>
-                <div className="d-flex mb-2">
-                  <i className="bi bi-geo-alt me-3 text-muted"></i>
-                  <span>{profile?.address || "Not provided"}</span>
-                </div>
-                <div className="d-flex">
-                  <i className="bi bi-calendar me-3 text-muted"></i>
-                  <span>
-                    Joined{" "}
-                    {profile?.createdAt
-                      ? new Date(profile.createdAt).toLocaleDateString()
-                      : "N/A"}
-                  </span>
+              {/* Contact */}
+              <div className="contact-section">
+                <h6>Contact Information</h6>
+                <div className="contact-list">
+                  <div className="contact-row">
+                    <i className="bi bi-telephone"></i>
+                    <span>{profile?.phone || "Not provided"}</span>
+                  </div>
+                  <div className="contact-row">
+                    <i className="bi bi-geo-alt"></i>
+                    <span>{profile?.address || "Not provided"}</span>
+                  </div>
+                  <div className="contact-row">
+                    <i className="bi bi-calendar3"></i>
+                    <span>
+                      Joined{" "}
+                      {profile?.createdAt
+                        ? new Date(profile.createdAt).toLocaleDateString()
+                        : "N/A"}
+                    </span>
+                  </div>
                 </div>
               </div>
 
+              {/* Bank (seller only) */}
               {isSeller && (
-                <>
-                  <hr />
-                  <div className="mb-3">
-                    <h6 className="fw-semibold mb-3">Bank Account</h6>
-                    {wallet?.bankAccountLast4 ? (
-                      <div className="d-flex align-items-center">
-                        <i className="bi bi-bank2 me-3 text-primary fs-4"></i>
-                        <div>
-                          <div className="fw-semibold">
-                            {wallet.bankAccountName}
-                          </div>
-                          <small className="text-muted">
-                            ****{wallet.bankAccountLast4}
-                          </small>
+                <div className="bank-section">
+                  <h6>Bank Account</h6>
+                  {wallet?.bankAccountLast4 ? (
+                    <div className="bank-connected">
+                      <i className="bi bi-bank2 bank-icon"></i>
+                      <div>
+                        <div className="bank-name">
+                          {wallet.bankAccountName}
+                        </div>
+                        <div className="bank-last4">
+                          ****{wallet.bankAccountLast4}
                         </div>
                       </div>
-                    ) : (
-                      <button
-                        className="btn btn-outline-primary w-100"
-                        onClick={() => setShowBankModal(true)}
-                      >
-                        <i className="bi bi-plus-circle me-2"></i>
-                        Add Bank Account
-                      </button>
-                    )}
-                  </div>
-                </>
+                    </div>
+                  ) : (
+                    <button
+                      className="btn-add-bank"
+                      onClick={() => setShowBankModal(true)}
+                    >
+                      <i className="bi bi-plus-circle"></i> Add Bank Account
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           </div>
-        </div>
 
-        {/* Wallet & Transactions */}
-        <div className="col-lg-8">
-          {/* Wallet Cards */}
-          <div className="row g-4 mb-4">
-            <div className="col-md-4">
-              <div className="card border-0 shadow-sm bg-primary bg-opacity-10 h-100">
-                <div className="card-body">
-                  <h6 className="text-muted mb-2">Available Balance</h6>
-                  <h3 className="fw-bold text-primary mb-0">
-                    {formatCurrency(wallet?.availableBalance || 0)}
-                  </h3>
-                  <small className="text-muted">Ready for withdrawal</small>
+          {/* ── Right column ── */}
+          <div className="profile-right">
+            {/* Wallet stats */}
+            <div className="wallet-stats">
+              <div className="wallet-stat-card available">
+                <div className="stat-label">Available Balance</div>
+                <div className="stat-value">
+                  {formatCurrency(wallet?.availableBalance || 0)}
                 </div>
+                <div className="stat-hint">Ready for withdrawal</div>
+              </div>
+              <div className="wallet-stat-card locked">
+                <div className="stat-label">Locked Balance</div>
+                <div className="stat-value">
+                  {formatCurrency(wallet?.lockedBalance || 0)}
+                </div>
+                <div className="stat-hint">In escrow</div>
+              </div>
+              <div className="wallet-stat-card earned">
+                <div className="stat-label">Total Earned</div>
+                <div className="stat-value">
+                  {formatCurrency(wallet?.totalEarned || 0)}
+                </div>
+                <div className="stat-hint">Lifetime earnings</div>
               </div>
             </div>
-            <div className="col-md-4">
-              <div className="card border-0 shadow-sm bg-warning bg-opacity-10 h-100">
-                <div className="card-body">
-                  <h6 className="text-muted mb-2">Locked Balance</h6>
-                  <h3 className="fw-bold text-warning mb-0">
-                    {formatCurrency(wallet?.lockedBalance || 0)}
-                  </h3>
-                  <small className="text-muted">In escrow</small>
-                </div>
-              </div>
-            </div>
-            <div className="col-md-4">
-              <div className="card border-0 shadow-sm bg-info bg-opacity-10 h-100">
-                <div className="card-body">
-                  <h6 className="text-muted mb-2">Total Earned</h6>
-                  <h3 className="fw-bold text-info mb-0">
-                    {formatCurrency(wallet?.totalEarned || 0)}
-                  </h3>
-                  <small className="text-muted">Lifetime earnings</small>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          {/* Withdraw Button for Sellers */}
-          {isSeller && wallet?.availableBalance > 0 && (
-            <div className="mb-4">
+            {/* Withdraw button (seller only) */}
+            {isSeller && wallet?.availableBalance > 0 && (
               <button
-                className="btn btn-success w-100 py-3"
+                className="btn-withdraw"
                 onClick={() => setShowWithdrawModal(true)}
               >
-                <i className="bi bi-cash-stack me-2"></i>
-                Withdraw Funds (${wallet.availableBalance.toFixed(2)} available)
+                <i className="bi bi-cash-stack"></i>
+                Withdraw Funds &mdash; {formatCurrency(
+                  wallet.availableBalance,
+                )}{" "}
+                available
               </button>
-            </div>
-          )}
+            )}
 
-          {/* Transaction History */}
-          <div className="card border-0 shadow-sm">
-            <div className="card-header bg-white border-0 py-3">
-              <h5 className="card-title fw-semibold mb-0">
-                <i className="bi bi-clock-history me-2"></i>
-                Transaction History
-              </h5>
-            </div>
-            <div className="card-body p-0">
+            {/* Transactions */}
+            <div className="transactions-card">
+              <div className="transactions-header">
+                <i className="bi bi-clock-history"></i>
+                <h5>Transaction History</h5>
+              </div>
+
               {transactions.length === 0 ? (
-                <div className="text-center py-5">
-                  <i className="bi bi-arrow-left-right display-1 text-muted"></i>
-                  <h6 className="mt-3 text-muted">No transactions yet</h6>
+                <div className="tx-empty">
+                  <i className="bi bi-arrow-left-right"></i>
+                  <p>No transactions yet</p>
                 </div>
               ) : (
                 <>
-                  <div className="table-responsive">
-                    <table className="table table-hover align-middle mb-0">
-                      <thead className="bg-light">
+                  <div className="tx-table-wrapper">
+                    <table className="tx-table">
+                      <thead>
                         <tr>
                           <th>Type</th>
                           <th>Description</th>
@@ -892,36 +743,43 @@ const ProfilePage = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {transactions.map((tx, index) => (
-                          <tr key={index}>
+                        {transactions.map((tx, idx) => (
+                          <tr key={idx}>
                             <td>
-                              <i
-                                className={`bi ${getTransactionIcon(tx.type)} me-2 fs-5`}
-                              ></i>
-                              <span className="text-capitalize">{tx.type}</span>
+                              <div className="tx-type-cell">
+                                <i
+                                  className={`bi ${getTransactionIcon(tx.type)}`}
+                                ></i>
+                                <span className="tx-type-label">{tx.type}</span>
+                              </div>
                             </td>
-                            <td>{tx.description}</td>
-                            <td
-                              className={
-                                tx.amount > 0 ? "text-success" : "text-danger"
-                              }
-                            >
-                              <strong>
-                                {tx.amount > 0 ? "+" : ""}
-                                {formatCurrency(tx.amount)}
-                              </strong>
+                            <td>
+                              <div
+                                className="tx-description"
+                                title={tx.description}
+                              >
+                                {tx.description}
+                              </div>
                             </td>
                             <td>
                               <span
-                                className={`badge bg-${getStatusBadge(tx.status)}`}
+                                className={`tx-amount ${tx.amount > 0 ? "positive" : "negative"}`}
+                              >
+                                {tx.amount > 0 ? "+" : ""}
+                                {formatCurrency(tx.amount)}
+                              </span>
+                            </td>
+                            <td>
+                              <span
+                                className={`tx-status-badge ${getStatusClass(tx.status)}`}
                               >
                                 {tx.status}
                               </span>
                             </td>
                             <td>
-                              <small className="text-muted">
+                              <span className="tx-date">
                                 {formatDate(tx.createdAt)}
-                              </small>
+                              </span>
                             </td>
                           </tr>
                         ))}
@@ -931,44 +789,30 @@ const ProfilePage = () => {
 
                   {/* Pagination */}
                   {totalPages > 1 && (
-                    <div className="d-flex justify-content-center py-3">
-                      <nav>
-                        <ul className="pagination">
-                          <li
-                            className={`page-item ${currentPage === 1 ? "disabled" : ""}`}
-                          >
-                            <button
-                              className="page-link"
-                              onClick={() => handlePageChange(currentPage - 1)}
-                            >
-                              Previous
-                            </button>
-                          </li>
-                          {[...Array(totalPages)].map((_, i) => (
-                            <li
-                              key={i + 1}
-                              className={`page-item ${currentPage === i + 1 ? "active" : ""}`}
-                            >
-                              <button
-                                className="page-link"
-                                onClick={() => handlePageChange(i + 1)}
-                              >
-                                {i + 1}
-                              </button>
-                            </li>
-                          ))}
-                          <li
-                            className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}
-                          >
-                            <button
-                              className="page-link"
-                              onClick={() => handlePageChange(currentPage + 1)}
-                            >
-                              Next
-                            </button>
-                          </li>
-                        </ul>
-                      </nav>
+                    <div className="tx-pagination">
+                      <button
+                        className="page-btn"
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                      >
+                        <i className="bi bi-chevron-left"></i>
+                      </button>
+                      {[...Array(totalPages)].map((_, i) => (
+                        <button
+                          key={i + 1}
+                          className={`page-btn ${currentPage === i + 1 ? "active" : ""}`}
+                          onClick={() => handlePageChange(i + 1)}
+                        >
+                          {i + 1}
+                        </button>
+                      ))}
+                      <button
+                        className="page-btn"
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                      >
+                        <i className="bi bi-chevron-right"></i>
+                      </button>
                     </div>
                   )}
                 </>
