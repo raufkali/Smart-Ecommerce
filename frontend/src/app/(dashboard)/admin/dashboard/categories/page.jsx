@@ -1,60 +1,156 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
+import "./AdminCategories.css";
 
-const CategoriesPage = () => {
-  const [showModal, setShowModal] = useState(false);
-  const [modalMode, setModalMode] = useState("create"); // "create" or "edit"
-  const [selectedCategory, setSelectedCategory] = useState(null);
+const API_URL = `${process.env.NEXT_PUBLIC_BACKEND_URL}/admin`;
+
+// Toast Component
+const Toast = ({ message, type, onClose }) => {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 3000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  const icons = {
+    success: "bi-check-circle-fill",
+    error: "bi-exclamation-circle-fill",
+    warning: "bi-exclamation-triangle-fill",
+    info: "bi-info-circle-fill",
+  };
+
+  return (
+    <div className={`toast-notification toast-${type}`}>
+      <i className={`bi ${icons[type] || "bi-bell-fill"} toast-icon`}></i>
+      <span className="toast-message">{message}</span>
+      <button className="toast-close-btn" onClick={onClose}>
+        <i className="bi bi-x-lg"></i>
+      </button>
+    </div>
+  );
+};
+
+// Stat Card Component
+const StatCard = ({ title, value, icon, color }) => {
+  return (
+    <div className={`stat-card-premium stat-${color}`}>
+      <div className="stat-icon-wrapper">
+        <div className="stat-icon">
+          <i className={`bi ${icon}`}></i>
+        </div>
+      </div>
+      <div className="stat-content">
+        <h3 className="stat-value">{value.toLocaleString()}</h3>
+        <p className="stat-title">{title}</p>
+      </div>
+    </div>
+  );
+};
+
+// Category Row Component
+const CategoryRow = ({ category, index, onEdit, onDelete, onToggleStatus }) => {
+  return (
+    <tr className="category-row">
+      <td className="index-cell">{index + 1}</td>
+      <td className="name-cell">
+        <div className="category-info">
+          <i className="bi bi-tag-fill"></i>
+          <span className="category-name">{category.name}</span>
+        </div>
+      </td>
+      <td className="description-cell">
+        {category.description || (
+          <span className="text-muted">No description</span>
+        )}
+      </td>
+      <td className="status-cell">
+        <div className="status-toggle">
+          <label className="toggle-switch">
+            <input
+              type="checkbox"
+              checked={category.isActive}
+              onChange={() => onToggleStatus(category)}
+            />
+            <span className="toggle-slider"></span>
+          </label>
+          <span
+            className={`status-text ${category.isActive ? "active" : "inactive"}`}
+          >
+            {category.isActive ? "Active" : "Inactive"}
+          </span>
+        </div>
+      </td>
+      <td className="actions-cell">
+        <button
+          className="action-btn edit"
+          onClick={() => onEdit(category)}
+          title="Edit Category"
+        >
+          <i className="bi bi-pencil"></i>
+        </button>
+        <button
+          className="action-btn delete"
+          onClick={() => onDelete(category)}
+          title="Delete Category"
+        >
+          <i className="bi bi-trash"></i>
+        </button>
+      </td>
+    </tr>
+  );
+};
+
+const AdminCategories = () => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [toast, setToast] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  const [showModal, setShowModal] = useState(false);
+  const [modalMode, setModalMode] = useState("create");
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     isActive: true,
   });
 
-  // Get token and setup headers
-  const [token, setToken] = useState(null);
+  const tokenRef = useRef(null);
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
 
+  const showToast = (message, type = "success") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
   useEffect(() => {
-    // Access localStorage only on client side
-    const storedToken = localStorage.getItem("token");
-    setToken(storedToken);
+    tokenRef.current = localStorage.getItem("token");
+    fetchCategories();
   }, []);
 
-  const authHeaders = token
-    ? {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    : {};
-
-  // Fetch categories
   const fetchCategories = async () => {
+    const token = tokenRef.current;
     if (!token) return;
 
     setLoading(true);
+    setError("");
     try {
-      const response = await axios.get(`${backendUrl}/category/`, authHeaders);
-      setCategories(response.data.categories || response.data);
+      const response = await axios.get(`${backendUrl}/category/`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setCategories(response.data.categories || response.data || []);
     } catch (err) {
       console.error("Error fetching categories:", err);
-      // Handle error (you might want to show a toast notification)
+      setError(err.response?.data?.message || "Failed to fetch categories");
+      showToast("Failed to fetch categories", "error");
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (token) {
-      fetchCategories();
-    }
-  }, [token]);
-
-  // Handle form input changes
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
@@ -63,7 +159,6 @@ const CategoriesPage = () => {
     }));
   };
 
-  // Reset form and close modal
   const resetModal = () => {
     setFormData({
       name: "",
@@ -72,16 +167,17 @@ const CategoriesPage = () => {
     });
     setSelectedCategory(null);
     setModalMode("create");
+    setError("");
     setShowModal(false);
   };
 
-  // Open modal for create
   const handleOpenCreate = () => {
     setModalMode("create");
+    setFormData({ name: "", description: "", isActive: true });
+    setError("");
     setShowModal(true);
   };
 
-  // Open modal for edit
   const handleOpenEdit = (category) => {
     setSelectedCategory(category);
     setFormData({
@@ -90,254 +186,360 @@ const CategoriesPage = () => {
       isActive: category.isActive,
     });
     setModalMode("edit");
+    setError("");
     setShowModal(true);
   };
 
-  // Handle create category
   const handleCreate = async (e) => {
     e.preventDefault();
+    setActionLoading(true);
+    setError("");
+
     try {
-      await axios.post(`${backendUrl}/category/create`, formData, authHeaders);
-      fetchCategories(); // Refresh the list
+      const token = tokenRef.current;
+      await axios.post(`${backendUrl}/category/create`, formData, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      await fetchCategories();
       resetModal();
-      // You might want to show success message
+      showToast("Category created successfully", "success");
     } catch (err) {
       console.error("Error creating category:", err);
-      // Handle error
+      const msg = err.response?.data?.message || "Failed to create category";
+      setError(msg);
+      showToast(msg, "error");
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  // Handle update category
   const handleUpdate = async (e) => {
     e.preventDefault();
     if (!selectedCategory) return;
 
+    setActionLoading(true);
+    setError("");
+
     try {
+      const token = tokenRef.current;
       await axios.put(
         `${backendUrl}/category/update/${selectedCategory.id}`,
         formData,
-        authHeaders,
+        { headers: { Authorization: `Bearer ${token}` } },
       );
-      fetchCategories(); // Refresh the list
+      await fetchCategories();
       resetModal();
-      // You might want to show success message
+      showToast("Category updated successfully", "success");
     } catch (err) {
       console.error("Error updating category:", err);
-      // Handle error
+      const msg = err.response?.data?.message || "Failed to update category";
+      setError(msg);
+      showToast(msg, "error");
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  // Handle delete category
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this category?")) {
+  const handleDelete = async (category) => {
+    if (
+      !window.confirm(`Are you sure you want to delete "${category.name}"?`)
+    ) {
       return;
     }
 
     try {
-      await axios.delete(`${backendUrl}/category/delete/${id}`, authHeaders);
-      fetchCategories(); // Refresh the list
-      // You might want to show success message
+      const token = tokenRef.current;
+      await axios.delete(`${backendUrl}/category/delete/${category.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      await fetchCategories();
+      showToast("Category deleted successfully", "success");
     } catch (err) {
       console.error("Error deleting category:", err);
-      // Handle error
+      showToast(
+        err.response?.data?.message || "Failed to delete category",
+        "error",
+      );
     }
   };
 
-  // Toggle category active status
   const handleToggleActive = async (category) => {
     try {
+      const token = tokenRef.current;
       await axios.put(
         `${backendUrl}/category/update/${category.id}`,
         { ...category, isActive: !category.isActive },
-        authHeaders,
+        { headers: { Authorization: `Bearer ${token}` } },
       );
-      fetchCategories(); // Refresh the list
+      await fetchCategories();
+      showToast(
+        `Category ${category.isActive ? "deactivated" : "activated"}`,
+        "success",
+      );
     } catch (err) {
       console.error("Error toggling category status:", err);
+      showToast("Failed to update category status", "error");
     }
   };
 
-  return (
-    <div
-      className="container p-4 bg-light rounded"
-      style={{ minHeight: "80vh" }}
-    >
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2 className="fw-bold mb-0">Category Management</h2>
-        <button className="btn btn-primary" onClick={handleOpenCreate}>
-          <i className="bi bi-plus-lg me-2"></i>
-          Create Category
-        </button>
-      </div>
+  const filteredCategories = categories.filter((category) => {
+    const matchesSearch =
+      searchTerm === "" ||
+      category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (category.description &&
+        category.description.toLowerCase().includes(searchTerm.toLowerCase()));
 
-      {/* Categories Table */}
-      <div className="table-responsive">
-        <table className="table table-hover table-bordered align-middle">
-          <thead className="table-dark">
-            <tr>
-              <th>#</th>
-              <th>Name</th>
-              <th>Description</th>
-              <th>Status</th>
-              <th className="text-center">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan="5" className="text-center py-4">
-                  <div className="spinner-border text-primary" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                  </div>
-                </td>
-              </tr>
-            ) : categories.length > 0 ? (
-              categories.map((category, index) => (
-                <tr key={category.id || index}>
-                  <td>{index + 1}</td>
-                  <td>{category.name}</td>
-                  <td>{category.description || "-"}</td>
-                  <td>
-                    <div className="form-check form-switch">
-                      <input
-                        className="form-check-input"
-                        type="checkbox"
-                        checked={category.isActive}
-                        onChange={() => handleToggleActive(category)}
-                        id={`active-${category.id}`}
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "active" && category.isActive) ||
+      (statusFilter === "inactive" && !category.isActive);
+
+    return matchesSearch && matchesStatus;
+  });
+
+  const stats = {
+    total: categories.length,
+    active: categories.filter((c) => c.isActive).length,
+    inactive: categories.filter((c) => !c.isActive).length,
+  };
+
+  if (loading) {
+    return (
+      <div className="admin-categories">
+        <div className="loading-container">
+          <div className="gold-spinner"></div>
+          <p>Loading categories...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="admin-categories">
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
+      <div className="categories-container">
+        {/* Header */}
+        <div className="page-header">
+          <div>
+            <div className="header-badge">
+              <i className="bi bi-tags-fill"></i>
+              <span>Category Management</span>
+            </div>
+            <h1 className="page-title">Manage Categories</h1>
+            <p className="page-subtitle">
+              Organize your products with categories
+            </p>
+          </div>
+          <button className="btn-primary-gold" onClick={handleOpenCreate}>
+            <i className="bi bi-plus-circle"></i>
+            Create Category
+          </button>
+        </div>
+
+        {/* Statistics Cards */}
+        <div className="stats-grid-premium">
+          <StatCard
+            title="Total Categories"
+            value={stats.total}
+            icon="bi-tags-fill"
+            color="primary"
+          />
+          <StatCard
+            title="Active"
+            value={stats.active}
+            icon="bi-check-circle-fill"
+            color="success"
+          />
+          <StatCard
+            title="Inactive"
+            value={stats.inactive}
+            icon="bi-x-circle-fill"
+            color="danger"
+          />
+          <StatCard
+            title="Products Count"
+            value="0"
+            icon="bi-box-seam"
+            color="warning"
+          />
+        </div>
+
+        {/* Filters */}
+        <div className="filters-bar">
+          <div className="search-box">
+            <i className="bi bi-search"></i>
+            <input
+              type="text"
+              placeholder="Search categories..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <select
+            className="filter-select"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="all">All Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+          <button className="reset-btn" onClick={fetchCategories}>
+            <i className="bi bi-arrow-repeat"></i>
+            Refresh
+          </button>
+        </div>
+
+        {/* Categories Table */}
+        <div className="categories-card">
+          {error ? (
+            <div className="error-container">
+              <i className="bi bi-exclamation-triangle-fill"></i>
+              <p>{error}</p>
+              <button className="btn-primary-gold" onClick={fetchCategories}>
+                Try Again
+              </button>
+            </div>
+          ) : (
+            <div className="categories-table-container">
+              <table className="categories-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: "60px" }}>#</th>
+                    <th>Category Name</th>
+                    <th>Description</th>
+                    <th>Status</th>
+                    <th style={{ width: "100px" }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredCategories.length > 0 ? (
+                    filteredCategories.map((category, index) => (
+                      <CategoryRow
+                        key={category.id || category._id}
+                        category={category}
+                        index={index}
+                        onEdit={handleOpenEdit}
+                        onDelete={handleDelete}
+                        onToggleStatus={handleToggleActive}
                       />
-                      <label
-                        className={`form-check-label ${category.isActive ? "text-success" : "text-danger"}`}
-                        htmlFor={`active-${category.id}`}
-                      >
-                        {category.isActive ? "Active" : "Inactive"}
-                      </label>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="d-flex gap-2 justify-content-center">
-                      <button
-                        className="btn btn-sm btn-outline-primary"
-                        onClick={() => handleOpenEdit(category)}
-                        title="Edit"
-                      >
-                        <i className="bi bi-pencil"></i>
-                      </button>
-                      <button
-                        className="btn btn-sm btn-outline-danger"
-                        onClick={() => handleDelete(category.id)}
-                        title="Delete"
-                      >
-                        <i className="bi bi-trash"></i>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="5" className="text-center py-4 text-muted">
-                  No categories found. Click "Create Category" to add one.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                    ))
+                  ) : (
+                    <tr className="empty-row">
+                      <td colSpan="5" className="empty-table-cell">
+                        <i className="bi bi-inbox"></i>
+                        <h5>No categories found</h5>
+                        <p>
+                          Click "Create Category" to add your first category
+                        </p>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Create/Edit Modal */}
       {showModal && (
-        <div
-          className="modal show d-block"
-          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-        >
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content">
-              <form
-                onSubmit={modalMode === "create" ? handleCreate : handleUpdate}
-              >
-                <div className="modal-header">
-                  <h5 className="modal-title">
-                    {modalMode === "create"
-                      ? "Create New Category"
-                      : "Edit Category"}
-                  </h5>
-                  <button
-                    type="button"
-                    className="btn-close"
-                    onClick={resetModal}
-                    aria-label="Close"
+        <div className="modal-overlay" onClick={resetModal}>
+          <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h5 className="modal-title">
+                <i
+                  className={`bi ${modalMode === "create" ? "bi-plus-circle" : "bi-pencil-square"}`}
+                ></i>
+                {modalMode === "create"
+                  ? "Create New Category"
+                  : "Edit Category"}
+              </h5>
+              <button className="modal-close" onClick={resetModal}>
+                <i className="bi bi-x-lg"></i>
+              </button>
+            </div>
+            <form
+              onSubmit={modalMode === "create" ? handleCreate : handleUpdate}
+            >
+              <div className="modal-body">
+                {error && <div className="error-message">{error}</div>}
+
+                <div className="form-group">
+                  <label>
+                    Category Name <span className="required">*</span>
+                  </label>
+                  <input
+                    id="name"
+                    name="name"
+                    type="text"
+                    className="form-input"
+                    placeholder="Enter category name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    required
                   />
                 </div>
 
-                <div className="modal-body">
-                  <div className="mb-3">
-                    <label htmlFor="name" className="form-label">
-                      Category Name <span className="text-danger">*</span>
-                    </label>
+                <div className="form-group">
+                  <label>Description</label>
+                  <textarea
+                    id="description"
+                    name="description"
+                    className="form-textarea"
+                    rows="3"
+                    placeholder="Enter category description (optional)"
+                    value={formData.description}
+                    onChange={handleChange}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="checkbox-label">
                     <input
-                      id="name"
-                      name="name"
-                      type="text"
-                      className="form-control"
-                      placeholder="Enter category name"
-                      value={formData.name}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
-
-                  <div className="mb-3">
-                    <label htmlFor="description" className="form-label">
-                      Description
-                    </label>
-                    <textarea
-                      id="description"
-                      name="description"
-                      className="form-control"
-                      rows="3"
-                      placeholder="Enter category description (optional)"
-                      value={formData.description}
+                      id="isActive"
+                      name="isActive"
+                      type="checkbox"
+                      checked={formData.isActive}
                       onChange={handleChange}
                     />
-                  </div>
-
-                  <div className="mb-3">
-                    <div className="form-check">
-                      <input
-                        id="isActive"
-                        name="isActive"
-                        type="checkbox"
-                        className="form-check-input"
-                        checked={formData.isActive}
-                        onChange={handleChange}
-                      />
-                      <label htmlFor="isActive" className="form-check-label">
-                        Active Status
-                      </label>
-                    </div>
-                    <small className="text-muted">
-                      Inactive categories will not be visible to users
-                    </small>
-                  </div>
+                    <span>Active Status</span>
+                  </label>
+                  <small className="form-hint">
+                    Inactive categories will not be visible to users
+                  </small>
                 </div>
-
-                <div className="modal-footer">
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={resetModal}
-                  >
-                    Cancel
-                  </button>
-                  <button type="submit" className="btn btn-primary">
-                    {modalMode === "create"
-                      ? "Create Category"
-                      : "Update Category"}
-                  </button>
-                </div>
-              </form>
-            </div>
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={resetModal}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={actionLoading}
+                >
+                  {actionLoading ? (
+                    <span className="spinner"></span>
+                  ) : modalMode === "create" ? (
+                    "Create Category"
+                  ) : (
+                    "Update Category"
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -345,4 +547,4 @@ const CategoriesPage = () => {
   );
 };
 
-export default CategoriesPage;
+export default AdminCategories;

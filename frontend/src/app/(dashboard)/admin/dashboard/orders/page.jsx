@@ -1,110 +1,146 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import axios from "axios";
+import "./AdminOrders.css";
 
-const OrdersPage = () => {
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [expandedRows, setExpandedRows] = useState({});
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [updatingOrder, setUpdatingOrder] = useState(null);
+const API_URL = `${process.env.NEXT_PUBLIC_BACKEND_URL}/admin`;
 
-  const backendURL = process.env.NEXT_PUBLIC_BACKEND_URL + "/orders/";
-
-  // Fetch orders with useCallback for potential reuse
-  const fetchOrders = useCallback(async () => {
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        setError("No authentication token found");
-        setLoading(false);
-        return;
-      }
-
-      const { data } = await axios.get(backendURL, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      setOrders(data.orders || []);
-      setError("");
-    } catch (err) {
-      setError(err.response?.data?.message || "Failed to fetch orders");
-      console.error("Error fetching orders:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [backendURL]);
-
+// Toast Component
+const Toast = ({ message, type, onClose }) => {
   useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+    const timer = setTimeout(onClose, 3000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
 
-  // Toggle row expansion
-  const toggleRow = (index) => {
-    setExpandedRows((prev) => ({
-      ...prev,
-      [index]: !prev[index],
-    }));
+  const icons = {
+    success: "bi-check-circle-fill",
+    error: "bi-exclamation-circle-fill",
+    warning: "bi-exclamation-triangle-fill",
+    info: "bi-info-circle-fill",
   };
 
-  // Update order status
-  const updateOrderStatus = async (orderId, itemId, newStatus) => {
-    try {
-      setUpdatingOrder(orderId);
-      const token = localStorage.getItem("token");
+  return (
+    <div className={`toast-notification toast-${type}`}>
+      <i className={`bi ${icons[type] || "bi-bell-fill"} toast-icon`}></i>
+      <span className="toast-message">{message}</span>
+      <button className="toast-close-btn" onClick={onClose}>
+        <i className="bi bi-x-lg"></i>
+      </button>
+    </div>
+  );
+};
 
-      await axios.put(
-        `${backendURL}${orderId}/items/${itemId}/status`,
-        { status: newStatus },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
+// Stat Card Component
+const StatCard = ({ title, value, icon, color }) => {
+  return (
+    <div className={`stat-card-premium stat-${color}`}>
+      <div className="stat-icon-wrapper">
+        <div className="stat-icon">
+          <i className={`bi ${icon}`}></i>
+        </div>
+      </div>
+      <div className="stat-content">
+        <h3 className="stat-value">{value.toLocaleString()}</h3>
+        <p className="stat-title">{title}</p>
+      </div>
+    </div>
+  );
+};
 
-      // Refresh orders after update
-      await fetchOrders();
-
-      // Show success message (you could add a toast notification here)
-    } catch (err) {
-      console.error("Error updating order status:", err);
-      alert("Failed to update order status");
-    } finally {
-      setUpdatingOrder(null);
-    }
+// Payment Badge Component
+const PaymentBadge = ({ status }) => {
+  const configs = {
+    paid: { class: "success", icon: "bi-check-circle-fill", label: "Paid" },
+    pending: { class: "warning", icon: "bi-hourglass-split", label: "Pending" },
+    failed: {
+      class: "danger",
+      icon: "bi-exclamation-triangle-fill",
+      label: "Failed",
+    },
+    refunded: {
+      class: "info",
+      icon: "bi-arrow-return-left",
+      label: "Refunded",
+    },
+    requires_capture: {
+      class: "info",
+      icon: "bi-shield-lock",
+      label: "In Escrow",
+    },
+    captured: { class: "success", icon: "bi-cash-stack", label: "Released" },
+  };
+  const config = configs[status] || {
+    class: "secondary",
+    icon: "bi-question-circle",
+    label: status,
   };
 
-  // Get payment badge with proper styling
-  const getPaymentBadge = (status) => {
-    const badges = {
-      paid: { class: "success", icon: "bi-check-circle-fill" },
-      pending: { class: "warning", icon: "bi-hourglass-split" },
-      failed: { class: "danger", icon: "bi-exclamation-triangle-fill" },
-      refunded: { class: "info", icon: "bi-arrow-return-left" },
-    };
+  return (
+    <span className={`payment-badge ${config.class}`}>
+      <i className={`bi ${config.icon}`}></i>
+      {config.label}
+    </span>
+  );
+};
 
-    const badge = badges[status] || {
-      class: "secondary",
-      icon: "bi-question-circle",
-    };
+// Delivery Badge Component
+const DeliveryBadge = ({ isDelivered }) => {
+  return (
+    <span
+      className={`delivery-badge ${isDelivered ? "delivered" : "processing"}`}
+    >
+      <i
+        className={`bi ${isDelivered ? "bi-check-circle-fill" : "bi-truck"}`}
+      ></i>
+      {isDelivered ? "Delivered" : "Processing"}
+    </span>
+  );
+};
 
-    return (
-      <span
-        className={`badge bg-${badge.class} bg-opacity-10 text-${badge.class} px-3 py-2`}
-      >
-        <i className={`bi ${badge.icon} me-1`}></i>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </span>
-    );
+// Order Status Select Component
+const OrderStatusSelect = ({ item, orderId, onUpdate, updating }) => {
+  const [status, setStatus] = useState(item.orderStatus || "pending");
+
+  const handleChange = async (e) => {
+    const newStatus = e.target.value;
+    setStatus(newStatus);
+    await onUpdate(orderId, item._id, newStatus);
   };
 
-  // Format date nicely
+  const statusConfigs = {
+    pending: { class: "status-option pending", label: "Pending" },
+    processing: { class: "status-option processing", label: "Processing" },
+    shipped: { class: "status-option shipped", label: "Shipped" },
+    delivered: { class: "status-option delivered", label: "Delivered" },
+    cancelled: { class: "status-option cancelled", label: "Cancelled" },
+  };
+
+  return (
+    <select
+      className={`order-status-select ${statusConfigs[status]?.class || ""}`}
+      value={status}
+      onChange={handleChange}
+      disabled={updating === orderId}
+    >
+      <option value="pending">Pending</option>
+      <option value="processing">Processing</option>
+      <option value="shipped">Shipped</option>
+      <option value="delivered">Delivered</option>
+      <option value="cancelled">Cancelled</option>
+    </select>
+  );
+};
+
+// Order Row Component
+const OrderRow = ({
+  order,
+  index,
+  isExpanded,
+  onToggle,
+  onUpdateStatus,
+  updatingOrder,
+}) => {
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -114,7 +150,6 @@ const OrdersPage = () => {
     if (diffDays === 0) return "Today";
     if (diffDays === 1) return "Yesterday";
     if (diffDays < 7) return `${diffDays} days ago`;
-
     return date.toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
@@ -122,7 +157,244 @@ const OrdersPage = () => {
     });
   };
 
-  // Filter orders based on status and search
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+    }).format(amount);
+  };
+
+  return (
+    <React.Fragment>
+      <tr className={`order-row ${isExpanded ? "expanded" : ""}`}>
+        <td className="expand-cell">
+          <button className="expand-btn" onClick={() => onToggle(index)}>
+            <i className={`bi bi-chevron-${isExpanded ? "up" : "down"}`}></i>
+          </button>
+        </td>
+        <td className="order-id-cell">
+          <span className="order-id">#{order._id.slice(-8).toUpperCase()}</span>
+        </td>
+        <td className="customer-cell">
+          <div className="customer-info">
+            <i className="bi bi-person-circle"></i>
+            <div>
+              <div className="customer-name">
+                {order.user?.name || order.user?.fullname || "Guest"}
+              </div>
+              <div className="customer-phone">
+                {order.shippingAddress?.phone || "No phone"}
+              </div>
+            </div>
+          </div>
+        </td>
+        <td className="total-cell">
+          <span className="order-total">
+            {formatCurrency(order.totalPrice)}
+          </span>
+        </td>
+        <td className="payment-cell">
+          <PaymentBadge status={order.paymentStatus} />
+        </td>
+        <td className="delivery-cell">
+          <DeliveryBadge isDelivered={order.isDelivered} />
+        </td>
+        <td className="date-cell">
+          <div className="date-info">
+            <i className="bi bi-calendar3"></i>
+            <span>{formatDate(order.createdAt)}</span>
+          </div>
+        </td>
+        <td className="actions-cell">
+          <button className="icon-btn print" title="Print Invoice">
+            <i className="bi bi-printer"></i>
+          </button>
+          <button className="icon-btn email" title="Contact Customer">
+            <i className="bi bi-envelope"></i>
+          </button>
+        </td>
+      </tr>
+
+      {/* Expanded Details */}
+      {isExpanded && (
+        <tr className="expanded-row">
+          <td colSpan="8" className="expanded-cell">
+            <div className="expanded-content">
+              {/* Shipping Information */}
+              <div className="info-section">
+                <h6 className="section-title-small">
+                  <i className="bi bi-truck"></i>
+                  Shipping Details
+                </h6>
+                <div className="info-card">
+                  <div className="info-row">
+                    <span>Full Name:</span>
+                    <strong>{order.shippingAddress?.fullName || "N/A"}</strong>
+                  </div>
+                  <div className="info-row">
+                    <span>Phone:</span>
+                    <strong>{order.shippingAddress?.phone || "N/A"}</strong>
+                  </div>
+                  <div className="info-row">
+                    <span>Address:</span>
+                    <div className="address-text">
+                      {order.shippingAddress?.address}
+                      <br />
+                      {order.shippingAddress?.city},{" "}
+                      {order.shippingAddress?.postalCode}
+                      <br />
+                      {order.shippingAddress?.country}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Order Items */}
+              <div className="items-section">
+                <h6 className="section-title-small">
+                  <i className="bi bi-box-seam"></i>
+                  Order Items
+                </h6>
+                <div className="items-table-wrapper">
+                  <table className="items-table">
+                    <thead>
+                      <tr>
+                        <th>Product</th>
+                        <th>Status</th>
+                        <th className="text-center">Qty</th>
+                        <th className="text-end">Price</th>
+                        <th className="text-end">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {order.orderItems?.map((item, idx) => (
+                        <tr key={idx}>
+                          <td className="product-name-cell">{item.name}</td>
+                          <td className="status-cell">
+                            <OrderStatusSelect
+                              item={item}
+                              orderId={order._id}
+                              onUpdate={onUpdateStatus}
+                              updating={updatingOrder}
+                            />
+                          </td>
+                          <td className="text-center">{item.quantity}</td>
+                          <td className="text-end">
+                            {formatCurrency(item.price)}
+                          </td>
+                          <td className="text-end fw-semibold">
+                            {formatCurrency(item.quantity * item.price)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Order Summary */}
+                <div className="order-summary">
+                  <div className="summary-card">
+                    <div className="summary-row">
+                      <span>Items Subtotal:</span>
+                      <span>{formatCurrency(order.itemsPrice)}</span>
+                    </div>
+                    <div className="summary-row">
+                      <span>Shipping:</span>
+                      <span>{formatCurrency(order.shippingPrice)}</span>
+                    </div>
+                    <div className="summary-row">
+                      <span>Tax:</span>
+                      <span>{formatCurrency(order.taxPrice)}</span>
+                    </div>
+                    <div className="summary-divider"></div>
+                    <div className="summary-row total">
+                      <span>Grand Total:</span>
+                      <span className="total-amount">
+                        {formatCurrency(order.totalPrice)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
+    </React.Fragment>
+  );
+};
+
+const AdminOrders = () => {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [toast, setToast] = useState(null);
+  const [expandedRows, setExpandedRows] = useState({});
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [updatingOrder, setUpdatingOrder] = useState(null);
+
+  const tokenRef = useRef(null);
+
+  const showToast = (message, type = "success") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  useEffect(() => {
+    tokenRef.current = localStorage.getItem("token");
+    fetchOrders();
+  }, []);
+
+  const fetchOrders = async () => {
+    const token = tokenRef.current;
+    if (!token) {
+      setError("No authentication token found");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError("");
+      const { data } = await axios.get(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/orders/`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      setOrders(data.orders || []);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to fetch orders");
+      showToast("Failed to fetch orders", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleRow = (index) => {
+    setExpandedRows((prev) => ({ ...prev, [index]: !prev[index] }));
+  };
+
+  const updateOrderStatus = async (orderId, itemId, newStatus) => {
+    try {
+      setUpdatingOrder(orderId);
+      const token = tokenRef.current;
+      await axios.put(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/orders/${orderId}/items/${itemId}/status`,
+        { status: newStatus },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      await fetchOrders();
+      showToast(`Order status updated to ${newStatus}`, "success");
+    } catch (err) {
+      console.error("Error updating order status:", err);
+      showToast("Failed to update order status", "error");
+    } finally {
+      setUpdatingOrder(null);
+    }
+  };
+
   const filteredOrders = orders.filter((order) => {
     const matchesStatus =
       filterStatus === "all" || order.paymentStatus === filterStatus;
@@ -130,123 +402,112 @@ const OrdersPage = () => {
       searchTerm === "" ||
       order._id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.user?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.user?.fullname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.shippingAddress?.phone?.includes(searchTerm);
-
     return matchesStatus && matchesSearch;
   });
 
-  // Calculate summary statistics
   const stats = {
     total: orders.length,
-    paid: orders.filter((o) => o.paymentStatus === "paid").length,
+    paid: orders.filter(
+      (o) => o.paymentStatus === "paid" || o.paymentStatus === "captured",
+    ).length,
     pending: orders.filter((o) => o.paymentStatus === "pending").length,
     revenue: orders
-      .filter((o) => o.paymentStatus === "paid")
-      .reduce((sum, o) => sum + o.totalPrice, 0),
+      .filter(
+        (o) => o.paymentStatus === "paid" || o.paymentStatus === "captured",
+      )
+      .reduce((sum, o) => sum + (o.totalPrice || 0), 0),
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+    }).format(amount);
   };
 
   if (loading) {
     return (
-      <div className="d-flex justify-content-center align-items-center vh-100">
-        <div className="text-center">
-          <div
-            className="spinner-border text-primary mb-3"
-            style={{ width: "3rem", height: "3rem" }}
-            role="status"
-          >
-            <span className="visually-hidden">Loading...</span>
-          </div>
-          <p className="text-muted">Loading orders...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="container mt-5">
-        <div className="alert alert-danger text-center shadow-sm">
-          <i className="bi bi-exclamation-triangle-fill me-2"></i>
-          {error}
+      <div className="admin-orders">
+        <div className="loading-container">
+          <div className="gold-spinner"></div>
+          <p>Loading orders...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container-fluid py-4">
-      {/* Header with Stats */}
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2 className="fw-bold mb-0">
-          <i className="bi bi-box-seam me-2"></i>
-          Order Management
-        </h2>
-        <span className="badge bg-primary bg-opacity-10 text-primary px-4 py-2 rounded-pill">
-          <i className="bi bi-cart me-2"></i>
-          Total Orders: {orders.length}
-        </span>
-      </div>
+    <div className="admin-orders">
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
 
-      {/* Stats Cards */}
-      <div className="row g-3 mb-4">
-        <div className="col-md-3">
-          <div className="card border-0 shadow-sm bg-primary bg-opacity-10">
-            <div className="card-body">
-              <h6 className="text-primary mb-2">Total Revenue</h6>
-              <h3 className="mb-0">${stats.revenue.toFixed(2)}</h3>
+      <div className="orders-container">
+        {/* Header */}
+        <div className="page-header">
+          <div>
+            <div className="header-badge">
+              <i className="bi bi-box-seam"></i>
+              <span>Order Management</span>
             </div>
+            <h1 className="page-title">Manage Orders</h1>
+            <p className="page-subtitle">View and manage all customer orders</p>
           </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card border-0 shadow-sm bg-success bg-opacity-10">
-            <div className="card-body">
-              <h6 className="text-success mb-2">Paid Orders</h6>
-              <h3 className="mb-0">{stats.paid}</h3>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card border-0 shadow-sm bg-warning bg-opacity-10">
-            <div className="card-body">
-              <h6 className="text-warning mb-2">Pending</h6>
-              <h3 className="mb-0">{stats.pending}</h3>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card border-0 shadow-sm bg-info bg-opacity-10">
-            <div className="card-body">
-              <h6 className="text-info mb-2">Completion Rate</h6>
-              <h3 className="mb-0">
-                {orders.length
-                  ? Math.round((stats.paid / orders.length) * 100)
-                  : 0}
-                %
-              </h3>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="row mb-4">
-        <div className="col-md-4">
-          <div className="input-group">
-            <span className="input-group-text bg-white border-end-0">
-              <i className="bi bi-search"></i>
+          <div className="header-stats">
+            <span className="total-badge">
+              <i className="bi bi-cart"></i>
+              Total Orders: {orders.length}
             </span>
+          </div>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="stats-grid-premium">
+          <StatCard
+            title="Total Revenue"
+            value={formatCurrency(stats.revenue)}
+            icon="bi-currency-dollar"
+            color="gold"
+          />
+          <StatCard
+            title="Paid Orders"
+            value={stats.paid}
+            icon="bi-check-circle-fill"
+            color="success"
+          />
+          <StatCard
+            title="Pending"
+            value={stats.pending}
+            icon="bi-hourglass-split"
+            color="warning"
+          />
+          <StatCard
+            title="Completion Rate"
+            value={`${orders.length ? Math.round((stats.paid / orders.length) * 100) : 0}%`}
+            icon="bi-pie-chart-fill"
+            color="info"
+          />
+        </div>
+
+        {/* Filters */}
+        <div className="filters-bar">
+          <div className="search-box">
+            <i className="bi bi-search"></i>
             <input
               type="text"
-              className="form-control border-start-0 ps-0"
               placeholder="Search by ID, customer, or phone..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-        </div>
-        <div className="col-md-3">
           <select
-            className="form-select"
+            className="filter-select"
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
           >
@@ -256,290 +517,57 @@ const OrdersPage = () => {
             <option value="failed">Failed</option>
             <option value="refunded">Refunded</option>
           </select>
-        </div>
-        <div className="col-md-5 text-end">
-          <button
-            className="btn btn-outline-primary me-2"
-            onClick={fetchOrders}
-          >
-            <i className="bi bi-arrow-repeat me-2"></i>
+          <button className="reset-btn" onClick={fetchOrders}>
+            <i className="bi bi-arrow-repeat"></i>
             Refresh
           </button>
-          <button className="btn btn-outline-secondary">
-            <i className="bi bi-download me-2"></i>
-            Export
-          </button>
         </div>
-      </div>
 
-      {/* Orders Table */}
-      <div className="table-responsive">
-        <table className="table table-hover align-middle">
-          <thead className="bg-light">
-            <tr>
-              <th style={{ width: "50px" }}></th>
-              <th>Order ID</th>
-              <th>Customer</th>
-              <th>Total</th>
-              <th>Payment</th>
-              <th>Delivery</th>
-              <th>Date</th>
-              <th className="text-center">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredOrders.length > 0 ? (
-              filteredOrders.map((order, index) => (
-                <React.Fragment key={order._id}>
-                  <tr className={expandedRows[index] ? "table-active" : ""}>
-                    <td>
-                      <button
-                        className="btn btn-sm btn-link text-decoration-none p-0"
-                        onClick={() => toggleRow(index)}
-                      >
-                        <i
-                          className={`bi bi-chevron-${expandedRows[index] ? "up" : "down"} fs-6`}
-                        ></i>
-                      </button>
-                    </td>
-                    <td>
-                      <span className="fw-semibold">
-                        #{order._id.slice(-8)}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="d-flex align-items-center">
-                        <div className="bg-primary bg-opacity-10 rounded-circle p-2 me-2">
-                          <i className="bi bi-person text-primary"></i>
-                        </div>
-                        <div>
-                          <div className="fw-semibold">
-                            {order.user?.name || "Guest"}
-                          </div>
-                          <small className="text-muted">
-                            {order.shippingAddress?.phone || "No phone"}
-                          </small>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="fw-bold">${order.totalPrice.toFixed(2)}</td>
-                    <td>{getPaymentBadge(order.paymentStatus)}</td>
-                    <td>
-                      {order.isDelivered ? (
-                        <span className="badge bg-success bg-opacity-10 text-success px-3 py-2">
-                          <i className="bi bi-check-circle-fill me-1"></i>
-                          Delivered
-                        </span>
-                      ) : (
-                        <span className="badge bg-secondary bg-opacity-10 text-secondary px-3 py-2">
-                          <i className="bi bi-truck me-1"></i>
-                          Processing
-                        </span>
-                      )}
-                    </td>
-                    <td>
-                      <div className="small">
-                        <div className="fw-semibold">
-                          {formatDate(order.createdAt)}
-                        </div>
-                        <small className="text-muted">
-                          {new Date(order.createdAt).toLocaleTimeString()}
-                        </small>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="d-flex gap-2 justify-content-center">
-                        <button
-                          className="btn btn-sm btn-outline-info"
-                          title="Print Invoice"
-                        >
-                          <i className="bi bi-printer"></i>
-                        </button>
-                        <button
-                          className="btn btn-sm btn-outline-primary"
-                          title="Contact Customer"
-                        >
-                          <i className="bi bi-envelope"></i>
-                        </button>
-                      </div>
+        {/* Orders Table */}
+        <div className="orders-card">
+          <div className="orders-table-container">
+            <table className="orders-table">
+              <thead>
+                <tr>
+                  <th style={{ width: "40px" }}></th>
+                  <th>Order ID</th>
+                  <th>Customer</th>
+                  <th>Total</th>
+                  <th>Payment</th>
+                  <th>Delivery</th>
+                  <th>Date</th>
+                  <th style={{ width: "100px" }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredOrders.length > 0 ? (
+                  filteredOrders.map((order, index) => (
+                    <OrderRow
+                      key={order._id}
+                      order={order}
+                      index={index}
+                      isExpanded={expandedRows[index]}
+                      onToggle={toggleRow}
+                      onUpdateStatus={updateOrderStatus}
+                      updatingOrder={updatingOrder}
+                    />
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="8" className="empty-table-cell">
+                      <i className="bi bi-inbox"></i>
+                      <h5>No orders found</h5>
+                      <p>Try adjusting your filters or search term</p>
                     </td>
                   </tr>
-
-                  {/* Expanded Details */}
-                  {expandedRows[index] && (
-                    <tr className="bg-light">
-                      <td colSpan="8" className="p-4">
-                        <div className="row g-4">
-                          {/* Shipping Information */}
-                          <div className="col-md-4">
-                            <div className="card border-0 shadow-sm h-100">
-                              <div className="card-body">
-                                <h6 className="fw-bold mb-3">
-                                  <i className="bi bi-truck me-2 text-primary"></i>
-                                  Shipping Details
-                                </h6>
-                                <p className="mb-2">
-                                  <strong>Name:</strong>{" "}
-                                  {order.shippingAddress.fullName}
-                                </p>
-                                <p className="mb-2">
-                                  <strong>Phone:</strong>{" "}
-                                  {order.shippingAddress.phone}
-                                </p>
-                                <p className="mb-2">
-                                  <strong>Address:</strong>
-                                  <br />
-                                  {order.shippingAddress.address}
-                                  <br />
-                                  {order.shippingAddress.city},{" "}
-                                  {order.shippingAddress.postalCode}
-                                  <br />
-                                  {order.shippingAddress.country}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Order Items */}
-                          <div className="col-md-8">
-                            <div className="card border-0 shadow-sm">
-                              <div className="card-body">
-                                <h6 className="fw-bold mb-3">
-                                  <i className="bi bi-box me-2 text-primary"></i>
-                                  Order Items
-                                </h6>
-                                <div className="table-responsive">
-                                  <table className="table table-sm">
-                                    <thead>
-                                      <tr>
-                                        <th>Product</th>
-                                        <th>Status</th>
-                                        <th className="text-center">
-                                          Quantity
-                                        </th>
-                                        <th className="text-end">Price</th>
-                                        <th className="text-end">Total</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {order.orderItems.map((item, i) => (
-                                        <tr key={i}>
-                                          <td>{item.name}</td>
-                                          <td>
-                                            <select
-                                              className="form-select form-select-sm"
-                                              value={
-                                                item.orderStatus || "pending"
-                                              }
-                                              onChange={(e) =>
-                                                updateOrderStatus(
-                                                  order._id,
-                                                  item._id,
-                                                  e.target.value,
-                                                )
-                                              }
-                                              disabled={
-                                                updatingOrder === order._id
-                                              }
-                                            >
-                                              <option value="pending">
-                                                Pending
-                                              </option>
-                                              <option value="processing">
-                                                Processing
-                                              </option>
-                                              <option value="shipped">
-                                                Shipped
-                                              </option>
-                                              <option value="delivered">
-                                                Delivered
-                                              </option>
-                                              <option value="cancelled">
-                                                Cancelled
-                                              </option>
-                                            </select>
-                                          </td>
-                                          <td className="text-center">
-                                            {item.quantity}
-                                          </td>
-                                          <td className="text-end">
-                                            ${item.price}
-                                          </td>
-                                          <td className="text-end">
-                                            $
-                                            {(
-                                              item.quantity * item.price
-                                            ).toFixed(2)}
-                                          </td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                </div>
-
-                                {/* Price Summary */}
-                                <div className="row mt-3">
-                                  <div className="col-md-6 offset-md-6">
-                                    <div className="bg-white p-3 rounded">
-                                      <div className="d-flex justify-content-between mb-2">
-                                        <span className="text-muted">
-                                          Items Total:
-                                        </span>
-                                        <span className="fw-semibold">
-                                          ${order.itemsPrice}
-                                        </span>
-                                      </div>
-                                      <div className="d-flex justify-content-between mb-2">
-                                        <span className="text-muted">
-                                          Shipping:
-                                        </span>
-                                        <span className="fw-semibold">
-                                          ${order.shippingPrice}
-                                        </span>
-                                      </div>
-                                      <div className="d-flex justify-content-between mb-2">
-                                        <span className="text-muted">Tax:</span>
-                                        <span className="fw-semibold">
-                                          ${order.taxPrice}
-                                        </span>
-                                      </div>
-                                      <hr className="my-2" />
-                                      <div className="d-flex justify-content-between">
-                                        <span className="fw-bold">
-                                          Grand Total:
-                                        </span>
-                                        <span className="fw-bold text-primary">
-                                          ${order.totalPrice}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="8" className="text-center py-5">
-                  <i className="bi bi-inbox fs-1 text-muted d-block mb-3"></i>
-                  <h5 className="text-muted">No orders found</h5>
-                  <p className="text-muted mb-0">
-                    Try adjusting your filters or search term
-                  </p>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   );
 };
 
-export default OrdersPage;
+export default AdminOrders;

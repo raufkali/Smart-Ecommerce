@@ -67,8 +67,9 @@ export default function RootLayout({ children }) {
             />
 
             <div
-              className="main-content"
+              className="main-content "
               style={{
+                marginTop: isMobile ? "56px" : "80px",
                 marginLeft: isMobile ? 0 : sidebarCollapsed ? "80px" : "280px",
                 width: isMobile
                   ? "100%"
