@@ -287,7 +287,7 @@ const HeroBanner = ({ banners, currentSlide, onSlideChange }) => {
   );
 };
 
-// ── Featured Product Spotlight Carousel ─────────────────────────────────────
+// ── Featured Product Spotlight Carousel - Enhanced ─────────────────────────
 const FeaturedProductSpotlight = ({
   products,
   formatPrice,
@@ -299,13 +299,25 @@ const FeaturedProductSpotlight = ({
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
+  const [progressWidth, setProgressWidth] = useState(0);
 
   useEffect(() => {
     if (!isHovered && products.length > 0) {
+      setProgressWidth(0);
+      const timer = setTimeout(() => setProgressWidth(100), 100);
+
       const interval = setInterval(() => {
-        setCurrentIndex((prev) => (prev + 1) % products.length);
+        setCurrentIndex((prev) => {
+          setProgressWidth(0);
+          const timer2 = setTimeout(() => setProgressWidth(100), 100);
+          return (prev + 1) % products.length;
+        });
       }, 6000);
-      return () => clearInterval(interval);
+
+      return () => {
+        clearInterval(interval);
+        clearTimeout(timer);
+      };
     }
   }, [isHovered, products.length]);
 
@@ -319,10 +331,17 @@ const FeaturedProductSpotlight = ({
   const isAdding = addingToCart[product._id];
   const outOfStock = product.stock <= 0;
 
-  const handlePrev = () =>
+  const handlePrev = () => {
     setCurrentIndex((prev) => (prev - 1 + products.length) % products.length);
-  const handleNext = () =>
+    setProgressWidth(0);
+    setTimeout(() => setProgressWidth(100), 100);
+  };
+
+  const handleNext = () => {
     setCurrentIndex((prev) => (prev + 1) % products.length);
+    setProgressWidth(0);
+    setTimeout(() => setProgressWidth(100), 100);
+  };
 
   return (
     <section
@@ -336,90 +355,108 @@ const FeaturedProductSpotlight = ({
           <p>Discover our handpicked selection of premium products</p>
         </div>
 
-        <motion.div
-          key={product._id}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="spotlight-card"
-        >
-          <div className="spotlight-image">
-            <Image
-              src={`${process.env.NEXT_PUBLIC_BACKEND_URL}${product.images?.[0] || "/placeholder.jpg"}`}
-              alt={product.name}
-              fill
-              className="spotlight-img"
-            />
-            {discount > 0 && (
-              <span className="spotlight-discount">-{discount}%</span>
-            )}
-          </div>
-
-          <div className="spotlight-content">
-            <span className="spotlight-category">
-              {product.category?.name || "Premium"}
-            </span>
-            <h3 className="spotlight-title">{product.name}</h3>
-            <p className="spotlight-description">{product.description}</p>
-
-            <div className="spotlight-price">
-              <span className="spotlight-current">
-                {formatPrice(product.finalPrice || product.price)}
-              </span>
-              {product.finalPrice && product.finalPrice < product.price && (
-                <span className="spotlight-original">
-                  {formatPrice(product.price)}
-                </span>
+        <div className="spotlight-carousel">
+          <motion.div
+            key={product._id}
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="spotlight-card"
+          >
+            {/* Fixed image container */}
+            <div className="spotlight-image-container">
+              <Image
+                src={`${process.env.NEXT_PUBLIC_BACKEND_URL}${product.images?.[0] || "/placeholder.jpg"}`}
+                alt={product.name}
+                fill
+                className="spotlight-img"
+                sizes="(max-width: 768px) 100vw, 50vw"
+              />
+              {discount > 0 && (
+                <span className="spotlight-discount">-{discount}% OFF</span>
               )}
             </div>
 
-            <div className="spotlight-features">
-              <div className="feature-item">
-                <i className="bi bi-shield-check" />
-                <span>Quality Guaranteed</span>
-              </div>
-              <div className="feature-item">
-                <i className="bi bi-truck" />
-                <span>Free Shipping</span>
-              </div>
-              <div className="feature-item">
-                <i className="bi bi-arrow-repeat" />
-                <span>30-Day Returns</span>
-              </div>
-            </div>
+            <div className="spotlight-content">
+              <span className="spotlight-category">
+                {product.category?.name || "Premium Collection"}
+              </span>
+              <h3 className="spotlight-title">{product.name}</h3>
+              <p className="spotlight-description">
+                {product.description?.substring(0, 120) ||
+                  "Discover excellence with this premium product, crafted for those who appreciate quality and style."}
+              </p>
 
-            <div className="spotlight-actions">
-              <button
-                className="spotlight-cart-btn"
-                disabled={outOfStock || isAdding}
-                onClick={() => {
-                  if (!user || !hasToken) {
-                    onLoginPrompt();
-                    return;
-                  }
-                  onAddToCart(product._id, product.name);
-                }}
-              >
-                {isAdding ? (
-                  <>
-                    <span className="spinner" /> Adding...
-                  </>
-                ) : (
-                  <>
-                    <i className="bi bi-cart-plus" />{" "}
-                    {outOfStock ? "Sold Out" : "Add to Cart"}
-                  </>
+              <div className="spotlight-price">
+                <span className="spotlight-current">
+                  {formatPrice(product.finalPrice || product.price)}
+                </span>
+                {product.finalPrice && product.finalPrice < product.price && (
+                  <span className="spotlight-original">
+                    {formatPrice(product.price)}
+                  </span>
                 )}
-              </button>
-              <Link
-                href={`/products/${product._id}`}
-                className="spotlight-view-btn"
-              >
-                View Details <i className="bi bi-arrow-right" />
-              </Link>
+              </div>
+
+              <div className="spotlight-features">
+                <div className="feature-item">
+                  <i className="bi bi-shield-check" />
+                  <span>Quality Guaranteed</span>
+                </div>
+                <div className="feature-item">
+                  <i className="bi bi-truck" />
+                  <span>Free Shipping</span>
+                </div>
+                <div className="feature-item">
+                  <i className="bi bi-arrow-repeat" />
+                  <span>30-Day Returns</span>
+                </div>
+              </div>
+
+              <div className="spotlight-actions">
+                <button
+                  className="spotlight-cart-btn"
+                  disabled={outOfStock || isAdding}
+                  onClick={() => {
+                    if (!user || !hasToken) {
+                      onLoginPrompt();
+                      return;
+                    }
+                    onAddToCart(product._id, product.name);
+                  }}
+                >
+                  {isAdding ? (
+                    <>
+                      <span className="spinner" /> Adding...
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-cart-plus" />
+                      {outOfStock ? "Sold Out" : "Add to Cart"}
+                    </>
+                  )}
+                </button>
+                <Link
+                  href={`/products/${product._id}`}
+                  className="spotlight-view-btn"
+                >
+                  View Details <i className="bi bi-arrow-right" />
+                </Link>
+              </div>
             </div>
-          </div>
-        </motion.div>
+          </motion.div>
+
+          {/* Progress bar */}
+          {!isHovered && (
+            <div className="spotlight-progress">
+              <div
+                className={`spotlight-progress-bar ${progressWidth === 100 ? "animating" : ""}`}
+                style={{ width: `${progressWidth}%` }}
+              />
+            </div>
+          )}
+        </div>
 
         <div className="spotlight-nav">
           <button className="spotlight-nav-btn prev" onClick={handlePrev}>
@@ -430,7 +467,11 @@ const FeaturedProductSpotlight = ({
               <button
                 key={idx}
                 className={`spotlight-dot ${idx === currentIndex ? "active" : ""}`}
-                onClick={() => setCurrentIndex(idx)}
+                onClick={() => {
+                  setCurrentIndex(idx);
+                  setProgressWidth(0);
+                  setTimeout(() => setProgressWidth(100), 100);
+                }}
               />
             ))}
           </div>
@@ -728,59 +769,36 @@ const HomePage = () => {
 
       {/* Categories */}
       <section className="categories-section container-fluid py-4">
-        {/* <SectionHeader
-          title="Shop by Category"
-          // subtitle="Discover our curated collections"
-          centered
-        /> */}
-        <div className="row d-flex align-items-center justify-content-center">
+        <div className="row g-3 d-flex align-items-stretch justify-content-center">
           {data.categories.map((category) => (
             <div
               key={category._id}
               className="col-xl-1 col-lg-1 col-md-2 col-5"
             >
-              <Link href={`/products?category=${category._id}`} className="">
+              <Link
+                href={`/products?category=${category._id}`}
+                className="category-card"
+              >
                 <div className="category-icon">
                   <i className={`bi bi-${getCategoryIcon(category.name)}`} />
+                  {/* <p className="category-name">{category.name}</p> */}
+                  {category.description && (
+                    <span className="category-description">
+                      {category.description.length > 35
+                        ? `${category.description.substring(0, 35)}...`
+                        : category.description}
+                    </span>
+                  )}
                 </div>
-                {/* <h3>{category.name}</h3> */}
-                {/* {category.description && (
-                  <p>{category.description.substring(0, 50)}...</p>
-                )} */}
-                {/* <span className="category-arrow">→</span> */}
               </Link>
             </div>
           ))}
-        </div>
-        {/* <div className="text-center mt-5">
-          <Link href="/categories" className="cta-button secondary">
-            View All Categories
-          </Link>
-        </div> */}
-      </section>
-
-      {/* Featured Products */}
-      <section
-        className="featured-section py-5"
-        style={{ background: "#f8fafc" }}
-      >
-        <div className="container">
-          <SectionHeader
-            title="Featured Products"
-            subtitle="Handpicked just for you"
-            href="/products"
-          />
-          <ProductsGrid
-            products={data.featuredProducts}
-            loading={loading}
-            {...cardProps}
-          />
         </div>
       </section>
 
       {/* Best Deals */}
       {data.discountedProducts.length > 0 && (
-        <section className="deals-section container py-5">
+        <section className="deals-section container-fluid p-5">
           <SectionHeader
             title="Best Deals"
             subtitle="Limited time discounts"

@@ -1,17 +1,14 @@
-// routes/notificationRoutes.js
 const express = require("express");
 const router = express.Router();
-const expressAsyncHandler = require("express-async-handler");
+const asyncHandler = require("express-async-handler");
 const Notification = require("../models/Notification");
 const { authMiddleware } = require("../middlewares/authMiddleware");
 
-// @desc  Get notifications for logged-in user
-// @route GET /api/notifications?page=1&limit=20&unread=true
-// @access Private
+// GET /notifications — fetch with pagination
 router.get(
   "/",
   authMiddleware,
-  expressAsyncHandler(async (req, res) => {
+  asyncHandler(async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
@@ -34,22 +31,16 @@ router.get(
       success: true,
       notifications,
       unreadCount,
-      pagination: {
-        page,
-        pages: Math.ceil(total / limit),
-        total,
-      },
+      pagination: { page, pages: Math.ceil(total / limit), total },
     });
   }),
 );
 
-// @desc  Mark a single notification as read
-// @route PUT /api/notifications/:id/read
-// @access Private
+// PUT /notifications/:id/read — mark one as read
 router.put(
   "/:id/read",
   authMiddleware,
-  expressAsyncHandler(async (req, res) => {
+  asyncHandler(async (req, res) => {
     const notification = await Notification.findOneAndUpdate(
       { _id: req.params.id, user: req.user.id },
       { isRead: true },
@@ -65,33 +56,39 @@ router.put(
   }),
 );
 
-// @desc  Mark all notifications as read
-// @route PUT /api/notifications/read-all
-// @access Private
+// PUT /notifications/read-all — mark all as read
 router.put(
   "/read-all",
   authMiddleware,
-  expressAsyncHandler(async (req, res) => {
+  asyncHandler(async (req, res) => {
     await Notification.updateMany(
       { user: req.user.id, isRead: false },
       { isRead: true },
     );
-    res.json({ success: true, message: "All notifications marked as read" });
+    res.json({ success: true });
   }),
 );
 
-// @desc  Delete a notification
-// @route DELETE /api/notifications/:id
-// @access Private
+// DELETE /notifications/:id — delete one
 router.delete(
   "/:id",
   authMiddleware,
-  expressAsyncHandler(async (req, res) => {
+  asyncHandler(async (req, res) => {
     await Notification.findOneAndDelete({
       _id: req.params.id,
       user: req.user.id,
     });
-    res.json({ success: true, message: "Notification deleted" });
+    res.json({ success: true });
+  }),
+);
+
+// DELETE /notifications/all — clear all  ← this was missing
+router.delete(
+  "/all",
+  authMiddleware,
+  asyncHandler(async (req, res) => {
+    await Notification.deleteMany({ user: req.user.id });
+    res.json({ success: true });
   }),
 );
 

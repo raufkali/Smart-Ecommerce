@@ -3,104 +3,37 @@
 import React, { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
-// Custom Toast Component (you can move this to a separate file later)
+import { motion, AnimatePresence } from "framer-motion";
+import "./productDetail.css";
+
+// Toast Component
 const Toast = ({ message, type, onClose }) => {
   useEffect(() => {
-    const timer = setTimeout(() => {
-      onClose();
-    }, 3000);
-
+    const timer = setTimeout(onClose, 3000);
     return () => clearTimeout(timer);
   }, [onClose]);
 
-  const getIcon = () => {
-    switch (type) {
-      case "success":
-        return "bi-check-circle-fill";
-      case "error":
-        return "bi-exclamation-circle-fill";
-      case "warning":
-        return "bi-exclamation-triangle-fill";
-      case "info":
-        return "bi-info-circle-fill";
-      default:
-        return "bi-bell-fill";
-    }
-  };
-
-  const getBgColor = () => {
-    switch (type) {
-      case "success":
-        return "bg-success";
-      case "error":
-        return "bg-danger";
-      case "warning":
-        return "bg-warning";
-      case "info":
-        return "bg-info";
-      default:
-        return "bg-primary";
-    }
-  };
+  const config = {
+    success: { bg: "#10b981", icon: "bi-check-circle-fill" },
+    error: { bg: "#ef4444", icon: "bi-exclamation-circle-fill" },
+    warning: { bg: "#f59e0b", icon: "bi-exclamation-triangle-fill" },
+    info: { bg: "#3b82f6", icon: "bi-info-circle-fill" },
+  }[type] || { bg: "#6b7280", icon: "bi-bell-fill" };
 
   return (
-    <div
-      className={`toast-notification ${getBgColor()} text-white`}
-      role="alert"
+    <motion.div
+      initial={{ opacity: 0, x: 100 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 100 }}
+      className="toast-notification"
+      style={{ background: config.bg }}
     >
-      <i className={`bi ${getIcon()} me-2`}></i>
-      <span className="flex-grow-1">{message}</span>
-      <button
-        type="button"
-        className="btn-close btn-close-white ms-3"
-        onClick={onClose}
-        aria-label="Close"
-      ></button>
-
-      <style jsx>{`
-        .toast-notification {
-          position: fixed;
-          top: 20px;
-          right: 20px;
-          min-width: 300px;
-          max-width: 400px;
-          padding: 1rem 1.25rem;
-          border-radius: 0.5rem;
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-          display: flex;
-          align-items: center;
-          z-index: 9999;
-          animation: slideIn 0.3s ease forwards;
-        }
-
-        @keyframes slideIn {
-          from {
-            transform: translateX(100%);
-            opacity: 0;
-          }
-          to {
-            transform: translateX(0);
-            opacity: 1;
-          }
-        }
-
-        @keyframes slideOut {
-          from {
-            transform: translateX(0);
-            opacity: 1;
-          }
-          to {
-            transform: translateX(100%);
-            opacity: 0;
-          }
-        }
-
-        .toast-notification.closing {
-          animation: slideOut 0.3s ease forwards;
-        }
-      `}</style>
-    </div>
+      <i className={`bi ${config.icon}`}></i>
+      <span>{message}</span>
+      <button onClick={onClose} className="toast-close">
+        <i className="bi bi-x-lg"></i>
+      </button>
+    </motion.div>
   );
 };
 
@@ -115,37 +48,16 @@ const ProductDetailPage = () => {
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [user, setUser] = useState(null);
-  const [isClient, setIsClient] = useState(false);
   const [addingToCart, setAddingToCart] = useState(false);
-
-  // Toast state
   const [toast, setToast] = useState(null);
 
-  // Show toast function
   const showToast = (message, type = "success") => {
     setToast({ message, type });
   };
 
-  // Close toast function
-  const closeToast = () => {
-    if (toast) {
-      const toastElement = document.querySelector(".toast-notification");
-      if (toastElement) {
-        toastElement.style.animation = "slideOut 0.3s ease forwards";
-        setTimeout(() => {
-          setToast(null);
-        }, 300);
-      } else {
-        setToast(null);
-      }
-    }
-  };
+  const closeToast = () => setToast(null);
 
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  // Fetch user if logged in
+  // Fetch user
   useEffect(() => {
     const fetchUser = async () => {
       const token = localStorage.getItem("token");
@@ -154,16 +66,13 @@ const ProductDetailPage = () => {
           const response = await fetch(
             `${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/me`,
             {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
+              headers: { Authorization: `Bearer ${token}` },
             },
           );
           if (response.ok) {
             const data = await response.json();
             setUser(data.user);
           } else {
-            // Token expired or invalid
             localStorage.removeItem("token");
           }
         } catch (error) {
@@ -203,7 +112,7 @@ const ProductDetailPage = () => {
     }
   }, [productId]);
 
-  // Add to cart function using backend API
+  // Add to cart
   const addToCart = async () => {
     if (!user) {
       showToast("Please login to add items to cart", "info");
@@ -213,7 +122,6 @@ const ProductDetailPage = () => {
 
     try {
       setAddingToCart(true);
-
       const token = localStorage.getItem("token");
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/cart/add`,
@@ -235,24 +143,11 @@ const ProductDetailPage = () => {
         throw new Error(errorData.message || "Failed to add to cart");
       }
 
-      // Show success toast with quantity
-      showToast(
-        `${quantity} × ${product.name} added to cart successfully!`,
-        "success",
-      );
-
-      // Optional: Add a mini cart animation or update cart count in navbar
+      showToast(`${quantity} × ${product.name} added to cart!`, "success");
     } catch (error) {
       console.error("Error adding to cart:", error);
-
-      // Show appropriate error message
       if (error.message.includes("low on Stock")) {
-        showToast(
-          `Sorry, only ${product.stock} items available in stock!`,
-          "warning",
-        );
-      } else if (error.message.includes("Product Not found")) {
-        showToast("Product not found", "error");
+        showToast(`Only ${product.stock} items available!`, "warning");
       } else {
         showToast(error.message || "Failed to add item to cart", "error");
       }
@@ -261,7 +156,7 @@ const ProductDetailPage = () => {
     }
   };
 
-  // Buy now function
+  // Buy now
   const buyNow = async () => {
     if (!user) {
       showToast("Please login to continue", "info");
@@ -271,8 +166,6 @@ const ProductDetailPage = () => {
 
     try {
       setAddingToCart(true);
-
-      // First add to cart
       const token = localStorage.getItem("token");
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/cart/add`,
@@ -294,7 +187,6 @@ const ProductDetailPage = () => {
         throw new Error(errorData.message || "Failed to add to cart");
       }
 
-      // Then redirect to checkout/cart page
       showToast("Redirecting to checkout...", "success");
       setTimeout(() => router.push("/cart"), 1000);
     } catch (error) {
@@ -305,7 +197,6 @@ const ProductDetailPage = () => {
     }
   };
 
-  // Format price
   const formatPrice = (price) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -313,13 +204,11 @@ const ProductDetailPage = () => {
     }).format(price);
   };
 
-  // Calculate discount percentage
   const calculateDiscount = (price, finalPrice) => {
     if (!finalPrice || finalPrice >= price) return 0;
     return Math.round(((price - finalPrice) / price) * 100);
   };
 
-  // Handle quantity change
   const increaseQuantity = () => {
     if (quantity < (product?.stock || 10)) {
       setQuantity(quantity + 1);
@@ -332,23 +221,30 @@ const ProductDetailPage = () => {
     }
   };
 
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return "/placeholder.jpg";
+    if (imagePath.startsWith("http")) return imagePath;
+    return `${process.env.NEXT_PUBLIC_BACKEND_URL}${imagePath}`;
+  };
+
   if (loading) {
     return (
-      <div className="container py-5 text-center">
-        <div className="spinner-border text-primary mb-3" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
-        <h5 className="text-muted">Loading product details...</h5>
+      <div className="loading-container">
+        <div className="loader-spinner"></div>
+        <p>Loading product details...</p>
       </div>
     );
   }
 
   if (error || !product) {
     return (
-      <div className="container py-5">
-        <div className="alert alert-danger">{error || "Product not found"}</div>
-        <Link href="/" className="btn btn-primary">
-          Back to Home
+      <div className="empty-state">
+        <div className="empty-icon">
+          <i className="bi bi-exclamation-triangle-fill"></i>
+        </div>
+        <p>{error || "Product not found"}</p>
+        <Link href="/" className="cta-button primary">
+          <i className="bi bi-arrow-left"></i> Back to Home
         </Link>
       </div>
     );
@@ -356,294 +252,232 @@ const ProductDetailPage = () => {
 
   const discount = calculateDiscount(product.price, product.finalPrice);
   const productImages =
-    product.images && product.images.length > 0
-      ? product.images
-      : ["https://via.placeholder.com/600"];
+    product.images && product.images.length > 0 ? product.images : [];
 
   return (
-    <div className="container py-5">
-      {/* Toast Notifications */}
-      {toast && (
-        <Toast message={toast.message} type={toast.type} onClose={closeToast} />
-      )}
+    <>
+      <AnimatePresence>
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={closeToast}
+          />
+        )}
+      </AnimatePresence>
 
-      {/* Breadcrumb */}
-      <nav aria-label="breadcrumb" className="mb-4">
-        <ol className="breadcrumb">
-          <li className="breadcrumb-item">
+      <div className="product-detail-page">
+        <div className="container">
+          {/* Breadcrumb */}
+          <nav className="product-breadcrumb">
             <Link href="/">Home</Link>
-          </li>
-          <li className="breadcrumb-item">
+            <i className="bi bi-chevron-right"></i>
             <Link href="/products">Products</Link>
-          </li>
-          <li className="breadcrumb-item">
-            <Link href={`/categories/${product.category?._id}`}>
-              {product.category?.name || "Category"}
-            </Link>
-          </li>
-          <li className="breadcrumb-item active" aria-current="page">
-            {product.name}
-          </li>
-        </ol>
-      </nav>
+            <i className="bi bi-chevron-right"></i>
+            <span>{product.name}</span>
+          </nav>
 
-      <div className="row">
-        {/* Product Images */}
-        <div className="col-md-6 mb-4">
-          <div className="card border-0 shadow-sm">
-            {/* Main Image */}
-            <div style={{ height: "400px", width: "100%" }}>
-              <Image
-                src={`${process.env.NEXT_PUBLIC_BACKEND_URL}${product.images[selectedImage]}`}
-                alt={product.name}
-                className="img-fluid rounded"
-                fill
-                style={{
-                  objectFit: "contain",
-                  padding: "20px",
-                }}
-              />
-            </div>
-
-            {/* Thumbnail Images */}
-            {productImages.length > 1 && (
-              <div className="d-flex gap-2 p-3 border-top overflow-auto">
-                {productImages.map((img, index) => (
-                  <div
-                    key={index}
-                    className={`border rounded cursor-pointer p-1 ${
-                      selectedImage === index ? "border-primary border-2" : ""
-                    }`}
-                    style={{
-                      width: "70px",
-                      height: "70px",
-                      cursor: "pointer",
-                      flexShrink: 0,
-                    }}
-                    onClick={() => setSelectedImage(index)}
-                  >
-                    <img
-                      src={img}
-                      alt={`${product.name} ${index + 1}`}
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "contain",
-                      }}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Product Info */}
-        <div className="col-md-6">
-          <div className="card border-0 shadow-sm p-4">
-            {/* Title */}
-            <h1 className="h2 fw-bold mb-3">{product.name}</h1>
-
-            {/* Seller Info */}
-            {product.sellerId && (
-              <div className="mb-3">
-                <small className="text-muted">
-                  <i className="bi bi-shop me-1"></i>
-                  Sold by:{" "}
-                  <strong>{product.sellerId?.fullname || "Store"}</strong>
-                </small>
-              </div>
-            )}
-
-            {/* Price */}
-            <div className="mb-4">
-              <span className="h2 fw-bold text-primary">
-                {formatPrice(product.finalPrice || product.price)}
-              </span>
-              {product.finalPrice && product.finalPrice < product.price && (
-                <>
-                  <span className="text-muted text-decoration-line-through ms-3">
-                    {formatPrice(product.price)}
-                  </span>
-                  <span className="badge bg-danger ms-3 px-3 py-2">
-                    {discount}% OFF
-                  </span>
-                </>
-              )}
-            </div>
-
-            {/* Stock Status */}
-            <div className="mb-4">
-              {product.stock > 0 ? (
-                <>
-                  <span className="badge bg-success bg-opacity-10 text-success px-3 py-2">
-                    <i className="bi bi-check-circle me-2"></i>
-                    In Stock
-                  </span>
-                  {product.stock < 10 && (
-                    <span className="badge bg-warning bg-opacity-10 text-warning ms-2 px-3 py-2">
-                      <i className="bi bi-exclamation-triangle me-2"></i>
-                      Only {product.stock} left
-                    </span>
+          <div className="product-detail-grid">
+            {/* Product Images Section */}
+            <div className="product-gallery">
+              <div className="product-main-image">
+                <img
+                  src={getImageUrl(
+                    productImages[selectedImage] || product.images?.[0],
                   )}
-                </>
-              ) : (
-                <span className="badge bg-danger bg-opacity-10 text-danger px-3 py-2">
-                  <i className="bi bi-x-circle me-2"></i>
-                  Out of Stock
-                </span>
+                  alt={product.name}
+                />
+                {discount > 0 && (
+                  <span className="product-discount-badge">-{discount}%</span>
+                )}
+              </div>
+
+              {productImages.length > 1 && (
+                <div className="product-thumbnails">
+                  {productImages.map((img, index) => (
+                    <button
+                      key={index}
+                      className={`product-thumbnail ${
+                        selectedImage === index ? "active" : ""
+                      }`}
+                      onClick={() => setSelectedImage(index)}
+                    >
+                      <img
+                        src={getImageUrl(img)}
+                        alt={`${product.name} ${index + 1}`}
+                      />
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
 
-            {/* Description */}
-            <div className="mb-4">
-              <h5 className="fw-semibold mb-2">Description</h5>
-              <p className="text-muted" style={{ whiteSpace: "pre-line" }}>
-                {product.description || "No description available."}
-              </p>
-            </div>
+            {/* Product Info Section */}
+            <div className="product-info-card">
+              <span className="product-category">
+                {product.category?.name || "Premium Product"}
+              </span>
 
-            {/* Quantity Selector */}
-            {product.stock > 0 && (
-              <div className="mb-4">
-                <label className="form-label fw-semibold">Quantity</label>
-                <div className="d-flex align-items-center">
-                  <button
-                    className="btn btn-outline-secondary"
-                    onClick={decreaseQuantity}
-                    disabled={quantity <= 1 || addingToCart}
-                  >
-                    <i className="bi bi-dash"></i>
-                  </button>
-                  <span
-                    className="mx-3 fs-5 fw-semibold"
-                    style={{ minWidth: "40px", textAlign: "center" }}
-                  >
-                    {quantity}
+              <h1 className="product-title">{product.name}</h1>
+
+              <div className="product-price-wrapper">
+                <div className="product-current-price">
+                  {formatPrice(product.finalPrice || product.price)}
+                </div>
+                {product.finalPrice && product.finalPrice < product.price && (
+                  <div className="product-original-price">
+                    {formatPrice(product.price)}
+                  </div>
+                )}
+              </div>
+
+              <div className="product-stock-info">
+                {product.stock > 0 ? (
+                  <>
+                    <span className="in-stock">
+                      <i className="bi bi-check-circle-fill"></i> In Stock
+                    </span>
+                    {product.stock < 10 && (
+                      <span className="low-stock">
+                        <i className="bi bi-exclamation-triangle-fill"></i>
+                        Only {product.stock} left
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <span className="out-of-stock">
+                    <i className="bi bi-x-circle-fill"></i> Out of Stock
                   </span>
-                  <button
-                    className="btn btn-outline-secondary"
-                    onClick={increaseQuantity}
-                    disabled={quantity >= product.stock || addingToCart}
-                  >
-                    <i className="bi bi-plus"></i>
-                  </button>
-                  <span className="ms-3 text-muted">(Max {product.stock})</span>
-                </div>
-              </div>
-            )}
-
-            {/* Action Buttons */}
-            <div className="d-flex gap-3 mb-4">
-              <button
-                className="btn btn-outline-primary flex-grow-1 py-3 position-relative"
-                onClick={addToCart}
-                disabled={product.stock <= 0 || !user || addingToCart}
-              >
-                {addingToCart ? (
-                  <>
-                    <span
-                      className="spinner-border spinner-border-sm me-2"
-                      role="status"
-                      aria-hidden="true"
-                    ></span>
-                    Adding...
-                  </>
-                ) : (
-                  <>
-                    <i className="bi bi-cart-plus me-2"></i>
-                    {!user ? "Login to Add" : "Add to Cart"}
-                  </>
                 )}
-              </button>
-              <button
-                className="btn btn-primary flex-grow-1 py-3"
-                onClick={buyNow}
-                disabled={product.stock <= 0 || !user || addingToCart}
-              >
-                {addingToCart ? (
-                  <>
-                    <span
-                      className="spinner-border spinner-border-sm me-2"
-                      role="status"
-                      aria-hidden="true"
-                    ></span>
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <i className="bi bi-lightning-charge me-2"></i>
-                    Buy Now
-                  </>
-                )}
-              </button>
-            </div>
+              </div>
 
-            {/* Product Meta */}
-            <div className="border-top pt-4">
-              <div className="row g-3">
-                <div className="col-6">
-                  <small className="text-muted d-block">
-                    <i className="bi bi-truck me-2"></i>
-                    Free Shipping
-                  </small>
+              <div className="product-description-section">
+                <h3>Description</h3>
+                <p>{product.description || "No description available."}</p>
+              </div>
+
+              {/* Quantity Selector */}
+              {product.stock > 0 && (
+                <div className="product-quantity-section">
+                  <label>Quantity</label>
+                  <div className="quantity-selector">
+                    <button
+                      onClick={decreaseQuantity}
+                      disabled={quantity <= 1 || addingToCart}
+                    >
+                      <i className="bi bi-dash"></i>
+                    </button>
+                    <span>{quantity}</span>
+                    <button
+                      onClick={increaseQuantity}
+                      disabled={quantity >= product.stock || addingToCart}
+                    >
+                      <i className="bi bi-plus"></i>
+                    </button>
+                  </div>
+                  <span className="max-stock">Max {product.stock}</span>
                 </div>
-                <div className="col-6">
-                  <small className="text-muted d-block">
-                    <i className="bi bi-arrow-repeat me-2"></i>
-                    30 Days Return
-                  </small>
+              )}
+
+              {/* Action Buttons */}
+              <div className="product-action-buttons">
+                <button
+                  className="add-to-cart-btn"
+                  onClick={addToCart}
+                  disabled={product.stock <= 0 || !user || addingToCart}
+                >
+                  {addingToCart ? (
+                    <>
+                      <span className="spinner-small"></span>
+                      Adding...
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-cart-plus"></i>
+                      {!user ? "Login to Add" : "Add to Cart"}
+                    </>
+                  )}
+                </button>
+                <button
+                  className="buy-now-btn"
+                  onClick={buyNow}
+                  disabled={product.stock <= 0 || !user || addingToCart}
+                >
+                  {addingToCart ? (
+                    <>
+                      <span className="spinner-small"></span>
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-lightning-charge"></i>
+                      Buy Now
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Product Features */}
+              <div className="product-features-list">
+                <div className="feature">
+                  <i className="bi bi-truck"></i>
+                  <span>Free Shipping</span>
                 </div>
-                <div className="col-6">
-                  <small className="text-muted d-block">
-                    <i className="bi bi-shield-check me-2"></i>
-                    Secure Payment
-                  </small>
+                <div className="feature">
+                  <i className="bi bi-arrow-repeat"></i>
+                  <span>30 Days Return</span>
                 </div>
-                <div className="col-6">
-                  <small className="text-muted d-block">
-                    <i className="bi bi-tag me-2"></i>
-                    {product.category?.name || "Uncategorized"}
-                  </small>
+                <div className="feature">
+                  <i className="bi bi-shield-check"></i>
+                  <span>Secure Payment</span>
                 </div>
               </div>
-            </div>
 
-            {/* Product ID */}
-            <div className="mt-3 text-end">
-              <small className="text-muted">Product ID: {product._id}</small>
-            </div>
+              {/* Seller Info */}
+              {product.sellerId && (
+                <div className="product-seller-info">
+                  <i className="bi bi-shop"></i>
+                  <span>Sold by: {product.sellerId?.fullname || "Store"}</span>
+                </div>
+              )}
 
-            {/* Login prompt for guests */}
-            {!user && (
-              <div className="mt-3 alert alert-info py-2 mb-0">
-                <i className="bi bi-info-circle me-2"></i>
-                <small>
-                  Please{" "}
-                  <Link href="/login" className="alert-link">
-                    login
-                  </Link>{" "}
-                  to add items to cart
-                </small>
+              {/* Product ID */}
+              <div className="product-sku">
+                <span>SKU: {product._id}</span>
               </div>
-            )}
+
+              {/* Login Prompt */}
+              {!user && (
+                <div className="product-login-warning">
+                  <i className="bi bi-info-circle-fill"></i>
+                  <span>
+                    Please <Link href="/login">login</Link> to add items to cart
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
       <style jsx>{`
-        .hover-shadow {
-          transition: all 0.3s ease;
+        .spinner-small {
+          width: 14px;
+          height: 14px;
+          border: 2px solid rgba(0, 0, 0, 0.2);
+          border-top-color: currentColor;
+          border-radius: 50%;
+          display: inline-block;
+          animation: spin 0.6s linear infinite;
         }
-        .hover-shadow:hover {
-          transform: translateY(-5px);
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15) !important;
-        }
-        .cursor-pointer {
-          cursor: pointer;
+
+        @keyframes spin {
+          to {
+            transform: rotate(360deg);
+          }
         }
       `}</style>
-    </div>
+    </>
   );
 };
 

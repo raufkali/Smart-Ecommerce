@@ -4,26 +4,21 @@ const jwt = require("jsonwebtoken");
 const asyncHandler = require("express-async-handler");
 const Wallet = require("../models/Wallet");
 const Cart = require("../models/Cart");
+const { sendNotification } = require("../services/notificationService");
 
 // GET ALL USERS
 const getAllUsers = asyncHandler(async (req, res) => {
   const allUsers = await User.find();
-  res.status(200).json({
-    message: "Success! Users fetched",
-    users: allUsers,
-  });
+  res.status(200).json({ message: "Success! Users fetched", users: allUsers });
 });
 
 // CREATE USER
 const createUser = asyncHandler(async (req, res) => {
   const io = req.app.get("io");
   const data = req.body;
-  console.log(data);
-  // determine allowed roles
+
   let allowedRoles = ["user", "seller"];
-  if (req.user && req.user.role == "admin") {
-    allowedRoles.push("admin");
-  }
+  if (req.user?.role === "admin") allowedRoles.push("admin");
 
   if (!allowedRoles.includes(data.role)) {
     res.status(403);
@@ -41,58 +36,56 @@ const createUser = asyncHandler(async (req, res) => {
     throw new Error("User already exists");
   }
 
-  // hash password
   const hashedPass = await bcrypt.hash(data.password, 10);
   data.password = hashedPass;
 
   const user = await User.create(data);
-  // create wallet for user
-  await Wallet.create({
-    user: user._id,
-    role: data.role,
+
+  await Wallet.create({ user: user._id, role: data.role });
+
+  // Notify the new user
+  await sendNotification(io, {
+    userId: user._id,
+    title: "Welcome!",
+    message: `Welcome ${user.fullname}! Your account has been created successfully.`,
+    type: "success",
   });
 
-  if (req.user && req.user.role == "admin") {
-    res.status(201).json({
+  // Notify admins
+  if (data.role !== "admin") {
+    io.to("admin-room").emit("notification", {
+      title: "New User",
+      message: `New user registered: ${user.email}`,
+      type: "info",
+    });
+  }
+
+  if (req.user?.role === "admin") {
+    return res.status(201).json({
       status: "success",
       message: "User created successfully",
-      user: { id: user._id, email: user.email, role: user.role },
-    });
-  } else {
-    const token = jwt.sign(
-      {
-        id: user._id,
-        email: user.email,
-        role: user.role,
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" },
-    );
-    io.to(user._id.toString()).emit("notification", {
-      type: "Account Created",
-      message:
-        "Welcome " +
-        user.fullname +
-        "! Your account has been created successfully",
-    });
-    if (data.role !== "admin") {
-      io.to("admin-room").emit("notification", {
-        type: "NEW_USER",
-        message: `New user registered: ${user.email}`,
-      });
-    }
-    res.status(201).json({
-      status: "success",
-      message: "User created successfully",
-      token,
       user: { id: user._id, email: user.email, role: user.role },
     });
   }
+
+  const token = jwt.sign(
+    { id: user._id, email: user.email, role: user.role },
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" },
+  );
+
+  res.status(201).json({
+    status: "success",
+    message: "User created successfully",
+    token,
+    user: { id: user._id, email: user.email, role: user.role },
+  });
 });
 
 // LOGIN USER
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
+  const io = req.app.get("io");
 
   if (!email || !password) {
     res.status(400);
@@ -105,28 +98,26 @@ const loginUser = asyncHandler(async (req, res) => {
     throw new Error("User not found");
   }
 
-  const isValidUser = await bcrypt.compare(password, user.password);
-  if (!isValidUser) {
+  const isValid = await bcrypt.compare(password, user.password);
+  if (!isValid) {
     res.status(401);
     throw new Error("Invalid credentials");
   }
 
   const token = jwt.sign(
-    {
-      id: user._id,
-      email: user.email,
-      role: user.role,
-    },
+    { id: user._id, email: user.email, role: user.role },
     process.env.JWT_SECRET,
     { expiresIn: "7d" },
   );
-  const io = req.app.get("io");
-  io.to(user._id.toString()).emit("notification", {
-    type: "Login Alert",
+
+  await sendNotification(io, {
+    userId: user._id,
+    title: "Login Alert",
     message:
       "Your account was just accessed. If this wasn't you, please secure your account immediately.",
-    timestamp: new Date().toISOString(), // ← add this to ALL emits
+    type: "warning",
   });
+
   res.status(200).json({
     message: "User logged in successfully",
     token,
@@ -134,68 +125,65 @@ const loginUser = asyncHandler(async (req, res) => {
   });
 });
 
+// DELETE USER
 const deleteUser = asyncHandler(async (req, res) => {
-  if (!req.params.id || !req.user.id) {
+  const io = req.app.get("io");
+
+  if (!req.params.id || !req.user?.id) {
     res.status(400);
     throw new Error("Invalid Token or Invalid ID");
   }
+
   const userId = req.params.id;
-  // delete user wallet
+
   const wallet = await Wallet.findOne({ user: userId });
-  if (wallet) {
-    await Wallet.findByIdAndDelete(wallet._id);
-  }
-  // remove cart
+  if (wallet) await Wallet.findByIdAndDelete(wallet._id);
+
   const cart = await Cart.findOne({ user: userId });
-  if (cart) {
-    await Cart.findByIdAndDelete(cart._id);
-  }
-  // delete the user
-  const user = await User.findByIdAndDelete(req.params.id);
-  const io = req.app.get("io");
+  if (cart) await Cart.findByIdAndDelete(cart._id);
+
+  const user = await User.findByIdAndDelete(userId);
+
   io.to("admin-room").emit("notification", {
-    type: "USER_DELETED",
+    title: "User Deleted",
     message: `User deleted: ${user.email}`,
+    type: "danger",
   });
-  res.status(200).json({
-    success: true,
-    user,
-  });
+
+  res.status(200).json({ success: true, user });
 });
 
+// UPDATE USER
 const updateUser = asyncHandler(async (req, res) => {
+  const io = req.app.get("io");
   const id = req.params.id;
-  console.log(id);
+
   if (!id || !req.user?.id) {
     res.status(400);
     throw new Error("Invalid Token or Invalid ID");
   }
+
   const { fullname, email, role } = req.body;
+
   const updatedUser = await User.findByIdAndUpdate(
     id,
-    {
-      fullname,
-      email,
-      role,
-    },
-    {
-      new: true,
-      runValidators: true,
-    },
+    { fullname, email, role },
+    { new: true, runValidators: true },
   );
 
   if (!updatedUser) {
     res.status(404);
     throw new Error("User not found");
   }
-  const io = req.app.get("io");
-  io.to(updatedUser._id.toString()).emit("notification", {
-    type: "Profile Updated",
+
+  await sendNotification(io, {
+    userId: updatedUser._id,
+    title: "Profile Updated",
     message: "Your profile information has been updated successfully.",
+    type: "success",
   });
-  res.status(200).json({
-    success: true,
-    data: updatedUser,
-  });
+
+  res.status(200).json({ success: true, data: updatedUser });
 });
+
 module.exports = { createUser, loginUser, getAllUsers, deleteUser, updateUser };
