@@ -200,20 +200,51 @@ const OrderTimeline = ({ item }) => {
 };
 
 // ─────────────────────────────────────────────
+// Star Rating Component
+// ─────────────────────────────────────────────
+const StarRating = ({ value, onChange, readonly = false, size = "md" }) => {
+  const [hovered, setHovered] = useState(0);
+
+  const sizeClass =
+    { sm: "stars-sm", md: "stars-md", lg: "stars-lg" }[size] || "stars-md";
+
+  return (
+    <div
+      className={`star-rating ${sizeClass} ${readonly ? "star-readonly" : ""}`}
+    >
+      {[1, 2, 3, 4, 5].map((star) => (
+        <button
+          key={star}
+          type="button"
+          className={`star-btn ${star <= (hovered || value) ? "star-filled" : "star-empty"}`}
+          onClick={() => !readonly && onChange && onChange(star)}
+          onMouseEnter={() => !readonly && setHovered(star)}
+          onMouseLeave={() => !readonly && setHovered(0)}
+          disabled={readonly}
+          aria-label={`${star} star${star > 1 ? "s" : ""}`}
+        >
+          <i
+            className={`bi ${star <= (hovered || value) ? "bi-star-fill" : "bi-star"}`}
+          ></i>
+        </button>
+      ))}
+      {!readonly && value > 0 && (
+        <span className="star-label">
+          {["", "Poor", "Fair", "Good", "Very Good", "Excellent"][value]}
+        </span>
+      )}
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
 // Helper: Determine what actions are available for an item
-// FIX: canConfirm now checks order-level paymentStatus in addition to
-//      item-level escrowStatus, because after Stripe payment authorization
-//      the order paymentStatus becomes "requires_capture" while item
-//      escrowStatus stays "held". Both states mean funds are in escrow.
-//      canDispute now excludes shipped/out_for_delivery to prevent the
-//      wrong button showing when canConfirm check fails.
 // ─────────────────────────────────────────────
 const getItemActions = (item, orderPaymentStatus) => {
   const status = item.orderStatus;
   const disputeStatus = item.disputeStatus;
   const escrowStatus = item.escrowStatus;
 
-  // Already finalized — no actions possible
   if (status === "cancelled" || status === "refunded") {
     return {
       canConfirm: false,
@@ -223,7 +254,6 @@ const getItemActions = (item, orderPaymentStatus) => {
     };
   }
 
-  // Dispute in progress or seller-approved — no actions possible
   if (disputeStatus === "open" || disputeStatus === "approved") {
     return {
       canConfirm: false,
@@ -233,28 +263,16 @@ const getItemActions = (item, orderPaymentStatus) => {
     };
   }
 
-  // FIX: funds are in escrow when EITHER:
-  //   - item.escrowStatus is "held" (set at order creation), OR
-  //   - order.paymentStatus is "requires_capture" or "partial_captured"
-  //     (set by Stripe payment intent — same concept, different field)
   const fundsInEscrow =
     escrowStatus === "held" ||
     orderPaymentStatus === "requires_capture" ||
     orderPaymentStatus === "partial_captured";
 
-  // Buyer can confirm when item has shipped and funds are still in escrow
   const canConfirm =
     ["shipped", "out_for_delivery"].includes(status) && fundsInEscrow;
-
-  // Buyer can cancel while order hasn't shipped yet and funds are in escrow
   const canCancel =
     ["pending", "confirmed", "accepted", "processing"].includes(status) &&
     fundsInEscrow;
-
-  // FIX: exclude shipped/out_for_delivery from dispute — those should show
-  // the Confirm button (or nothing if already delivered/finalized).
-  // A dispute only makes sense if: not confirmable, not cancellable,
-  // not yet delivered, not already disputed/rejected.
   const canDispute =
     !canConfirm &&
     !canCancel &&
@@ -291,6 +309,361 @@ const getItemActions = (item, orderPaymentStatus) => {
     canDispute,
     label: "In Progress",
   };
+};
+
+// ─────────────────────────────────────────────
+// Review Modal — Fiverr-style inline review
+// ─────────────────────────────────────────────
+const ReviewModal = ({ isOpen, order, item, onClose, onSubmit }) => {
+  const [activeTab, setActiveTab] = useState("product"); // "product" | "seller"
+  const [productRating, setProductRating] = useState(0);
+  const [productComment, setProductComment] = useState("");
+  const [sellerRating, setSellerRating] = useState(0);
+  const [sellerComment, setSellerComment] = useState("");
+  const [pendingReviews, setPendingReviews] = useState(null);
+  const [loadingPending, setLoadingPending] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState({ product: false, seller: false });
+
+  // Reset state when modal opens for a new item
+  useEffect(() => {
+    if (isOpen && order && item) {
+      setActiveTab("product");
+      setProductRating(0);
+      setProductComment("");
+      setSellerRating(0);
+      setSellerComment("");
+      setSubmitted({ product: false, seller: false });
+      fetchPending();
+    }
+  }, [isOpen, order?._id, item?._id]);
+
+  const fetchPending = async () => {
+    if (!order || !item) return;
+    setLoadingPending(true);
+    try {
+      const token = localStorage.getItem("token");
+      const productId = item.product?._id || item.product;
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/reviews/pending/${order._id}/${productId}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      const data = await res.json();
+      if (data.success) {
+        setPendingReviews(data.reviews);
+        // Mark already-done ones
+        const productDone = data.reviews?.find(
+          (r) => r.type === "product",
+        )?.done;
+        const sellerDone = data.reviews?.find((r) => r.type === "seller")?.done;
+        setSubmitted({ product: !!productDone, seller: !!sellerDone });
+        // Auto-switch to whichever tab still needs a review
+        if (productDone && !sellerDone) setActiveTab("seller");
+      }
+    } catch (err) {
+      console.error("Failed to fetch pending reviews", err);
+    } finally {
+      setLoadingPending(false);
+    }
+  };
+
+  if (!isOpen || !order || !item) return null;
+
+  const productId = item.product?._id || item.product;
+  const sellerId = item.seller?._id || item.seller;
+  const sellerName = item.seller?.fullname || "the seller";
+
+  const handleSubmitProduct = async () => {
+    if (productRating === 0) return;
+    setSubmitting(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/reviews/product/${order._id}/${productId}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            rating: productRating,
+            comment: productComment.trim(),
+          }),
+        },
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to submit review");
+      setSubmitted((s) => ({ ...s, product: true }));
+      onSubmit?.("Product review submitted!", "success");
+      // Auto-switch to seller tab if not done
+      if (!submitted.seller) setActiveTab("seller");
+    } catch (err) {
+      onSubmit?.(err.message, "error");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSubmitSeller = async () => {
+    if (sellerRating === 0) return;
+    setSubmitting(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/reviews/seller/${order._id}/${productId}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            rating: sellerRating,
+            comment: sellerComment.trim(),
+          }),
+        },
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to submit review");
+      setSubmitted((s) => ({ ...s, seller: true }));
+      onSubmit?.("Seller review submitted!", "success");
+    } catch (err) {
+      onSubmit?.(err.message, "error");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const allDone = submitted.product && submitted.seller;
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div
+        className="modal-container modal-review"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="modal-header modal-header-review">
+          <h5 className="modal-title">
+            <i className="bi bi-star-fill me-2 text-gold"></i>
+            Rate Your Experience
+          </h5>
+          <button type="button" className="modal-close" onClick={onClose}>
+            ×
+          </button>
+        </div>
+
+        <div className="modal-body review-modal-body">
+          {/* Item context */}
+          <div className="review-item-context">
+            <div className="review-item-name">
+              <i className="bi bi-box-seam me-2 text-gold"></i>
+              {item.name}
+            </div>
+            <StatusBadge status="delivered" />
+          </div>
+
+          {/* All done state */}
+          {allDone ? (
+            <div className="review-all-done">
+              <div className="review-done-icon">
+                <i className="bi bi-patch-check-fill"></i>
+              </div>
+              <h5>Thank you for your reviews!</h5>
+              <p>Your feedback helps the community make better decisions.</p>
+              <button className="btn-success" onClick={onClose}>
+                Close
+              </button>
+            </div>
+          ) : loadingPending ? (
+            <div className="review-loading">
+              <div className="loading-spinner-sm"></div>
+              <span>Loading review status...</span>
+            </div>
+          ) : (
+            <>
+              {/* Tabs */}
+              <div className="review-tabs">
+                <button
+                  className={`review-tab ${activeTab === "product" ? "active" : ""} ${submitted.product ? "tab-done" : ""}`}
+                  onClick={() => setActiveTab("product")}
+                >
+                  {submitted.product ? (
+                    <i className="bi bi-check-circle-fill me-1 text-success"></i>
+                  ) : (
+                    <i className="bi bi-box-seam me-1"></i>
+                  )}
+                  Rate Product
+                </button>
+                <button
+                  className={`review-tab ${activeTab === "seller" ? "active" : ""} ${submitted.seller ? "tab-done" : ""}`}
+                  onClick={() => setActiveTab("seller")}
+                >
+                  {submitted.seller ? (
+                    <i className="bi bi-check-circle-fill me-1 text-success"></i>
+                  ) : (
+                    <i className="bi bi-person-badge me-1"></i>
+                  )}
+                  Rate Seller
+                </button>
+              </div>
+
+              {/* Product Review Tab */}
+              {activeTab === "product" && (
+                <div className="review-tab-content">
+                  {submitted.product ? (
+                    <div className="review-submitted-state">
+                      <i className="bi bi-check-circle-fill text-success"></i>
+                      <p>Product review submitted!</p>
+                      <button
+                        className="btn-link-action"
+                        onClick={() => setActiveTab("seller")}
+                      >
+                        Rate the seller next{" "}
+                        <i className="bi bi-arrow-right"></i>
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="review-question">
+                        How would you rate <strong>{item.name}</strong>?
+                      </div>
+                      <StarRating
+                        value={productRating}
+                        onChange={setProductRating}
+                        size="lg"
+                      />
+                      <div className="form-group mt-3">
+                        <label>
+                          Your review{" "}
+                          <span className="text-muted">(optional)</span>
+                        </label>
+                        <textarea
+                          className="form-textarea"
+                          rows="3"
+                          value={productComment}
+                          onChange={(e) => setProductComment(e.target.value)}
+                          placeholder="Share your experience with this product..."
+                          maxLength={500}
+                        />
+                        <small className="char-count">
+                          {productComment.length}/500
+                        </small>
+                      </div>
+                      <button
+                        className="btn-review-submit"
+                        onClick={handleSubmitProduct}
+                        disabled={productRating === 0 || submitting}
+                      >
+                        {submitting ? (
+                          <span className="spinner"></span>
+                        ) : (
+                          <>
+                            <i className="bi bi-send me-2"></i>
+                            Submit Product Review
+                          </>
+                        )}
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Seller Review Tab */}
+              {activeTab === "seller" && (
+                <div className="review-tab-content">
+                  {submitted.seller ? (
+                    <div className="review-submitted-state">
+                      <i className="bi bi-check-circle-fill text-success"></i>
+                      <p>Seller review submitted!</p>
+                      {!submitted.product && (
+                        <button
+                          className="btn-link-action"
+                          onClick={() => setActiveTab("product")}
+                        >
+                          Rate the product too{" "}
+                          <i className="bi bi-arrow-right"></i>
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <div className="review-seller-profile">
+                        <div className="seller-avatar-review">
+                          <i className="bi bi-person-circle"></i>
+                        </div>
+                        <div>
+                          <div className="seller-review-name">{sellerName}</div>
+                          <div className="seller-review-label">Seller</div>
+                        </div>
+                      </div>
+                      <div className="review-question">
+                        How was your experience with{" "}
+                        <strong>{sellerName}</strong>?
+                      </div>
+                      <StarRating
+                        value={sellerRating}
+                        onChange={setSellerRating}
+                        size="lg"
+                      />
+                      <div className="form-group mt-3">
+                        <label>
+                          Your review{" "}
+                          <span className="text-muted">(optional)</span>
+                        </label>
+                        <textarea
+                          className="form-textarea"
+                          rows="3"
+                          value={sellerComment}
+                          onChange={(e) => setSellerComment(e.target.value)}
+                          placeholder="Communication, packaging, speed, accuracy..."
+                          maxLength={500}
+                        />
+                        <small className="char-count">
+                          {sellerComment.length}/500
+                        </small>
+                      </div>
+                      <button
+                        className="btn-review-submit"
+                        onClick={handleSubmitSeller}
+                        disabled={sellerRating === 0 || submitting}
+                      >
+                        {submitting ? (
+                          <span className="spinner"></span>
+                        ) : (
+                          <>
+                            <i className="bi bi-send me-2"></i>
+                            Submit Seller Review
+                          </>
+                        )}
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Progress indicator */}
+              <div className="review-progress">
+                <div className="review-progress-bar">
+                  <div
+                    className="review-progress-fill"
+                    style={{
+                      width: `${((submitted.product ? 1 : 0) + (submitted.seller ? 1 : 0)) * 50}%`,
+                    }}
+                  ></div>
+                </div>
+                <span className="review-progress-label">
+                  {(submitted.product ? 1 : 0) + (submitted.seller ? 1 : 0)}/2
+                  reviews completed
+                </span>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // ─────────────────────────────────────────────
@@ -335,7 +708,6 @@ const ConfirmDeliveryModal = ({ isOpen, order, item, onClose, onConfirm }) => {
           <div className="modal-icon-success">
             <i className="bi bi-box-seam"></i>
           </div>
-
           <div className="info-card">
             <h6>{item.name}</h6>
             <div className="info-row">
@@ -351,13 +723,11 @@ const ConfirmDeliveryModal = ({ isOpen, order, item, onClose, onConfirm }) => {
               <strong className="text-success">{fmt(sellerAmount)}</strong>
             </div>
           </div>
-
           <div className="alert-info">
             <i className="bi bi-info-circle me-2"></i>
             <strong>Important:</strong> Confirming delivery will release the
             payment from escrow to the seller. This action cannot be undone.
           </div>
-
           <label className="checkbox-label">
             <input
               type="checkbox"
@@ -451,7 +821,6 @@ const CancelItemModal = ({ isOpen, order, item, mode, onClose, onConfirm }) => {
                 <StatusBadge status={item.orderStatus} />
               </div>
             </div>
-
             {isDispute ? (
               <div className="alert-warning">
                 <i className="bi bi-info-circle-fill me-2"></i>
@@ -470,7 +839,6 @@ const CancelItemModal = ({ isOpen, order, item, mode, onClose, onConfirm }) => {
                 {fmt(totalAmount)} to your payment method.
               </div>
             )}
-
             <div className="form-group">
               <label>
                 Reason <span className="required">*</span>
@@ -530,6 +898,7 @@ const OrderDetailsModal = ({
   onConfirmDelivery,
   onCancelItem,
   onDisputeItem,
+  onReviewItem,
 }) => {
   if (!isOpen || !order) return null;
 
@@ -626,9 +995,10 @@ const OrderDetailsModal = ({
                 {order.orderItems?.map((item, idx) => {
                   const totalAmount =
                     item.price * item.quantity + (item.shippingFee || 0);
-                  // FIX: pass order.paymentStatus so getItemActions can
-                  // check the order-level payment state correctly
                   const actions = getItemActions(item, order.paymentStatus);
+                  const isDelivered =
+                    item.orderStatus === "delivered" &&
+                    item.escrowStatus === "released";
 
                   return (
                     <tr key={idx}>
@@ -682,9 +1052,19 @@ const OrderDetailsModal = ({
                               Refund
                             </button>
                           )}
+                          {/* Review button — shown for delivered items */}
+                          {isDelivered && (
+                            <button
+                              className="btn-action btn-review"
+                              onClick={() => onReviewItem(order, item)}
+                            >
+                              <i className="bi bi-star me-1"></i>Review
+                            </button>
+                          )}
                           {!actions.canConfirm &&
                             !actions.canCancel &&
-                            !actions.canDispute && (
+                            !actions.canDispute &&
+                            !isDelivered && (
                               <span className="badge-inactive">
                                 {actions.label}
                               </span>
@@ -734,6 +1114,7 @@ const OrderCard = ({
   onConfirmDelivery,
   onCancelItem,
   onDisputeItem,
+  onReviewItem,
 }) => {
   const fmt = (n) =>
     new Intl.NumberFormat("en-US", {
@@ -741,7 +1122,6 @@ const OrderCard = ({
       currency: "USD",
     }).format(n || 0);
 
-  // FIX: pass order.paymentStatus here as well
   const actionableItems =
     order.orderItems?.filter((item) => {
       const actions = getItemActions(item, order.paymentStatus);
@@ -751,6 +1131,12 @@ const OrderCard = ({
   const disputeItems =
     order.orderItems?.filter((item) => item.disputeStatus === "open").length ||
     0;
+
+  const reviewableItems =
+    order.orderItems?.filter(
+      (item) =>
+        item.orderStatus === "delivered" && item.escrowStatus === "released",
+    ).length || 0;
 
   return (
     <div className="order-card">
@@ -794,7 +1180,7 @@ const OrderCard = ({
         )}
       </div>
 
-      {(disputeItems > 0 || actionableItems > 0) && (
+      {(disputeItems > 0 || actionableItems > 0 || reviewableItems > 0) && (
         <div className="order-alerts">
           {disputeItems > 0 && (
             <div className="alert-dispute">
@@ -806,6 +1192,12 @@ const OrderCard = ({
             <div className="alert-action">
               <i className="bi bi-info-circle-fill me-1"></i>
               {actionableItems} item(s) require your attention
+            </div>
+          )}
+          {reviewableItems > 0 && (
+            <div className="alert-review">
+              <i className="bi bi-star-fill me-1"></i>
+              {reviewableItems} item(s) ready for review
             </div>
           )}
         </div>
@@ -886,9 +1278,7 @@ const ClientOrders = () => {
 
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/orders/my-orders`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       if (!res.ok) throw new Error("Failed to fetch orders");
@@ -907,17 +1297,18 @@ const ClientOrders = () => {
 
   const openDetails = (order) =>
     setModal({ type: "details", order, item: null, isOpen: true });
-  const openConfirmDelivery = (order, item) =>
+  const openConfirm = (order, item) =>
     setModal({ type: "confirm", order, item, isOpen: true });
-  const openCancelItem = (order, item) =>
+  const openCancel = (order, item) =>
     setModal({ type: "cancel", order, item, isOpen: true });
-  const openDisputeItem = (order, item) =>
+  const openDispute = (order, item) =>
     setModal({ type: "dispute", order, item, isOpen: true });
+  const openReview = (order, item) =>
+    setModal({ type: "review", order, item, isOpen: true });
 
   const handleConfirmDelivery = async () => {
     const { order, item } = modal;
     const productId = item.product?._id || item.product;
-
     try {
       const token = localStorage.getItem("token");
       const res = await fetch(
@@ -930,17 +1321,17 @@ const ClientOrders = () => {
           },
         },
       );
-
       const data = await res.json();
       if (!res.ok)
         throw new Error(data.message || "Failed to confirm delivery");
-
       showToast(
         data.message || "Delivery confirmed! Payment released to seller.",
         "success",
       );
       closeAllModals();
       await fetchOrders();
+      // Auto-open review modal after confirming delivery
+      setTimeout(() => openReview(order, item), 600);
     } catch (error) {
       showToast(error.message, "error");
     }
@@ -949,7 +1340,6 @@ const ClientOrders = () => {
   const handleCancelItem = async (reason) => {
     const { order, item } = modal;
     const productId = item.product?._id || item.product;
-
     try {
       const token = localStorage.getItem("token");
       const res = await fetch(
@@ -963,10 +1353,8 @@ const ClientOrders = () => {
           body: JSON.stringify({ reason }),
         },
       );
-
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to cancel item");
-
       showToast(
         data.message || "Item cancelled. Refund will be processed.",
         "success",
@@ -981,7 +1369,6 @@ const ClientOrders = () => {
   const handleDisputeItem = async (reason) => {
     const { order, item } = modal;
     const productId = item.product?._id || item.product;
-
     try {
       const token = localStorage.getItem("token");
       const res = await fetch(
@@ -995,11 +1382,9 @@ const ClientOrders = () => {
           body: JSON.stringify({ reason }),
         },
       );
-
       const data = await res.json();
       if (!res.ok)
         throw new Error(data.message || "Failed to submit refund request");
-
       showToast(
         data.message ||
           "Refund request submitted. Seller has 48 hours to respond.",
@@ -1010,6 +1395,10 @@ const ClientOrders = () => {
     } catch (error) {
       showToast(error.message, "error");
     }
+  };
+
+  const handleReviewSubmit = (message, type) => {
+    showToast(message, type);
   };
 
   const filteredOrders = orders.filter((order) => {
@@ -1030,7 +1419,6 @@ const ClientOrders = () => {
     total: orders.length,
     inEscrow: orders.filter((o) => o.paymentStatus === "requires_capture")
       .length,
-    // FIX: pass order.paymentStatus into getItemActions for stats too
     needAction: orders.filter((o) =>
       o.orderItems?.some((item) => {
         const actions = getItemActions(item, o.paymentStatus);
@@ -1063,13 +1451,15 @@ const ClientOrders = () => {
         />
       )}
 
+      {/* All Modals */}
       <OrderDetailsModal
         isOpen={modal.type === "details" && modal.isOpen}
         order={modal.order}
         onClose={closeAllModals}
-        onConfirmDelivery={openConfirmDelivery}
-        onCancelItem={openCancelItem}
-        onDisputeItem={openDisputeItem}
+        onConfirmDelivery={openConfirm}
+        onCancelItem={openCancel}
+        onDisputeItem={openDispute}
+        onReviewItem={openReview}
       />
 
       <ConfirmDeliveryModal
@@ -1093,6 +1483,15 @@ const ClientOrders = () => {
         }
       />
 
+      <ReviewModal
+        isOpen={modal.type === "review" && modal.isOpen}
+        order={modal.order}
+        item={modal.item}
+        onClose={closeAllModals}
+        onSubmit={handleReviewSubmit}
+      />
+
+      {/* Page Header */}
       <div className="orders-header">
         <div>
           <h1 className="orders-title">
@@ -1104,6 +1503,7 @@ const ClientOrders = () => {
         </div>
       </div>
 
+      {/* Stats */}
       <div className="row my-2 d-flex justify-content-center align-items-center gap-2">
         <div className="col-2">
           <StatsCard
@@ -1155,6 +1555,7 @@ const ClientOrders = () => {
         </div>
       </div>
 
+      {/* Filters */}
       <div className="filters-section">
         <div className="search-box">
           <i className="bi bi-search search-icon"></i>
@@ -1201,6 +1602,7 @@ const ClientOrders = () => {
         </button>
       </div>
 
+      {/* Orders List */}
       {filteredOrders.length === 0 ? (
         <div className="empty-state">
           <i className="bi bi-inbox empty-icon"></i>
@@ -1224,9 +1626,10 @@ const ClientOrders = () => {
                 key={order._id}
                 order={order}
                 onViewDetails={openDetails}
-                onConfirmDelivery={openConfirmDelivery}
-                onCancelItem={openCancelItem}
-                onDisputeItem={openDisputeItem}
+                onConfirmDelivery={openConfirm}
+                onCancelItem={openCancel}
+                onDisputeItem={openDispute}
+                onReviewItem={openReview}
               />
             ))}
           </div>

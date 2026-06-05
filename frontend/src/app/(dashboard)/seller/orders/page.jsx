@@ -33,6 +33,274 @@ const Toast = ({ message, type, onClose }) => {
   );
 };
 
+// Star Rating Component
+const StarRating = ({ value, onChange, readonly = false, size = "md" }) => {
+  const [hovered, setHovered] = useState(0);
+
+  const sizeClass =
+    { sm: "stars-sm", md: "stars-md", lg: "stars-lg" }[size] || "stars-md";
+
+  return (
+    <div
+      className={`star-rating ${sizeClass} ${readonly ? "star-readonly" : ""}`}
+    >
+      {[1, 2, 3, 4, 5].map((star) => (
+        <button
+          key={star}
+          type="button"
+          className={`star-btn ${star <= (hovered || value) ? "star-filled" : "star-empty"}`}
+          onClick={() => !readonly && onChange && onChange(star)}
+          onMouseEnter={() => !readonly && setHovered(star)}
+          onMouseLeave={() => !readonly && setHovered(0)}
+          disabled={readonly}
+          aria-label={`${star} star${star > 1 ? "s" : ""}`}
+        >
+          <i
+            className={`bi ${star <= (hovered || value) ? "bi-star-fill" : "bi-star"}`}
+          ></i>
+        </button>
+      ))}
+      {!readonly && value > 0 && (
+        <span className="star-label">
+          {["", "Poor", "Fair", "Good", "Very Good", "Excellent"][value]}
+        </span>
+      )}
+    </div>
+  );
+};
+
+// Seller Review Modal (for rating buyers)
+const SellerReviewModal = ({
+  isOpen,
+  order,
+  item,
+  onClose,
+  onSubmit,
+  onReviewSubmitted,
+}) => {
+  const [buyerRating, setBuyerRating] = useState(0);
+  const [buyerComment, setBuyerComment] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [alreadyReviewed, setAlreadyReviewed] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (isOpen && order && item) {
+      setBuyerRating(0);
+      setBuyerComment("");
+      setAlreadyReviewed(false);
+      checkIfReviewed();
+    }
+  }, [isOpen, order?._id, item?._id]);
+
+  const checkIfReviewed = async () => {
+    if (!order || !item) return;
+    setLoading(true);
+    try {
+      const productId = item.product?._id || item.product;
+
+      // Check pending reviews to see if buyer review is already done
+      const res = await fetch(
+        `${BACKEND}/reviews/pending/${order._id}/${productId}`,
+        { headers: { Authorization: `Bearer ${token()}` } },
+      );
+      const data = await res.json();
+      if (data.success && data.reviews) {
+        const buyerReviewDone = data.reviews.find(
+          (r) => r.type === "buyer",
+        )?.done;
+        setAlreadyReviewed(!!buyerReviewDone);
+      }
+    } catch (err) {
+      console.error("Failed to check review status", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (buyerRating === 0) return;
+    setSubmitting(true);
+    try {
+      const productId = item.product?._id || item.product;
+
+      const res = await fetch(
+        `${BACKEND}/reviews/buyer/${order._id}/${productId}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token()}`,
+          },
+          body: JSON.stringify({
+            rating: buyerRating,
+            comment: buyerComment.trim(),
+          }),
+        },
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to submit review");
+
+      onSubmit?.("Buyer review submitted successfully!", "success");
+      if (onReviewSubmitted) onReviewSubmitted();
+      onClose();
+    } catch (err) {
+      onSubmit?.(err.message, "error");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!isOpen || !order || !item) return null;
+
+  const buyerName =
+    order.user?.fullname || order.shippingAddress?.fullName || "the buyer";
+
+  if (alreadyReviewed) {
+    return (
+      <div className="modal-overlay" onClick={onClose}>
+        <div
+          className="modal-container review-modal"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="modal-header">
+            <h5 className="modal-title">
+              <i className="bi bi-star-fill text-gold"></i>
+              Review Already Submitted
+            </h5>
+            <button className="modal-close" onClick={onClose}>
+              <i className="bi bi-x-lg"></i>
+            </button>
+          </div>
+          <div className="modal-body text-center py-4">
+            <i className="bi bi-check-circle-fill text-success fs-1"></i>
+            <h5 className="mt-3">You've already reviewed this buyer!</h5>
+            <p className="text-muted">Thank you for your feedback.</p>
+            <button className="btn-primary mt-3" onClick={onClose}>
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="modal-overlay" onClick={onClose}>
+        <div
+          className="modal-container review-modal"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="modal-body text-center py-5">
+            <div className="gold-spinner"></div>
+            <p className="mt-3">Loading...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div
+        className="modal-container review-modal"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="modal-header">
+          <h5 className="modal-title">
+            <i className="bi bi-star-fill text-gold me-2"></i>
+            Rate Your Buyer
+          </h5>
+          <button className="modal-close" onClick={onClose}>
+            <i className="bi bi-x-lg"></i>
+          </button>
+        </div>
+
+        <div className="modal-body">
+          {/* Buyer Info */}
+          <div className="buyer-info-card">
+            <div className="buyer-avatar">
+              <i className="bi bi-person-circle fs-1"></i>
+            </div>
+            <div className="buyer-details">
+              <h6>{buyerName}</h6>
+              <p className="text-muted small">
+                Order #{order._id?.slice(-8).toUpperCase()}
+              </p>
+              <div className="product-context">
+                <i className="bi bi-box-seam"></i>
+                <span>{item.name}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="review-form">
+            <div className="review-question">
+              How was your experience with <strong>{buyerName}</strong> as a
+              buyer?
+            </div>
+
+            <StarRating
+              value={buyerRating}
+              onChange={setBuyerRating}
+              size="lg"
+            />
+
+            <div className="form-group mt-4">
+              <label className="form-label">
+                Your review <span className="text-muted">(optional)</span>
+              </label>
+              <textarea
+                className="form-textarea"
+                rows="4"
+                value={buyerComment}
+                onChange={(e) => setBuyerComment(e.target.value)}
+                placeholder="Share your experience with this buyer... (communication, payment, etc.)"
+                maxLength={500}
+              />
+              <div className="char-counter">
+                <small>{buyerComment.length}/500 characters</small>
+              </div>
+            </div>
+
+            <div className="info-alert info mt-3">
+              <i className="bi bi-info-circle-fill"></i>
+              <div>
+                <strong>Why rate buyers?</strong>
+                <p className="small mb-0">
+                  Your feedback helps build trust in the community and lets
+                  other sellers know about reliable buyers.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="modal-footer">
+          <button className="btn-secondary" onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            className="btn-primary"
+            onClick={handleSubmit}
+            disabled={buyerRating === 0 || submitting}
+          >
+            {submitting ? (
+              <span className="spinner-small"></span>
+            ) : (
+              <>
+                <i className="bi bi-send me-2"></i>
+                Submit Review
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Auto-release countdown badge
 const AutoReleaseCountdown = ({ autoReleaseAt }) => {
   const [label, setLabel] = useState("");
@@ -298,6 +566,7 @@ const OrderDetailsModal = ({
   onUpdateStatus,
   showToast,
   onOpenDispute,
+  onOpenReview,
 }) => {
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
@@ -511,6 +780,9 @@ const OrderDetailsModal = ({
                     color: "secondary",
                     icon: "bi-question",
                   };
+                  const isDelivered =
+                    item.orderStatus === "delivered" &&
+                    item.escrowStatus === "released";
 
                   return (
                     <tr key={idx}>
@@ -546,43 +818,56 @@ const OrderDetailsModal = ({
                           )}
                       </td>
                       <td>
-                        {hasOpenDispute ? (
-                          <span className="blocked-message">
-                            <i className="bi bi-lock-fill"></i>
-                            Dispute pending
-                          </span>
-                        ) : (
-                          <div className="action-buttons">
-                            {nexts.map((status) => (
-                              <button
-                                key={status}
-                                className={`action-btn ${status}`}
-                                onClick={() =>
-                                  handleStatusUpdate(productId, status)
-                                }
-                                disabled={updatingStatus}
-                              >
-                                {status === "cancelled" && (
-                                  <i className="bi bi-x-circle"></i>
-                                )}
-                                {status === "shipped" && (
-                                  <i className="bi bi-truck"></i>
-                                )}
-                                {status !== "cancelled" &&
-                                  status !== "shipped" &&
-                                  status}
-                                {status === "cancelled" && "Cancel"}
-                                {status === "shipped" && "Ship"}
-                              </button>
-                            ))}
-                            {nexts.length === 0 &&
-                              item.orderStatus !== "shipped" && (
-                                <span className="text-muted small">
-                                  No actions
-                                </span>
+                        <div className="action-buttons">
+                          {hasOpenDispute ? (
+                            <span className="blocked-message">
+                              <i className="bi bi-lock-fill"></i>
+                              Dispute pending
+                            </span>
+                          ) : (
+                            <>
+                              {nexts.map((status) => (
+                                <button
+                                  key={status}
+                                  className={`action-btn ${status}`}
+                                  onClick={() =>
+                                    handleStatusUpdate(productId, status)
+                                  }
+                                  disabled={updatingStatus}
+                                >
+                                  {status === "cancelled" && (
+                                    <i className="bi bi-x-circle"></i>
+                                  )}
+                                  {status === "shipped" && (
+                                    <i className="bi bi-truck"></i>
+                                  )}
+                                  {status !== "cancelled" &&
+                                    status !== "shipped" &&
+                                    status}
+                                  {status === "cancelled" && "Cancel"}
+                                  {status === "shipped" && "Ship"}
+                                </button>
+                              ))}
+                              {/* Review Buyer Button - shown for delivered items */}
+                              {isDelivered && (
+                                <button
+                                  className="action-btn review"
+                                  onClick={() => onOpenReview(order, item)}
+                                >
+                                  <i className="bi bi-star"></i>
+                                  Review Buyer
+                                </button>
                               )}
-                          </div>
-                        )}
+                            </>
+                          )}
+                          {nexts.length === 0 &&
+                            item.orderStatus !== "shipped" &&
+                            !isDelivered && (
+                              <span className="text-muted small">
+                                No actions
+                              </span>
+                            )}
+                        </div>
                         {item.orderStatus === "cancelled" && (
                           <small className="refunded-text">
                             <i className="bi bi-arrow-repeat"></i>
@@ -649,6 +934,9 @@ const SellerOrders = () => {
   const [disputeOrder, setDisputeOrder] = useState(null);
   const [disputeItem, setDisputeItem] = useState(null);
   const [showDisputeModal, setShowDisputeModal] = useState(false);
+  const [reviewOrder, setReviewOrder] = useState(null);
+  const [reviewItem, setReviewItem] = useState(null);
+  const [showReviewModal, setShowReviewModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
@@ -681,6 +969,13 @@ const SellerOrders = () => {
     setDisputeOrder(order);
     setDisputeItem(item);
     setShowDisputeModal(true);
+  };
+
+  const openReview = (order, item) => {
+    setShowDetailsModal(false);
+    setReviewOrder(order);
+    setReviewItem(item);
+    setShowReviewModal(true);
   };
 
   const formatCurrency = (v) =>
@@ -791,6 +1086,7 @@ const SellerOrders = () => {
         }}
         showToast={showToast}
         onOpenDispute={openDispute}
+        onOpenReview={openReview}
       />
 
       {showDisputeModal && (
@@ -806,6 +1102,19 @@ const SellerOrders = () => {
           showToast={showToast}
         />
       )}
+
+      <SellerReviewModal
+        isOpen={showReviewModal}
+        order={reviewOrder}
+        item={reviewItem}
+        onClose={() => {
+          setShowReviewModal(false);
+          setReviewOrder(null);
+          setReviewItem(null);
+        }}
+        onSubmit={showToast}
+        onReviewSubmitted={fetchOrders}
+      />
 
       <div className="orders-container">
         {/* Header */}
@@ -993,6 +1302,11 @@ const SellerOrders = () => {
                     const hasOpenDispute = sellerItems.some(
                       (i) => i.disputeStatus === "open",
                     );
+                    const hasDelivered = sellerItems.some(
+                      (i) =>
+                        i.orderStatus === "delivered" &&
+                        i.escrowStatus === "released",
+                    );
                     const hasShipped = sellerItems.some(
                       (i) => i.orderStatus === "shipped" && i.autoReleaseAt,
                     );
@@ -1047,6 +1361,12 @@ const SellerOrders = () => {
                               <span className="dispute-tag">
                                 <i className="bi bi-exclamation-triangle-fill"></i>
                                 Refund requested
+                              </span>
+                            )}
+                            {hasDelivered && (
+                              <span className="review-tag">
+                                <i className="bi bi-star-fill"></i>
+                                Ready for review
                               </span>
                             )}
                             {soonest && (
@@ -1108,6 +1428,22 @@ const SellerOrders = () => {
                                   </button>
                                 ) : null;
                               })()}
+                            {hasDelivered && (
+                              <button
+                                className="icon-btn review"
+                                onClick={() => {
+                                  const deliveredItem = sellerItems.find(
+                                    (i) => i.orderStatus === "delivered",
+                                  );
+                                  if (deliveredItem) {
+                                    openReview(order, deliveredItem);
+                                  }
+                                }}
+                                title="Review Buyer"
+                              >
+                                <i className="bi bi-star-fill"></i>
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>

@@ -35,6 +35,16 @@ const userSchema = new mongoose.Schema(
       enum: ["pending", "verified", "rejected"],
       default: "pending",
     },
+    averageRating: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5,
+    },
+    numReviews: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,

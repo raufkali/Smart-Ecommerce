@@ -34,6 +34,7 @@ const walletRoutes = require("./routes/walletRoutes");
 const profileRoutes = require("./routes/profileRoutes");
 const sellerRoutes = require("./routes/sellerRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
+const reviewRoutes = require("./routes/reviewRoutes");
 
 const app = express();
 const server = http.createServer(app);
@@ -96,6 +97,7 @@ app.use("/wallet", walletRoutes);
 app.use("/profile", profileRoutes);
 app.use("/seller", sellerRoutes);
 app.use("/notifications", notificationRoutes);
+app.use("/reviews", reviewRoutes);
 
 // Error handling middleware (must be last)
 app.use(errorHandler);

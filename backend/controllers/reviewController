@@ -1,0 +1,342 @@
+const expressAsyncHandler = require("express-async-handler");
+const Review = require("../models/Review");
+const Order = require("../models/Order");
+const Notification = require("../models/Notification");
+
+// ─────────────────────────────────────────────
+// HELPER
+// ─────────────────────────────────────────────
+const notify = async (userId, { title, message, type = "info", link = "" }) => {
+  try {
+    await Notification.create({ user: userId, title, message, type, link });
+  } catch (err) {
+    console.error("Notification error:", err.message);
+  }
+};
+
+/**
+ * Find a released order item that qualifies for reviewing.
+ * Returns { order, item } or throws.
+ */
+const getReleasedItem = async (orderId, productId, userId, role) => {
+  const order = await Order.findById(orderId)
+    .populate("orderItems.seller")
+    .populate("user");
+
+  if (!order) throw Object.assign(new Error("Order not found"), { status: 404 });
+
+  const item = order.orderItems.find(
+    (i) => (i.product?._id ?? i.product)?.toString() === productId,
+  );
+  if (!item) throw Object.assign(new Error("Product not found in this order"), { status: 404 });
+
+  if (item.escrowStatus !== "released") {
+    throw Object.assign(
+      new Error("You can only leave a review after the payment has been released (delivery confirmed)."),
+      { status: 403 },
+    );
+  }
+
+  if (role === "buyer" && order.user._id.toString() !== userId) {
+    throw Object.assign(new Error("Not authorized"), { status: 403 });
+  }
+
+  if (role === "seller") {
+    const sellerId = (item.seller?._id ?? item.seller)?.toString();
+    if (sellerId !== userId) {
+      throw Object.assign(new Error("Not authorized"), { status: 403 });
+    }
+  }
+
+  return { order, item };
+};
+
+// ─────────────────────────────────────────────
+// @desc  Buyer reviews a product
+// @route POST /api/reviews/product/:orderId/:productId
+// @access Private (User / buyer)
+// ─────────────────────────────────────────────
+const reviewProduct = expressAsyncHandler(async (req, res) => {
+  const { orderId, productId } = req.params;
+  const { rating, comment } = req.body;
+
+  if (!rating || rating < 1 || rating > 5) {
+    res.status(400);
+    throw new Error("Rating must be between 1 and 5");
+  }
+
+  const { item } = await getReleasedItem(orderId, productId, req.user.id, "buyer");
+
+  const targetId = item.product?._id ?? item.product;
+
+  // Check duplicate
+  const existing = await Review.findOne({
+    reviewerId: req.user.id,
+    targetId,
+    targetType: "Product",
+  });
+  if (existing) {
+    res.status(400);
+    throw new Error("You have already reviewed this product");
+  }
+
+  const review = await Review.create({
+    reviewerId: req.user.id,
+    targetType: "Product",
+    targetId,
+    rating,
+    comment: comment?.trim(),
+  });
+
+  res.status(201).json({
+    success: true,
+    message: "Product review submitted successfully",
+    review,
+  });
+});
+
+// ─────────────────────────────────────────────
+// @desc  Buyer reviews the seller
+// @route POST /api/reviews/seller/:orderId/:productId
+// @access Private (User / buyer)
+// ─────────────────────────────────────────────
+const reviewSeller = expressAsyncHandler(async (req, res) => {
+  const { orderId, productId } = req.params;
+  const { rating, comment } = req.body;
+
+  if (!rating || rating < 1 || rating > 5) {
+    res.status(400);
+    throw new Error("Rating must be between 1 and 5");
+  }
+
+  const { item } = await getReleasedItem(orderId, productId, req.user.id, "buyer");
+
+  const sellerId = (item.seller?._id ?? item.seller)?.toString();
+
+  // Prevent self-review (edge cases)
+  if (sellerId === req.user.id) {
+    res.status(400);
+    throw new Error("You cannot review yourself");
+  }
+
+  // Check duplicate — one review per buyer-seller pair per product purchase
+  // We use targetId = sellerId, but to scope per-item we add a check on orderId in comment
+  // The unique index on (reviewerId, targetId) covers global deduplication;
+  // for per-item granularity we store orderId in metadata via a separate field or just rely on global.
+  const existing = await Review.findOne({
+    reviewerId: req.user.id,
+    targetId: sellerId,
+    targetType: "User",
+  });
+  if (existing) {
+    res.status(400);
+    throw new Error("You have already reviewed this seller for this purchase");
+  }
+
+  const review = await Review.create({
+    reviewerId: req.user.id,
+    targetType: "User",
+    targetId: sellerId,
+    rating,
+    comment: comment?.trim(),
+  });
+
+  await notify(sellerId, {
+    title: "New review received",
+    message: `A buyer left you a ${rating}-star review for "${item.name}".`,
+    type: "info",
+    link: "/seller/profile",
+  });
+
+  res.status(201).json({
+    success: true,
+    message: "Seller review submitted successfully",
+    review,
+  });
+});
+
+// ─────────────────────────────────────────────
+// @desc  Seller reviews the buyer
+// @route POST /api/reviews/buyer/:orderId/:productId
+// @access Private (Seller)
+// ─────────────────────────────────────────────
+const reviewBuyer = expressAsyncHandler(async (req, res) => {
+  const { orderId, productId } = req.params;
+  const { rating, comment } = req.body;
+
+  if (!rating || rating < 1 || rating > 5) {
+    res.status(400);
+    throw new Error("Rating must be between 1 and 5");
+  }
+
+  const { order, item } = await getReleasedItem(orderId, productId, req.user.id, "seller");
+
+  const buyerId = order.user._id.toString();
+
+  const existing = await Review.findOne({
+    reviewerId: req.user.id,
+    targetId: buyerId,
+    targetType: "User",
+  });
+  if (existing) {
+    res.status(400);
+    throw new Error("You have already reviewed this buyer");
+  }
+
+  const review = await Review.create({
+    reviewerId: req.user.id,
+    targetType: "User",
+    targetId: buyerId,
+    rating,
+    comment: comment?.trim(),
+  });
+
+  await notify(buyerId, {
+    title: "New review received",
+    message: `A seller left you a ${rating}-star review.`,
+    type: "info",
+    link: "/profile",
+  });
+
+  res.status(201).json({
+    success: true,
+    message: "Buyer review submitted successfully",
+    review,
+  });
+});
+
+// ─────────────────────────────────────────────
+// @desc  Get reviews for a product or user
+// @route GET /api/reviews/:targetType/:targetId
+//        targetType = "Product" | "User"
+// @access Public
+// ─────────────────────────────────────────────
+const getReviews = expressAsyncHandler(async (req, res) => {
+  const { targetType, targetId } = req.params;
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+
+  if (!["Product", "User"].includes(targetType)) {
+    res.status(400);
+    throw new Error("targetType must be 'Product' or 'User'");
+  }
+
+  const total = await Review.countDocuments({ targetType, targetId });
+  const reviews = await Review.find({ targetType, targetId })
+    .populate("reviewerId", "fullname averageRating")
+    .sort({ createdAt: -1 })
+    .skip((page - 1) * limit)
+    .limit(limit);
+
+  res.json({
+    success: true,
+    total,
+    page,
+    pages: Math.ceil(total / limit),
+    reviews,
+  });
+});
+
+// ─────────────────────────────────────────────
+// @desc  Check which reviews the current user can still leave for an order item
+// @route GET /api/reviews/pending/:orderId/:productId
+// @access Private
+// ─────────────────────────────────────────────
+const getPendingReviews = expressAsyncHandler(async (req, res) => {
+  const { orderId, productId } = req.params;
+
+  const order = await Order.findById(orderId).populate("orderItems.seller");
+  if (!order) {
+    res.status(404);
+    throw new Error("Order not found");
+  }
+
+  const item = order.orderItems.find(
+    (i) => (i.product?._id ?? i.product)?.toString() === productId,
+  );
+  if (!item) {
+    res.status(404);
+    throw new Error("Product not found in this order");
+  }
+
+  const isBuyer = order.user.toString() === req.user.id;
+  const sellerId = (item.seller?._id ?? item.seller)?.toString();
+  const isSeller = sellerId === req.user.id;
+
+  if (!isBuyer && !isSeller) {
+    res.status(403);
+    throw new Error("Not authorized");
+  }
+
+  const released = item.escrowStatus === "released";
+  const pending = { canReview: released, reviews: [] };
+
+  if (!released) {
+    return res.json({
+      success: true,
+      canReview: false,
+      reason: "Delivery must be confirmed before leaving reviews",
+      reviews: [],
+    });
+  }
+
+  const targetId = item.product?._id ?? item.product;
+  const buyerId = order.user.toString();
+
+  if (isBuyer) {
+    const [productReview, sellerReview] = await Promise.all([
+      Review.findOne({ reviewerId: req.user.id, targetId, targetType: "Product" }),
+      Review.findOne({ reviewerId: req.user.id, targetId: sellerId, targetType: "User" }),
+    ]);
+    pending.reviews = [
+      { type: "product", targetId, done: !!productReview },
+      { type: "seller", targetId: sellerId, done: !!sellerReview },
+    ];
+  }
+
+  if (isSeller) {
+    const buyerReview = await Review.findOne({
+      reviewerId: req.user.id,
+      targetId: buyerId,
+      targetType: "User",
+    });
+    pending.reviews = [{ type: "buyer", targetId: buyerId, done: !!buyerReview }];
+  }
+
+  res.json({ success: true, ...pending });
+});
+
+// ─────────────────────────────────────────────
+// @desc  Delete a review (admin or review owner)
+// @route DELETE /api/reviews/:reviewId
+// @access Private
+// ─────────────────────────────────────────────
+const deleteReview = expressAsyncHandler(async (req, res) => {
+  const review = await Review.findById(req.params.reviewId);
+
+  if (!review) {
+    res.status(404);
+    throw new Error("Review not found");
+  }
+
+  const isOwner = review.reviewerId.toString() === req.user.id;
+  const isAdmin = req.user.role === "admin";
+
+  if (!isOwner && !isAdmin) {
+    res.status(403);
+    throw new Error("Not authorized to delete this review");
+  }
+
+  await Review.findByIdAndDelete(req.params.reviewId);
+
+  res.json({ success: true, message: "Review deleted" });
+});
+
+module.exports = {
+  reviewProduct,
+  reviewSeller,
+  reviewBuyer,
+  getReviews,
+  getPendingReviews,
+  deleteReview,
+};
