@@ -6,6 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import "./homepage.css";
+import BackendImage from "@/app/components/BackendImage";
 
 // ── Custom Hooks ────────────────────────────────────────────────────────────
 const useToast = () => {
@@ -190,13 +191,6 @@ const ProductCard = React.memo(
 
 // ── Hero Banner with Glassmorphism Effect ───────────────────────────────────
 const HeroBanner = ({ banners, currentSlide, onSlideChange }) => {
-  const bannersWithPaths = banners.map((b) => ({
-    ...b,
-    img: b.img.startsWith("http")
-      ? b.img
-      : `${process.env.NEXT_PUBLIC_BACKEND_URL}${b.img}`,
-  }));
-
   return (
     <section className="hero-section">
       <AnimatePresence mode="wait">
@@ -208,14 +202,12 @@ const HeroBanner = ({ banners, currentSlide, onSlideChange }) => {
           transition={{ duration: 0.8 }}
           className="hero-slide"
         >
-          <Image
-            src={bannersWithPaths[currentSlide].img}
-            alt={bannersWithPaths[currentSlide].title}
-            fill
+          <img
+            src={banners[currentSlide].img}
+            alt={banners[currentSlide].title}
             className="hero-image"
-            priority
           />
-          {/* Glassmorphism overlay instead of dark overlay */}
+          {/* Glassmorphism overlay */}
           <div className="hero-glass-overlay" />
           <div className="hero-content">
             <motion.span
@@ -224,7 +216,7 @@ const HeroBanner = ({ banners, currentSlide, onSlideChange }) => {
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.2 }}
             >
-              {bannersWithPaths[currentSlide].subtitle}
+              {banners[currentSlide].subtitle}
             </motion.span>
             <motion.h1
               className="hero-title"
@@ -232,7 +224,7 @@ const HeroBanner = ({ banners, currentSlide, onSlideChange }) => {
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.4 }}
             >
-              {bannersWithPaths[currentSlide].title}
+              {banners[currentSlide].title}
             </motion.h1>
             <motion.p
               className="hero-description"
@@ -240,18 +232,15 @@ const HeroBanner = ({ banners, currentSlide, onSlideChange }) => {
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.6 }}
             >
-              {bannersWithPaths[currentSlide].desc}
+              {banners[currentSlide].desc}
             </motion.p>
             <motion.div
               initial={{ y: 30, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.8 }}
             >
-              <Link
-                href={bannersWithPaths[currentSlide].link}
-                className="hero-cta"
-              >
-                {bannersWithPaths[currentSlide].btn}
+              <Link href={banners[currentSlide].link} className="hero-cta">
+                {banners[currentSlide].btn}
                 <i className="bi bi-arrow-right" />
               </Link>
             </motion.div>
@@ -366,7 +355,7 @@ const FeaturedProductSpotlight = ({
           >
             {/* Fixed image container */}
             <div className="spotlight-image-container">
-              <Image
+              <BackendImage
                 src={`${process.env.NEXT_PUBLIC_BACKEND_URL}${product.images?.[0] || "/placeholder.jpg"}`}
                 alt={product.name}
                 fill
@@ -554,7 +543,7 @@ const HomePage = () => {
         desc: "Shop the hottest trends of the season with massive discounts",
         btn: "Shop Now",
         link: "/products",
-        img: "/uploads/img/banner1.jpg",
+        img: "/img/banner1.jpg",
       },
       {
         id: 2,
@@ -563,7 +552,7 @@ const HomePage = () => {
         desc: "Be the first to grab these exclusive new items",
         btn: "Explore New",
         link: "/products?sort=newest",
-        img: "/uploads/img/banner2.jpg",
+        img: "/img/banner2.jpg",
       },
       {
         id: 3,
@@ -572,7 +561,7 @@ const HomePage = () => {
         desc: "Latest gadgets with up to 30% discount this week only",
         btn: "Shop Tech",
         link: "/products?category=electronics",
-        img: "/uploads/img/banner3.jpg",
+        img: "/img/banner3.jpg",
       },
     ],
     [],

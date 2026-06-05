@@ -1,16 +1,20 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    ...(process.env.NODE_ENV === "development"
-      ? { unoptimized: true }
-      : {
-          remotePatterns: [
-            {
-              protocol: "https",
-              hostname: "your-production-domain.com",
-            },
-          ],
-        }),
+    remotePatterns: [
+      {
+        protocol: "http",
+        hostname: "localhost",
+        port: "8080",
+        pathname: "/uploads/**",
+      },
+      {
+        protocol: "http",
+        hostname: "127.0.0.1",
+        port: "8080",
+        pathname: "/uploads/**",
+      },
+    ],
   },
 };
 
