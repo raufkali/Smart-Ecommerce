@@ -62,13 +62,12 @@ export default function SellerLayout({ children }) {
               />
               <main
                 style={{
-                  marginLeft: sidebarCollapsed ? "80px" : "280px",
+                  marginLeft: sidebarCollapsed ? "70px" : "270px",
                   width: sidebarCollapsed
-                    ? "calc(100% - 80px)"
-                    : "calc(100% - 280px)",
+                    ? "calc(100% - 70px)"
+                    : "calc(100% - 270px)",
                   minHeight: "calc(100vh - 70px)",
                   backgroundColor: "#f8f9fa",
-                  padding: "24px",
                   transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                 }}
               >

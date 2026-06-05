@@ -26,27 +26,33 @@
     --font-body: 'DM Sans', system-ui, sans-serif;
 
     --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+
+    --sidebar-open: 270px;
+    --sidebar-collapsed: 70px;
 }
 
-/* Page Container */
+/* Page Container - Responsive to sidebar */
 .profile-page {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 40px 24px;
-    background: var(--bg-page);
+    width: 100%;
     min-height: 100vh;
+    background: var(--bg-page);
+    padding: 20px 24px 40px 24px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Container that adapts to content */
 .profile-container {
     width: 100%;
+    max-width: 1400px;
+    margin: 0 auto;
 }
 
-/* Header */
+/* Header - Responsive */
 .page-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 40px;
+    margin-bottom: 32px;
     flex-wrap: wrap;
     gap: 20px;
 }
@@ -73,7 +79,7 @@
 
 .page-title {
     font-family: var(--font-display);
-    font-size: clamp(1.8rem, 4vw, 2.5rem);
+    font-size: clamp(1.5rem, 3vw, 2.5rem);
     font-weight: 500;
     color: var(--text-primary);
     margin-bottom: 8px;
@@ -90,7 +96,7 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 12px 28px;
+    padding: 10px 24px;
     background: var(--gold);
     color: white;
     border: none;
@@ -101,6 +107,7 @@
     text-transform: uppercase;
     cursor: pointer;
     transition: all 0.3s var(--ease-out-expo);
+    white-space: nowrap;
 }
 
 .btn-primary-gold:hover {
@@ -109,14 +116,15 @@
     box-shadow: var(--shadow-gold);
 }
 
-/* Profile Grid */
+/* Profile Grid - Adjustable */
 .profile-grid {
     display: grid;
-    grid-template-columns: 360px 1fr;
-    gap: 32px;
+    grid-template-columns: minmax(300px, 360px) 1fr;
+    gap: 24px;
+    width: 100%;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1200px) {
     .profile-grid {
         grid-template-columns: 1fr;
         gap: 24px;
@@ -131,18 +139,27 @@
     overflow: hidden;
     box-shadow: var(--shadow-sm);
     height: fit-content;
+    position: sticky;
+    top: 90px;
+}
+
+@media (max-width: 1200px) {
+    .profile-card {
+        position: relative;
+        top: 0;
+    }
 }
 
 .profile-avatar {
     text-align: center;
-    padding: 32px 24px 24px;
+    padding: 28px 20px 20px;
     background: linear-gradient(135deg, var(--bg-surface), var(--bg-card));
 }
 
 .avatar-icon {
-    width: 100px;
-    height: 100px;
-    margin: 0 auto 20px;
+    width: 90px;
+    height: 90px;
+    margin: 0 auto 16px;
     background: var(--gold-pale);
     border-radius: 50%;
     display: flex;
@@ -152,22 +169,24 @@
 }
 
 .avatar-icon i {
-    font-size: 52px;
+    font-size: 48px;
     color: var(--gold);
 }
 
 .profile-name {
     font-family: var(--font-display);
-    font-size: 1.5rem;
+    font-size: 1.3rem;
     font-weight: 600;
     color: var(--text-primary);
     margin-bottom: 6px;
+    word-break: break-word;
 }
 
 .profile-email {
     font-size: 13px;
     color: var(--text-muted);
-    margin-bottom: 12px;
+    margin-bottom: 10px;
+    word-break: break-word;
 }
 
 .role-badge {
@@ -193,11 +212,11 @@
 .profile-divider {
     height: 1px;
     background: var(--border);
-    margin: 0 24px;
+    margin: 0 20px;
 }
 
 .profile-info-section {
-    padding: 20px 24px;
+    padding: 20px;
 }
 
 .section-title-small {
@@ -206,7 +225,7 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--text-muted);
-    margin-bottom: 16px;
+    margin-bottom: 14px;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -221,7 +240,7 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 10px 0;
+    padding: 8px 0;
     font-size: 13px;
     color: var(--text-secondary);
     border-bottom: 1px solid var(--border);
@@ -235,11 +254,17 @@
     width: 20px;
     color: var(--gold);
     font-size: 14px;
+    flex-shrink: 0;
+}
+
+.info-item span {
+    word-break: break-word;
+    line-height: 1.4;
 }
 
 /* Stripe Status */
 .stripe-status {
-    padding: 16px;
+    padding: 14px;
     border-radius: 16px;
     display: flex;
     gap: 12px;
@@ -265,7 +290,8 @@
 }
 
 .stripe-status i {
-    font-size: 24px;
+    font-size: 22px;
+    flex-shrink: 0;
 }
 
 .stripe-status strong {
@@ -277,7 +303,7 @@
 .stripe-status p {
     font-size: 12px;
     color: var(--text-muted);
-    margin-bottom: 12px;
+    margin-bottom: 10px;
 }
 
 .btn-small-warning,
@@ -326,6 +352,7 @@
     color: var(--gold);
     cursor: pointer;
     transition: all 0.2s;
+    width: 100%;
 }
 
 .btn-outline-gold:hover {
@@ -338,12 +365,14 @@
     display: flex;
     flex-direction: column;
     gap: 24px;
+    min-width: 0;
+    /* Prevents overflow */
 }
 
-/* Wallet Grid */
+/* Wallet Grid - Responsive */
 .wallet-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 20px;
 }
 
@@ -357,11 +386,12 @@
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: 20px;
-    padding: 20px;
+    padding: 18px;
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 14px;
     transition: all 0.3s var(--ease-out-expo);
+    min-width: 0;
 }
 
 .wallet-card:hover {
@@ -383,13 +413,14 @@
 }
 
 .wallet-icon {
-    width: 56px;
-    height: 56px;
-    border-radius: 16px;
+    width: 50px;
+    height: 50px;
+    border-radius: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 24px;
+    font-size: 22px;
+    flex-shrink: 0;
 }
 
 .wallet-card.available .wallet-icon {
@@ -409,6 +440,7 @@
 
 .wallet-info {
     flex: 1;
+    min-width: 0;
 }
 
 .wallet-label {
@@ -423,29 +455,30 @@
 
 .wallet-amount {
     font-family: var(--font-display);
-    font-size: 1.6rem;
+    font-size: 1.4rem;
     font-weight: 600;
     color: var(--text-primary);
     margin: 4px 0;
+    word-break: break-word;
 }
 
 .wallet-info small {
-    font-size: 11px;
+    font-size: 10px;
     color: var(--text-muted);
 }
 
 /* Withdraw Section */
 .withdraw-section {
-    margin: 8px 0;
+    margin: 4px 0;
 }
 
 .btn-success-gold {
     width: 100%;
-    padding: 16px;
+    padding: 14px;
     background: linear-gradient(135deg, #22c55e, #16a34a);
     border: none;
-    border-radius: 16px;
-    font-size: 14px;
+    border-radius: 14px;
+    font-size: 13px;
     font-weight: 700;
     color: white;
     cursor: pointer;
@@ -463,19 +496,20 @@
 
 /* Alert Warning Card */
 .alert-warning-card {
-    padding: 16px 20px;
+    padding: 14px 18px;
     background: rgba(245, 158, 11, 0.08);
     border: 1px solid rgba(245, 158, 11, 0.2);
     border-radius: 16px;
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 14px;
     flex-wrap: wrap;
 }
 
 .alert-warning-card i {
-    font-size: 28px;
+    font-size: 24px;
     color: #f59e0b;
+    flex-shrink: 0;
 }
 
 .alert-warning-card strong {
@@ -492,6 +526,7 @@
 
 .alert-warning-card>div {
     flex: 1;
+    min-width: 150px;
 }
 
 /* Transactions Card */
@@ -504,14 +539,14 @@
 }
 
 .card-header-custom {
-    padding: 20px 24px;
+    padding: 16px 20px;
     border-bottom: 1px solid var(--border);
     background: var(--bg-surface);
 }
 
 .card-title-custom {
     font-family: var(--font-display);
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 500;
     color: var(--text-primary);
     margin: 0;
@@ -526,14 +561,16 @@
 
 /* Transactions List */
 .transactions-list {
-    padding: 8px 0;
+    padding: 0;
+    max-height: 500px;
+    overflow-y: auto;
 }
 
 .transaction-item {
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 16px 24px;
+    gap: 14px;
+    padding: 14px 20px;
     border-bottom: 1px solid var(--border);
     transition: background 0.2s;
 }
@@ -543,13 +580,13 @@
 }
 
 .transaction-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 14px;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 20px;
+    font-size: 18px;
     flex-shrink: 0;
 }
 
@@ -589,7 +626,7 @@
     align-items: baseline;
     flex-wrap: wrap;
     gap: 8px;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
 }
 
 .transaction-type {
@@ -600,21 +637,22 @@
 }
 
 .transaction-date {
-    font-size: 11px;
+    font-size: 10px;
     color: var(--text-muted);
 }
 
 .transaction-description {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text-secondary);
-    margin-bottom: 6px;
+    margin-bottom: 4px;
+    word-break: break-word;
 }
 
 .transaction-status {
     display: inline-block;
     padding: 2px 8px;
     border-radius: 12px;
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 600;
     text-transform: uppercase;
 }
@@ -642,7 +680,7 @@
 
 .transaction-amount {
     font-weight: 700;
-    font-size: 15px;
+    font-size: 14px;
     flex-shrink: 0;
 }
 
@@ -657,11 +695,11 @@
 /* Empty Transactions */
 .empty-transactions {
     text-align: center;
-    padding: 60px 24px;
+    padding: 50px 20px;
 }
 
 .empty-transactions i {
-    font-size: 64px;
+    font-size: 56px;
     color: var(--text-muted);
     margin-bottom: 16px;
     opacity: 0.5;
@@ -683,14 +721,15 @@
     display: flex;
     justify-content: center;
     gap: 8px;
-    padding: 20px 24px;
+    padding: 16px 20px;
     border-top: 1px solid var(--border);
+    flex-wrap: wrap;
 }
 
 .page-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
+    min-width: 34px;
+    height: 34px;
+    border-radius: 8px;
     background: transparent;
     border: 1px solid var(--border);
     cursor: pointer;
@@ -700,6 +739,7 @@
     justify-content: center;
     font-size: 13px;
     color: var(--text-secondary);
+    padding: 0 8px;
 }
 
 .page-btn:hover:not(.disabled) {
@@ -733,6 +773,7 @@
     justify-content: center;
     z-index: 2000;
     animation: fadeIn 0.2s ease;
+    padding: 20px;
 }
 
 @keyframes fadeIn {
@@ -749,7 +790,7 @@
     background: var(--bg-card);
     border-radius: 24px;
     max-width: 500px;
-    width: 90%;
+    width: 100%;
     max-height: 85vh;
     overflow: auto;
     box-shadow: var(--shadow-lg);
@@ -772,7 +813,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 20px 24px;
+    padding: 18px 24px;
     border-bottom: 1px solid var(--border);
     position: sticky;
     top: 0;
@@ -793,7 +834,7 @@
 
 .modal-title {
     font-family: var(--font-display);
-    font-size: 1.3rem;
+    font-size: 1.2rem;
     font-weight: 500;
     margin: 0;
     display: flex;
@@ -838,7 +879,7 @@
 
 /* Form Elements */
 .form-group {
-    margin-bottom: 20px;
+    margin-bottom: 18px;
 }
 
 .form-group label {
@@ -857,7 +898,7 @@
 .form-select,
 .form-textarea {
     width: 100%;
-    padding: 12px;
+    padding: 10px 12px;
     background: var(--bg-page);
     border: 1px solid var(--border);
     border-radius: 12px;
@@ -895,16 +936,16 @@
 /* Info Card */
 .info-card {
     background: var(--bg-surface);
-    border-radius: 16px;
-    padding: 16px;
-    margin-bottom: 20px;
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 18px;
 }
 
 .info-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 0;
+    padding: 8px 0;
     border-bottom: 1px solid var(--border);
 }
 
@@ -919,9 +960,9 @@
 
 /* Info Alert */
 .info-alert {
-    padding: 16px;
+    padding: 14px;
     border-radius: 12px;
-    margin-top: 20px;
+    margin-top: 18px;
     display: flex;
     gap: 12px;
 }
@@ -964,7 +1005,7 @@
 .btn-secondary,
 .btn-primary,
 .btn-success {
-    padding: 10px 24px;
+    padding: 8px 20px;
     border-radius: 100px;
     font-family: var(--font-body);
     font-size: 13px;
@@ -1042,6 +1083,7 @@ button:disabled {
     justify-content: center;
     min-height: 400px;
     background: var(--bg-page);
+    width: 100%;
 }
 
 .gold-spinner {
@@ -1062,20 +1104,20 @@ button:disabled {
 /* Toast */
 .toast-notification {
     position: fixed;
-    top: 24px;
+    top: 80px;
     right: 24px;
     z-index: 1100;
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 14px 20px;
+    padding: 12px 18px;
     border-radius: 12px;
     color: white;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
     box-shadow: var(--shadow-lg);
-    min-width: 280px;
-    max-width: 400px;
+    min-width: 260px;
+    max-width: 380px;
     animation: slideInRight 0.3s ease forwards;
 }
 
@@ -1133,14 +1175,25 @@ button:disabled {
     background: rgba(255, 255, 255, 0.35);
 }
 
-/* Responsive */
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .profile-page {
+        padding: 16px 20px 32px 20px;
+    }
+
+    .profile-grid {
+        gap: 20px;
+    }
+}
+
 @media (max-width: 768px) {
     .profile-page {
-        padding: 24px 16px;
+        padding: 12px 16px 24px 16px;
     }
 
     .page-header {
         flex-direction: column;
+        margin-bottom: 24px;
     }
 
     .btn-primary-gold {
@@ -1150,39 +1203,94 @@ button:disabled {
 
     .transaction-item {
         flex-wrap: wrap;
-        padding: 16px;
+        padding: 12px 16px;
     }
 
     .transaction-icon {
-        width: 40px;
-        height: 40px;
+        width: 38px;
+        height: 38px;
         font-size: 16px;
     }
 
     .transaction-amount {
-        margin-left: 56px;
+        margin-left: 52px;
     }
 
     .alert-warning-card {
         flex-direction: column;
         text-align: center;
     }
+
+    .alert-warning-card i {
+        margin-bottom: 8px;
+    }
+
+    .modal-container {
+        width: 95%;
+        margin: 10px;
+    }
+
+    .modal-body {
+        padding: 20px;
+    }
+
+    .toast-notification {
+        top: 70px;
+        right: 16px;
+        left: 16px;
+        width: auto;
+        max-width: none;
+    }
 }
 
-/* Scrollbar */
+@media (max-width: 480px) {
+    .profile-card {
+        border-radius: 20px;
+    }
+
+    .avatar-icon {
+        width: 75px;
+        height: 75px;
+    }
+
+    .avatar-icon i {
+        font-size: 40px;
+    }
+
+    .wallet-card {
+        padding: 14px;
+    }
+
+    .wallet-icon {
+        width: 42px;
+        height: 42px;
+        font-size: 18px;
+    }
+
+    .wallet-amount {
+        font-size: 1.2rem;
+    }
+
+    .transaction-header {
+        flex-direction: column;
+        gap: 4px;
+    }
+}
+
+/* Scrollbar Styling */
 ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
 }
 
 ::-webkit-scrollbar-track {
     background: var(--bg-page);
-    border-radius: 4px;
+    border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb {
     background: var(--border);
-    border-radius: 4px;
+    border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -1193,4 +1301,97 @@ button:disabled {
 ::selection {
     background: rgba(184, 145, 42, 0.2);
     color: var(--gold-deep);
+}
+
+/* Utility Classes */
+.w-100 {
+    width: 100%;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.mt-2 {
+    margin-top: 8px;
+}
+
+.mt-3 {
+    margin-top: 12px;
+}
+
+.mt-4 {
+    margin-top: 16px;
+}
+
+.mb-0 {
+    margin-bottom: 0;
+}
+
+.fs-1 {
+    font-size: 2rem;
+}
+
+/* Decision Cards for Dispute Modal */
+.decision-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.decision-card {
+    padding: 12px;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+}
+
+.decision-card i {
+    font-size: 24px;
+    display: block;
+    margin-bottom: 8px;
+}
+
+.decision-card strong {
+    display: block;
+    font-size: 13px;
+    margin-bottom: 4px;
+}
+
+.decision-card small {
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+.decision-card.active.approve {
+    border-color: #22c55e;
+    background: rgba(34, 197, 94, 0.05);
+}
+
+.decision-card.active.approve i {
+    color: #22c55e;
+}
+
+.decision-card.active.reject {
+    border-color: #ef4444;
+    background: rgba(239, 68, 68, 0.05);
+}
+
+.decision-card.active.reject i {
+    color: #ef4444;
+}
+
+.decision-card:hover:not(.active) {
+    border-color: var(--gold);
+    background: var(--gold-pale);
+}
+
+@media (max-width: 480px) {
+    .decision-cards {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
 }
