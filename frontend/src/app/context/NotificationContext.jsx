@@ -24,10 +24,16 @@ export const NotificationProvider = ({ children }) => {
     Authorization: `Bearer ${localStorage.getItem("token")}`,
   });
 
+  // ─── Normalize: backend may return `isRead` or `read` — unify to `read` ───
+  const normalize = (n) => ({
+    ...n,
+    read: n.read ?? n.isRead ?? false,
+  });
+
   // ─── Fetch from DB ────────────────────────────────────────────────────────
   const fetchNotifications = useCallback(async () => {
     const token = localStorage.getItem("token");
-    if (!token) return; // not logged in, skip silently
+    if (!token) return;
 
     try {
       const res = await fetch(`${API}/notifications?limit=20`, {
@@ -35,8 +41,10 @@ export const NotificationProvider = ({ children }) => {
       });
       const data = await res.json();
       if (data.success) {
-        setNotifications(data.notifications);
-        setUnreadCount(data.unreadCount);
+        const normalized = (data.notifications || []).map(normalize);
+        setNotifications(normalized);
+        // Recalculate unread from normalized data (don't trust backend count alone)
+        setUnreadCount(normalized.filter((n) => !n.read).length);
       }
     } catch (err) {
       console.error("Failed to fetch notifications:", err);
@@ -45,7 +53,7 @@ export const NotificationProvider = ({ children }) => {
     }
   }, []);
 
-  // ─── Socket connect/disconnect based on auth ──────────────────────────────
+  // ─── Socket ───────────────────────────────────────────────────────────────
   const connectSocket = useCallback(() => {
     const token = localStorage.getItem("token");
     const user = JSON.parse(localStorage.getItem("user") || "null");
@@ -55,7 +63,8 @@ export const NotificationProvider = ({ children }) => {
     socket.emit("joinRoom", { userId: user.id, role: user.role });
 
     socket.on("notification", (notif) => {
-      setNotifications((prev) => [notif, ...prev]);
+      const n = normalize(notif);
+      setNotifications((prev) => [n, ...prev]);
       setUnreadCount((prev) => prev + 1);
     });
   }, []);
@@ -67,19 +76,17 @@ export const NotificationProvider = ({ children }) => {
     setUnreadCount(0);
   }, []);
 
-  // ─── On mount: init if already logged in ─────────────────────────────────
+  // ─── On mount ─────────────────────────────────────────────────────────────
   useEffect(() => {
     fetchNotifications();
     connectSocket();
 
-    // Re-init when user logs in (your layout fires this event)
     const handleAuthChange = () => {
       const token = localStorage.getItem("token");
       if (token) {
         fetchNotifications();
         connectSocket();
       } else {
-        // User logged out
         disconnectSocket();
       }
     };
@@ -100,11 +107,11 @@ export const NotificationProvider = ({ children }) => {
         headers: authHeaders(),
       });
       setNotifications((prev) =>
-        prev.map((n) => (n._id === id ? { ...n, isRead: true } : n)),
+        prev.map((n) => (n._id === id ? { ...n, read: true } : n)),
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (err) {
-      console.error(err);
+      console.error("markOneRead failed:", err);
     }
   };
 
@@ -114,23 +121,29 @@ export const NotificationProvider = ({ children }) => {
         method: "PUT",
         headers: authHeaders(),
       });
-      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      // ✅ Use `read` (normalized field), not `isRead`
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
       setUnreadCount(0);
     } catch (err) {
-      console.error(err);
+      console.error("markAllRead failed:", err);
     }
   };
 
   const clearAll = async () => {
     try {
-      await fetch(`${API}/notifications/all`, {
+      const res = await fetch(`${API}/notifications/all`, {
         method: "DELETE",
         headers: authHeaders(),
       });
-      setNotifications([]);
-      setUnreadCount(0);
+      // ✅ Only clear state if backend confirmed success
+      if (res.ok) {
+        setNotifications([]);
+        setUnreadCount(0);
+      } else {
+        console.error("clearAll: server returned", res.status);
+      }
     } catch (err) {
-      console.error(err);
+      console.error("clearAll failed:", err);
     }
   };
 
@@ -143,6 +156,7 @@ export const NotificationProvider = ({ children }) => {
         markOneRead,
         markAllRead,
         clearAll,
+        refetch: fetchNotifications,
       }}
     >
       {children}

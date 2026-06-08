@@ -23,16 +23,22 @@ const getReleasedItem = async (orderId, productId, userId, role) => {
     .populate("orderItems.seller")
     .populate("user");
 
-  if (!order) throw Object.assign(new Error("Order not found"), { status: 404 });
+  if (!order)
+    throw Object.assign(new Error("Order not found"), { status: 404 });
 
   const item = order.orderItems.find(
     (i) => (i.product?._id ?? i.product)?.toString() === productId,
   );
-  if (!item) throw Object.assign(new Error("Product not found in this order"), { status: 404 });
+  if (!item)
+    throw Object.assign(new Error("Product not found in this order"), {
+      status: 404,
+    });
 
   if (item.escrowStatus !== "released") {
     throw Object.assign(
-      new Error("You can only leave a review after the payment has been released (delivery confirmed)."),
+      new Error(
+        "You can only leave a review after the payment has been released (delivery confirmed).",
+      ),
       { status: 403 },
     );
   }
@@ -65,7 +71,12 @@ const reviewProduct = expressAsyncHandler(async (req, res) => {
     throw new Error("Rating must be between 1 and 5");
   }
 
-  const { item } = await getReleasedItem(orderId, productId, req.user.id, "buyer");
+  const { item } = await getReleasedItem(
+    orderId,
+    productId,
+    req.user.id,
+    "buyer",
+  );
 
   const targetId = item.product?._id ?? item.product;
 
@@ -109,7 +120,12 @@ const reviewSeller = expressAsyncHandler(async (req, res) => {
     throw new Error("Rating must be between 1 and 5");
   }
 
-  const { item } = await getReleasedItem(orderId, productId, req.user.id, "buyer");
+  const { item } = await getReleasedItem(
+    orderId,
+    productId,
+    req.user.id,
+    "buyer",
+  );
 
   const sellerId = (item.seller?._id ?? item.seller)?.toString();
 
@@ -169,7 +185,12 @@ const reviewBuyer = expressAsyncHandler(async (req, res) => {
     throw new Error("Rating must be between 1 and 5");
   }
 
-  const { order, item } = await getReleasedItem(orderId, productId, req.user.id, "seller");
+  const { order, item } = await getReleasedItem(
+    orderId,
+    productId,
+    req.user.id,
+    "seller",
+  );
 
   const buyerId = order.user._id.toString();
 
@@ -285,8 +306,16 @@ const getPendingReviews = expressAsyncHandler(async (req, res) => {
 
   if (isBuyer) {
     const [productReview, sellerReview] = await Promise.all([
-      Review.findOne({ reviewerId: req.user.id, targetId, targetType: "Product" }),
-      Review.findOne({ reviewerId: req.user.id, targetId: sellerId, targetType: "User" }),
+      Review.findOne({
+        reviewerId: req.user.id,
+        targetId,
+        targetType: "Product",
+      }),
+      Review.findOne({
+        reviewerId: req.user.id,
+        targetId: sellerId,
+        targetType: "User",
+      }),
     ]);
     pending.reviews = [
       { type: "product", targetId, done: !!productReview },
@@ -300,7 +329,9 @@ const getPendingReviews = expressAsyncHandler(async (req, res) => {
       targetId: buyerId,
       targetType: "User",
     });
-    pending.reviews = [{ type: "buyer", targetId: buyerId, done: !!buyerReview }];
+    pending.reviews = [
+      { type: "buyer", targetId: buyerId, done: !!buyerReview },
+    ];
   }
 
   res.json({ success: true, ...pending });

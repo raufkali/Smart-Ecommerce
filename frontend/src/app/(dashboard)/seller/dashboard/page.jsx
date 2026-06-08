@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import "./SellerDashboard.css";
+
+const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const SellerDashboard = () => {
   const router = useRouter();
@@ -27,7 +29,7 @@ const SellerDashboard = () => {
   const [recentReviews, setRecentReviews] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
   const [salesData, setSalesData] = useState({
-    labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    labels: DAY_LABELS,
     values: [0, 0, 0, 0, 0, 0, 0],
   });
 
@@ -35,6 +37,8 @@ const SellerDashboard = () => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   };
+
+  // ─── Auth ──────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -47,14 +51,18 @@ const SellerDashboard = () => {
       try {
         const response = await fetch(
           `${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/me`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          },
+          { headers: { Authorization: `Bearer ${token}` } },
         );
 
         if (response.ok) {
           const data = await response.json();
           setUser(data.user);
+          // Seed rating from auth response immediately so stats card isn't blank
+          setStats((prev) => ({
+            ...prev,
+            averageRating: data.user.averageRating ?? 0,
+            totalReviews: data.user.numReviews ?? 0,
+          }));
         } else {
           localStorage.removeItem("token");
           router.push("/login");
@@ -68,344 +76,345 @@ const SellerDashboard = () => {
     fetchUser();
   }, [router]);
 
-  const fetchSellerProducts = async () => {
+  // ─── Products ──────────────────────────────────────────────────────────────
+
+  const fetchSellerProducts = useCallback(async (token) => {
     try {
-      const token = localStorage.getItem("token");
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/products/my-products`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
 
-      if (response.ok) {
-        const data = await response.json();
-        const products = data.products || [];
+      if (!response.ok) return;
 
-        setStats((prev) => ({
-          ...prev,
-          totalProducts: products.length,
-          lowStockProducts: products.filter((p) => p.stock > 0 && p.stock < 5)
-            .length,
-        }));
+      const data = await response.json();
+      const products = data.products || [];
 
-        setTopProducts(
-          products.slice(0, 5).map((p) => ({
-            ...p,
-            sales: Math.floor(Math.random() * 100),
-            revenue: (p.finalPrice || p.price) * Math.floor(Math.random() * 50),
-          })),
-        );
-      }
+      setStats((prev) => ({
+        ...prev,
+        totalProducts: products.length,
+        lowStockProducts: products.filter((p) => p.stock > 0 && p.stock < 5)
+          .length,
+      }));
+
+      // Sort by stock desc as a proxy for popularity; no random values
+      const sorted = [...products].sort((a, b) => b.stock - a.stock);
+      setTopProducts(
+        sorted.slice(0, 5).map((p) => ({
+          _id: p._id,
+          name: p.name,
+          stock: p.stock,
+          price: p.finalPrice ?? p.price,
+          // Real sales/revenue will be filled in by fetchSellerOrders
+          sales: 0,
+          revenue: 0,
+        })),
+      );
     } catch (error) {
       console.error("Error fetching products:", error);
     }
-  };
+  }, []);
 
-  const fetchSellerOrders = async () => {
+  // ─── Orders ────────────────────────────────────────────────────────────────
+
+  const fetchSellerOrders = useCallback(async (token, sellerId) => {
     try {
-      const token = localStorage.getItem("token");
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/orders/seller`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
 
-      if (response.ok) {
-        const data = await response.json();
-        const orders = data.orders || [];
+      if (!response.ok) {
+        generateMockData();
+        return;
+      }
 
-        const totalOrders = orders.length;
-        const pendingOrders = orders.filter((o) =>
-          o.orderItems?.some((item) => item.orderStatus === "pending"),
-        ).length;
+      const data = await response.json();
+      const orders = data.orders || [];
 
-        let totalRevenue = 0;
-        let todayRevenue = 0;
-        const today = new Date().setHours(0, 0, 0, 0);
+      const todayMidnight = new Date().setHours(0, 0, 0, 0);
+      let totalRevenue = 0;
+      let todayRevenue = 0;
+      const pendingOrders = orders.filter((o) =>
+        o.orderItems?.some(
+          (item) =>
+            item.seller?._id?.toString() === sellerId &&
+            item.orderStatus === "pending",
+        ),
+      ).length;
 
-        orders.forEach((order) => {
-          const sellerItems =
-            order.orderItems?.filter(
-              (item) => item.seller?.toString() === user?.id,
-            ) || [];
+      // Per-product sales accumulator for top-products enrichment
+      const productSalesMap = {}; // productId → { sales, revenue }
 
-          sellerItems.forEach((item) => {
-            const itemRevenue = (item.price || 0) * (item.quantity || 0);
-            totalRevenue += itemRevenue;
+      // Weekly sales (indexed Sun=0 … Sat=6)
+      const weekSales = [0, 0, 0, 0, 0, 0, 0];
 
-            if (new Date(order.createdAt).setHours(0, 0, 0, 0) === today) {
-              todayRevenue += itemRevenue;
-            }
-          });
+      // Recent-activity feed built from orders
+      const activities = [];
+
+      orders.forEach((order) => {
+        const sellerItems =
+          order.orderItems?.filter(
+            (item) => item.seller?._id?.toString() === sellerId,
+          ) || [];
+
+        sellerItems.forEach((item) => {
+          const itemRevenue = (item.price || 0) * (item.quantity || 0);
+          totalRevenue += itemRevenue;
+
+          if (
+            new Date(order.createdAt).setHours(0, 0, 0, 0) === todayMidnight
+          ) {
+            todayRevenue += itemRevenue;
+          }
+
+          const dayIdx = new Date(order.createdAt).getDay();
+          weekSales[dayIdx] += itemRevenue;
+
+          const pid = item.product?._id?.toString() || item.product?.toString();
+          if (pid) {
+            if (!productSalesMap[pid])
+              productSalesMap[pid] = { sales: 0, revenue: 0 };
+            productSalesMap[pid].sales += item.quantity || 0;
+            productSalesMap[pid].revenue += itemRevenue;
+          }
         });
 
-        setStats((prev) => ({
-          ...prev,
-          totalOrders,
-          pendingOrders,
-          totalRevenue,
-          todayRevenue,
-        }));
+        if (sellerItems.length > 0) {
+          const status = sellerItems[0].orderStatus || "pending";
+          activities.push({
+            type: "order",
+            description: `Order #${order._id.slice(-6).toUpperCase()} — ${status}`,
+            time: timeAgo(order.createdAt),
+            status:
+              status === "delivered"
+                ? "success"
+                : status === "cancelled"
+                  ? "danger"
+                  : "pending",
+          });
+        }
+      });
 
-        setRecentOrders(
-          orders.slice(0, 5).map((order) => ({
+      setStats((prev) => ({
+        ...prev,
+        totalOrders: orders.length,
+        pendingOrders,
+        totalRevenue,
+        todayRevenue,
+      }));
+
+      setSalesData({ labels: DAY_LABELS, values: weekSales });
+
+      // Enrich top products with real sales data
+      setTopProducts((prev) =>
+        prev.map((p) => {
+          const pid = p._id?.toString();
+          const agg = productSalesMap[pid];
+          return agg ? { ...p, sales: agg.sales, revenue: agg.revenue } : p;
+        }),
+      );
+
+      // Recent orders (last 5)
+      setRecentOrders(
+        orders.slice(0, 5).map((order) => {
+          const sellerItems =
+            order.orderItems?.filter(
+              (item) => item.seller?._id?.toString() === sellerId,
+            ) || [];
+          const orderTotal = sellerItems.reduce(
+            (sum, item) => sum + (item.price || 0) * (item.quantity || 0),
+            0,
+          );
+          return {
             id: order._id,
             orderNumber: order._id.slice(-8).toUpperCase(),
             customer: order.user?.fullname || "Customer",
-            items:
-              order.orderItems?.filter(
-                (item) => item.seller?.toString() === user?.id,
-              ).length || 0,
-            total:
-              order.orderItems
-                ?.filter((item) => item.seller?.toString() === user?.id)
-                .reduce((sum, item) => sum + item.price * item.quantity, 0) ||
-              0,
-            status:
-              order.orderItems?.find(
-                (item) => item.seller?.toString() === user?.id,
-              )?.orderStatus || "pending",
+            items: sellerItems.length,
+            total: orderTotal,
+            status: sellerItems[0]?.orderStatus || "pending",
             date: new Date(order.createdAt).toLocaleDateString(),
-          })),
-        );
+          };
+        }),
+      );
 
-        const weekSales = [0, 0, 0, 0, 0, 0, 0];
-        orders.forEach((order) => {
-          const orderDate = new Date(order.createdAt);
-          const dayOfWeek = orderDate.getDay();
-
-          const sellerItems =
-            order.orderItems?.filter(
-              (item) => item.seller?.toString() === user?.id,
-            ) || [];
-
-          sellerItems.forEach((item) => {
-            weekSales[dayOfWeek] += (item.price || 0) * (item.quantity || 0);
-          });
-        });
-
-        setSalesData({ labels: salesData.labels, values: weekSales });
-
-        const activities = [];
-        orders.slice(0, 10).forEach((order) => {
-          activities.push({
-            type: "order",
-            description: `New order #${order._id.slice(-8).toUpperCase()}`,
-            time: new Date(order.createdAt).toLocaleString(),
-            status: "success",
-          });
-        });
-        setRecentActivities(activities.slice(0, 5));
-      } else {
-        generateMockData();
-      }
+      // Activity feed (latest 5)
+      setRecentActivities(activities.slice(0, 5));
     } catch (error) {
       console.error("Error fetching orders:", error);
       generateMockData();
     }
-  };
+  }, []);
 
-  const generateMockData = () => {
-    setStats({
-      totalProducts: 24,
-      totalOrders: 156,
-      pendingOrders: 12,
-      totalRevenue: 15420.5,
-      todayRevenue: 1250.0,
-      averageRating: 4.5,
-      totalReviews: 89,
-      lowStockProducts: 3,
-    });
+  // ─── Reviews ───────────────────────────────────────────────────────────────
 
-    setRecentOrders([
-      {
-        id: "1",
-        orderNumber: "ORD-12345",
-        customer: "John Doe",
-        items: 3,
-        total: 125.99,
-        status: "pending",
-        date: "2024-03-05",
-      },
-      {
-        id: "2",
-        orderNumber: "ORD-12346",
-        customer: "Jane Smith",
-        items: 1,
-        total: 45.5,
-        status: "processing",
-        date: "2024-03-05",
-      },
-      {
-        id: "3",
-        orderNumber: "ORD-12347",
-        customer: "Bob Johnson",
-        items: 2,
-        total: 89.99,
-        status: "shipped",
-        date: "2024-03-04",
-      },
-      {
-        id: "4",
-        orderNumber: "ORD-12348",
-        customer: "Alice Brown",
-        items: 4,
-        total: 234.95,
-        status: "delivered",
-        date: "2024-03-04",
-      },
-      {
-        id: "5",
-        orderNumber: "ORD-12349",
-        customer: "Charlie Wilson",
-        items: 2,
-        total: 67.5,
-        status: "pending",
-        date: "2024-03-03",
-      },
-    ]);
+  const fetchSellerReviews = useCallback(async (token, sellerId) => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/reviews/User/${sellerId}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
 
-    setTopProducts([
-      {
-        _id: "1",
-        name: "Wireless Headphones",
-        sales: 45,
-        revenue: 2245.5,
-        stock: 23,
-      },
-      {
-        _id: "2",
-        name: "Smart Watch Series 5",
-        sales: 32,
-        revenue: 3198.4,
-        stock: 12,
-      },
-      {
-        _id: "3",
-        name: "Bluetooth Speaker",
-        sales: 28,
-        revenue: 1397.2,
-        stock: 8,
-      },
-      {
-        _id: "4",
-        name: "Laptop Backpack",
-        sales: 21,
-        revenue: 1047.9,
-        stock: 15,
-      },
-      {
-        _id: "5",
-        name: "USB-C Hub Adapter",
-        sales: 19,
-        revenue: 569.05,
-        stock: 4,
-      },
-    ]);
+      if (!response.ok) return;
 
-    setRecentReviews([
-      {
-        id: "1",
-        product: "Wireless Headphones",
-        customer: "Mike Ross",
-        rating: 5,
-        comment: "Great sound quality!",
-        date: "2024-03-05",
-      },
-      {
-        id: "2",
-        product: "Smart Watch Series 5",
-        customer: "Rachel Zane",
-        rating: 4,
-        comment: "Good battery life",
-        date: "2024-03-04",
-      },
-      {
-        id: "3",
-        product: "Bluetooth Speaker",
-        customer: "Harvey Specter",
-        rating: 5,
-        comment: "Excellent bass!",
-        date: "2024-03-04",
-      },
-    ]);
+      const data = await response.json();
+      const reviews = data.reviews || [];
 
-    setRecentActivities([
-      {
-        type: "order",
-        description: "New order #ORD-12345 received",
-        time: "2 minutes ago",
-        status: "success",
-      },
-      {
-        type: "product",
-        description: "Product 'Wireless Headphones' stock low (3 left)",
-        time: "15 minutes ago",
-        status: "warning",
-      },
-      {
+      // Compute average from fetched reviews (more accurate than cached user field)
+      const avgRating =
+        reviews.length > 0
+          ? reviews.reduce((sum, r) => sum + (r.rating || 0), 0) /
+            reviews.length
+          : 0;
+
+      setStats((prev) => ({
+        ...prev,
+        totalReviews: reviews.length,
+        averageRating: avgRating,
+      }));
+
+      setRecentReviews(
+        reviews.slice(0, 5).map((review) => ({
+          id: review._id,
+          // reviewTarget on seller reviews is typically the seller, not a product
+          product: review.product?.name || "Seller review",
+          customer: review.reviewerId?.fullname || "Customer",
+          rating: review.rating || 0,
+          comment: review.comment || "No comment provided",
+          date: new Date(review.createdAt).toLocaleDateString(),
+        })),
+      );
+
+      // Merge review activities into the feed
+      const reviewActivities = reviews.slice(0, 3).map((r) => ({
         type: "review",
-        description: "New 5-star review received",
-        time: "1 hour ago",
-        status: "success",
-      },
-      {
-        type: "order",
-        description: "Order #ORD-12342 marked as shipped",
-        time: "3 hours ago",
-        status: "info",
-      },
-      {
-        type: "product",
-        description: "New product 'Smart Watch' added",
-        time: "5 hours ago",
-        status: "success",
-      },
-    ]);
+        description: `${r.reviewerId?.fullname || "Someone"} left you a ${r.rating}★ review`,
+        time: timeAgo(r.createdAt),
+        status:
+          r.rating >= 4 ? "success" : r.rating >= 3 ? "pending" : "danger",
+      }));
 
-    setSalesData({
-      labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-      values: [1250, 2100, 1800, 2400, 1950, 2800, 1650],
-    });
-  };
+      setRecentActivities((prev) => {
+        const combined = [...reviewActivities, ...prev]
+          .sort((a, b) => 0) // keep insertion order; already sorted newest-first
+          .slice(0, 8);
+        return combined;
+      });
+    } catch (error) {
+      console.error("Error fetching reviews:", error);
+    }
+  }, []);
+
+  // ─── Orchestrate all fetches once user is ready ────────────────────────────
 
   useEffect(() => {
-    if (user) {
-      const loadData = async () => {
-        setLoading(true);
-        await fetchSellerProducts();
-        await fetchSellerOrders();
-        setLoading(false);
-      };
-      loadData();
-    }
-  }, [user]);
+    if (!user) return;
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("en-US", {
+    const loadData = async () => {
+      setLoading(true);
+      const token = localStorage.getItem("token");
+      await Promise.all([
+        fetchSellerProducts(token),
+        fetchSellerOrders(token, user.id),
+        fetchSellerReviews(token, user.id),
+      ]);
+      setLoading(false);
+    };
+
+    loadData();
+  }, [user, fetchSellerProducts, fetchSellerOrders, fetchSellerReviews]);
+
+  // ─── Helpers ───────────────────────────────────────────────────────────────
+
+  const generateMockData = () => {
+    setRecentOrders((prev) =>
+      prev.length
+        ? prev
+        : [
+            {
+              id: "mock-1",
+              orderNumber: "ORD-DEMO01",
+              customer: "Sample Customer",
+              items: 2,
+              total: 79.99,
+              status: "pending",
+              date: new Date().toLocaleDateString(),
+            },
+          ],
+    );
+
+    setTopProducts((prev) =>
+      prev.length
+        ? prev
+        : [
+            {
+              _id: "mock-1",
+              name: "Sample Product",
+              sales: 0,
+              revenue: 0,
+              stock: 10,
+              price: 0,
+            },
+          ],
+    );
+
+    setRecentActivities((prev) =>
+      prev.length
+        ? prev
+        : [
+            {
+              type: "order",
+              description: "Welcome to your seller dashboard",
+              time: "Just now",
+              status: "success",
+            },
+          ],
+    );
+  };
+
+  const timeAgo = (dateString) => {
+    const seconds = Math.floor((Date.now() - new Date(dateString)) / 1000);
+    if (seconds < 60) return "just now";
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
+  };
+
+  const formatCurrency = (amount) =>
+    new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
-    }).format(amount);
-  };
-
-  const getStatusBadge = (status) => {
-    const statusMap = {
-      pending: "warning",
-      processing: "info",
-      shipped: "primary",
-      delivered: "success",
-      cancelled: "danger",
-    };
-    return statusMap[status] || "secondary";
-  };
+    }).format(amount || 0);
 
   const renderStars = (rating) => {
+    const clamped = Math.max(0, Math.min(5, rating || 0));
+    const full = Math.floor(clamped);
+    const half = clamped % 1 >= 0.5;
+    const empty = 5 - full - (half ? 1 : 0);
+
     return (
       <div className="stars-container">
-        {[1, 2, 3, 4, 5].map((i) => (
-          <i key={i} className={`bi bi-star${i <= rating ? "-fill" : ""}`}></i>
+        {[...Array(full)].map((_, i) => (
+          <i key={`f${i}`} className="bi bi-star-fill"></i>
         ))}
+        {half && <i className="bi bi-star-half"></i>}
+        {[...Array(empty)].map((_, i) => (
+          <i key={`e${i}`} className="bi bi-star"></i>
+        ))}
+        <span className="rating-value">{clamped.toFixed(1)}</span>
       </div>
     );
   };
+
+  const activityIcon = (type) => {
+    if (type === "order") return "cart-check";
+    if (type === "review") return "star";
+    return "gift";
+  };
+
+  // ─── Loading state ─────────────────────────────────────────────────────────
 
   if (loading) {
     return (
@@ -416,12 +425,18 @@ const SellerDashboard = () => {
     );
   }
 
+  // ─── Render ────────────────────────────────────────────────────────────────
+
   return (
     <div className="seller-dashboard">
       {toast && (
         <div className={`dashboard-toast dashboard-toast-${toast.type}`}>
           <i
-            className={`bi bi-${toast.type === "success" ? "check-circle-fill" : "exclamation-circle-fill"}`}
+            className={`bi bi-${
+              toast.type === "success"
+                ? "check-circle-fill"
+                : "exclamation-circle-fill"
+            }`}
           ></i>
           <span>{toast.message}</span>
           <button onClick={() => setToast(null)} className="toast-close-btn">
@@ -435,7 +450,7 @@ const SellerDashboard = () => {
         <div className="dashboard-header">
           <div className="header-left">
             <div className="greeting-badge">
-              <i className="bi bi-stars"></i>
+              <i className="bi bi-shop"></i>
               <span>Seller Dashboard</span>
             </div>
             <h1 className="dashboard-title">
@@ -443,7 +458,6 @@ const SellerDashboard = () => {
               <span className="gold-text">
                 {user?.fullname?.split(" ")[0] || "Seller"}
               </span>
-              !
             </h1>
             <p className="dashboard-subtitle">
               Here's what's happening with your store today.
@@ -481,13 +495,13 @@ const SellerDashboard = () => {
 
           <div className="stat-card">
             <div className="stat-icon orders">
-              <i className="bi bi-box-seam"></i>
+              <i className="bi bi-cart-check"></i>
             </div>
             <div className="stat-content">
               <h3 className="stat-value">{stats.totalOrders}</h3>
               <p className="stat-label">Total Orders</p>
               <div className="stat-trend pending">
-                <i className="bi bi-clock"></i>
+                <i className="bi bi-clock-history"></i>
                 <span>{stats.pendingOrders} pending</span>
               </div>
             </div>
@@ -514,11 +528,19 @@ const SellerDashboard = () => {
               <i className="bi bi-star-fill"></i>
             </div>
             <div className="stat-content">
-              <h3 className="stat-value">{stats.averageRating}/5</h3>
-              <p className="stat-label">Average Rating</p>
+              <div className="rating-display">
+                <h3 className="stat-value">{stats.averageRating.toFixed(1)}</h3>
+                <div className="rating-stars">
+                  {renderStars(stats.averageRating)}
+                </div>
+              </div>
+              <p className="stat-label">Seller Rating</p>
               <div className="stat-trend">
                 <i className="bi bi-chat-dots"></i>
-                <span>{stats.totalReviews} reviews</span>
+                <span>
+                  {stats.totalReviews} review
+                  {stats.totalReviews !== 1 ? "s" : ""}
+                </span>
               </div>
             </div>
           </div>
@@ -537,21 +559,25 @@ const SellerDashboard = () => {
               </div>
               <div className="card-body">
                 <div className="sales-chart">
-                  {salesData.labels.map((label, index) => (
-                    <div key={label} className="chart-bar-container">
-                      <div
-                        className="chart-bar"
-                        style={{
-                          height: `${(salesData.values[index] / Math.max(...salesData.values)) * 180}px`,
-                        }}
-                      >
-                        <span className="chart-value">
-                          ${salesData.values[index]}
-                        </span>
+                  {salesData.labels.map((label, index) => {
+                    const maxValue = Math.max(...salesData.values, 1);
+                    const height = (salesData.values[index] / maxValue) * 180;
+                    return (
+                      <div key={label} className="chart-bar-container">
+                        <div
+                          className="chart-bar"
+                          style={{ height: `${height}px` }}
+                        >
+                          {salesData.values[index] > 0 && (
+                            <span className="chart-value">
+                              ${salesData.values[index].toFixed(0)}
+                            </span>
+                          )}
+                        </div>
+                        <span className="chart-label">{label}</span>
                       </div>
-                      <span className="chart-label">{label}</span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -568,19 +594,26 @@ const SellerDashboard = () => {
               </div>
               <div className="card-body">
                 <div className="activity-timeline">
-                  {recentActivities.map((activity, index) => (
-                    <div key={index} className="activity-item">
-                      <div className={`activity-icon ${activity.status}`}>
-                        <i
-                          className={`bi bi-${activity.type === "order" ? "cart-check" : activity.type === "product" ? "gift" : "star"}`}
-                        ></i>
+                  {recentActivities.length > 0 ? (
+                    recentActivities.map((activity, index) => (
+                      <div key={index} className="activity-item">
+                        <div className={`activity-icon ${activity.status}`}>
+                          <i
+                            className={`bi bi-${activityIcon(activity.type)}`}
+                          ></i>
+                        </div>
+                        <div className="activity-content">
+                          <p>{activity.description}</p>
+                          <span className="activity-time">{activity.time}</span>
+                        </div>
                       </div>
-                      <div className="activity-content">
-                        <p>{activity.description}</p>
-                        <span className="activity-time">{activity.time}</span>
-                      </div>
+                    ))
+                  ) : (
+                    <div className="no-reviews">
+                      <i className="bi bi-activity"></i>
+                      <p>No activity yet</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             </div>
@@ -613,30 +646,38 @@ const SellerDashboard = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {recentOrders.map((order) => (
-                    <tr key={order.id}>
-                      <td className="order-number">{order.orderNumber}</td>
-                      <td>{order.customer}</td>
-                      <td>{order.items}</td>
-                      <td className="gold-text">
-                        {formatCurrency(order.total)}
-                      </td>
-                      <td>
-                        <span className={`status-badge ${order.status}`}>
-                          {order.status}
-                        </span>
-                      </td>
-                      <td>{order.date}</td>
-                      <td>
-                        <Link
-                          href={`/seller/orders/${order.id}`}
-                          className="table-action-btn"
-                        >
-                          View
-                        </Link>
+                  {recentOrders.length > 0 ? (
+                    recentOrders.map((order) => (
+                      <tr key={order.id}>
+                        <td className="order-number">{order.orderNumber}</td>
+                        <td>{order.customer}</td>
+                        <td>{order.items}</td>
+                        <td className="gold-text">
+                          {formatCurrency(order.total)}
+                        </td>
+                        <td>
+                          <span className={`status-badge ${order.status}`}>
+                            {order.status}
+                          </span>
+                        </td>
+                        <td>{order.date}</td>
+                        <td>
+                          <Link
+                            href={`/seller/orders/${order.id}`}
+                            className="table-action-btn"
+                          >
+                            View
+                          </Link>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="7" className="text-center">
+                        No orders yet
                       </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
@@ -662,37 +703,53 @@ const SellerDashboard = () => {
                     <thead>
                       <tr>
                         <th>Product</th>
-                        <th>Sales</th>
+                        <th>Units Sold</th>
                         <th>Revenue</th>
                         <th>Stock</th>
                         <th>Action</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {topProducts.map((product) => (
-                        <tr key={product._id}>
-                          <td className="product-name">{product.name}</td>
-                          <td>{product.sales}</td>
-                          <td className="gold-text">
-                            {formatCurrency(product.revenue)}
-                          </td>
-                          <td>
-                            <span
-                              className={`stock-badge ${product.stock < 5 ? "low" : "good"}`}
-                            >
-                              {product.stock}
-                            </span>
-                          </td>
-                          <td>
-                            <Link
-                              href={`/seller/products/${product._id}`}
-                              className="table-action-btn"
-                            >
-                              Edit
-                            </Link>
+                      {topProducts.length > 0 ? (
+                        topProducts.map((product) => (
+                          <tr key={product._id}>
+                            <td className="product-name">{product.name}</td>
+                            <td>{product.sales}</td>
+                            <td className="gold-text">
+                              {formatCurrency(product.revenue)}
+                            </td>
+                            <td>
+                              <span
+                                className={`stock-badge ${
+                                  product.stock === 0
+                                    ? "out"
+                                    : product.stock < 5
+                                      ? "low"
+                                      : "good"
+                                }`}
+                              >
+                                {product.stock === 0
+                                  ? "Out of stock"
+                                  : `${product.stock} units`}
+                              </span>
+                            </td>
+                            <td>
+                              <Link
+                                href={`/seller/products/${product._id}`}
+                                className="table-action-btn"
+                              >
+                                Edit
+                              </Link>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="5" className="text-center">
+                            No products yet
                           </td>
                         </tr>
-                      ))}
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -713,25 +770,43 @@ const SellerDashboard = () => {
               </div>
               <div className="card-body">
                 <div className="reviews-list">
-                  {recentReviews.map((review) => (
-                    <div key={review.id} className="review-item">
-                      <div className="review-avatar">
-                        <i className="bi bi-person-circle"></i>
-                      </div>
-                      <div className="review-content">
-                        <div className="review-header">
-                          <span className="reviewer-name">
-                            {review.customer}
-                          </span>
-                          <span className="review-date">{review.date}</span>
+                  {recentReviews.length > 0 ? (
+                    recentReviews.map((review) => (
+                      <div key={review.id} className="review-item">
+                        <div className="review-avatar">
+                          <i className="bi bi-person-circle"></i>
                         </div>
-                        {renderStars(review.rating)}
-                        <p className="review-comment">
-                          <strong>{review.product}:</strong> {review.comment}
-                        </p>
+                        <div className="review-content">
+                          <div className="review-header">
+                            <div>
+                              <span className="reviewer-name">
+                                {review.customer}
+                              </span>
+                              {review.product &&
+                                review.product !== "Seller review" && (
+                                  <span className="review-product">
+                                    on <strong>{review.product}</strong>
+                                  </span>
+                                )}
+                            </div>
+                            <span className="review-date">{review.date}</span>
+                          </div>
+                          <div className="review-rating">
+                            {renderStars(review.rating)}
+                          </div>
+                          <p className="review-comment">"{review.comment}"</p>
+                        </div>
                       </div>
+                    ))
+                  ) : (
+                    <div className="no-reviews">
+                      <i className="bi bi-chat-dots"></i>
+                      <p>No reviews yet</p>
+                      <span>
+                        When customers review you, they'll appear here
+                      </span>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             </div>

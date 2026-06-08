@@ -1,0 +1,487 @@
+/* ═══════════════════════════════════════════════════
+   NotificationBell.css  —  Royal Golden Theme
+   ═══════════════════════════════════════════════════ */
+
+/* ── Variables ── */
+:root {
+    --nb-gold: #b8912a;
+    --nb-gold-light: #d4a843;
+    --nb-gold-dark: #8a6a1e;
+    --nb-gold-bg: rgba(184, 145, 42, 0.10);
+    --nb-gold-border: rgba(184, 145, 42, 0.20);
+    --nb-cream: #faf7f0;
+    --nb-cream-dark: #f2ead8;
+    --nb-ink: #1a1712;
+    --nb-ink-soft: #6b5f4a;
+    --nb-ink-muted: #9a8f7a;
+    --nb-red: #e53935;
+    --nb-red-glow: rgba(229, 57, 53, 0.25);
+    --nb-white: #ffffff;
+    --nb-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+    --nb-shadow-lg: 0 24px 48px rgba(0, 0, 0, 0.14), 0 6px 16px rgba(0, 0, 0, 0.08);
+    --nb-radius: 16px;
+    --nb-radius-sm: 10px;
+    --nb-radius-xs: 6px;
+    --nb-speed: 0.25s;
+    --nb-ease: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Wrapper ── */
+.nb-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+/* ── Bell Button ── */
+.nb-btn {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+    font-size: 1.25rem;
+    color: var(--nb-ink);
+    cursor: pointer;
+    transition: background var(--nb-speed) var(--nb-ease),
+        color var(--nb-speed) var(--nb-ease),
+        transform var(--nb-speed) var(--nb-ease);
+}
+
+.nb-btn:hover {
+    background: var(--nb-gold-bg);
+    color: var(--nb-gold);
+    transform: scale(1.08);
+}
+
+.nb-btn--active {
+    background: rgba(184, 145, 42, 0.14);
+    color: var(--nb-gold);
+}
+
+/* ── Badge ── */
+.nb-badge {
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    min-width: 19px;
+    height: 19px;
+    padding: 0 5px;
+    background: linear-gradient(135deg, var(--nb-red) 0%, #c62828 100%);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px var(--nb-red-glow), 0 0 0 2px var(--nb-white);
+    animation: nb-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes nb-pulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.08);
+    }
+}
+
+/* ── Dropdown ── */
+.nb-dropdown {
+    position: absolute;
+    top: calc(100% + 12px);
+    right: 0;
+
+    /* ✅ Wider & spacious */
+    width: 480px;
+    max-width: calc(100vw - 24px);
+
+    background: var(--nb-white);
+    border-radius: var(--nb-radius);
+    border: 1px solid var(--nb-gold-border);
+    box-shadow: var(--nb-shadow-lg);
+    overflow: hidden;
+    z-index: 1200;
+
+    animation: nb-slide-in var(--nb-speed) var(--nb-ease) both;
+    transform-origin: top right;
+}
+
+@keyframes nb-slide-in {
+    from {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.97);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* ── Golden top accent line ── */
+.nb-dropdown::before {
+    content: "";
+    display: block;
+    height: 3px;
+    background: linear-gradient(90deg, var(--nb-gold-dark), var(--nb-gold-light), var(--nb-gold-dark));
+}
+
+/* ── Header ── */
+.nb-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 22px 14px;
+    border-bottom: 1px solid var(--nb-gold-border);
+    background: linear-gradient(135deg, var(--nb-cream) 0%, var(--nb-white) 100%);
+}
+
+.nb-header__left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.nb-header__icon {
+    font-size: 18px;
+    color: var(--nb-gold);
+}
+
+.nb-header__title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--nb-ink);
+    letter-spacing: -0.01em;
+}
+
+.nb-header__badge {
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 2px 9px;
+    background: var(--nb-gold-bg);
+    color: var(--nb-gold-dark);
+    border: 1px solid var(--nb-gold-border);
+    border-radius: 12px;
+}
+
+.nb-header__actions {
+    display: flex;
+    gap: 6px;
+}
+
+.nb-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--nb-radius-xs);
+    font-size: 15px;
+    color: var(--nb-ink-muted);
+    cursor: pointer;
+    transition: all var(--nb-speed) var(--nb-ease);
+}
+
+.nb-action-btn:hover {
+    background: var(--nb-gold-bg);
+    border-color: var(--nb-gold-border);
+    color: var(--nb-gold);
+    transform: scale(1.05);
+}
+
+.nb-action-btn--danger:hover {
+    background: rgba(229, 57, 53, 0.08);
+    border-color: rgba(229, 57, 53, 0.2);
+    color: var(--nb-red);
+}
+
+/* ── List ── */
+.nb-list {
+    max-height: 520px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.nb-list::-webkit-scrollbar {
+    width: 5px;
+}
+
+.nb-list::-webkit-scrollbar-track {
+    background: var(--nb-cream);
+}
+
+.nb-list::-webkit-scrollbar-thumb {
+    background: var(--nb-gold);
+    border-radius: 4px;
+}
+
+/* ── Empty State ── */
+.nb-empty {
+    padding: 56px 24px 52px;
+    text-align: center;
+}
+
+.nb-empty__icon {
+    width: 76px;
+    height: 76px;
+    margin: 0 auto 18px;
+    background: var(--nb-gold-bg);
+    border: 1px dashed var(--nb-gold-border);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.nb-empty__icon i {
+    font-size: 36px;
+    color: var(--nb-gold);
+    opacity: 0.55;
+}
+
+.nb-empty__title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--nb-ink);
+    margin: 0 0 6px;
+}
+
+.nb-empty__sub {
+    font-size: 12.5px;
+    color: var(--nb-ink-muted);
+    margin: 0;
+}
+
+/* ── Notification Item ── */
+.nb-item {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+
+    /* ✅ Generous padding */
+    padding: 16px 22px 16px 20px;
+
+    text-decoration: none;
+    border-bottom: 1px solid rgba(184, 145, 42, 0.07);
+    transition: background var(--nb-speed) var(--nb-ease),
+        transform var(--nb-speed) var(--nb-ease);
+    cursor: pointer;
+}
+
+.nb-item:last-child {
+    border-bottom: none;
+}
+
+.nb-item:hover {
+    background: #fffbf0;
+    transform: translateX(3px);
+}
+
+/* Unread tint */
+.nb-item--unread {
+    background: rgba(184, 145, 42, 0.045);
+}
+
+.nb-item--unread:hover {
+    background: #fff8e6;
+}
+
+/* ── Left golden bar for unread ── */
+.nb-item__bar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: linear-gradient(180deg, var(--nb-gold-light), var(--nb-gold-dark));
+    border-radius: 0 2px 2px 0;
+}
+
+/* ── Icon Pill ── */
+.nb-item__icon {
+    flex-shrink: 0;
+    width: 46px;
+    height: 46px;
+    border-radius: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform var(--nb-speed) var(--nb-ease);
+}
+
+.nb-item:hover .nb-item__icon {
+    transform: scale(1.08);
+}
+
+.nb-item__icon i {
+    font-size: 20px;
+}
+
+/* ── Body ── */
+.nb-item__body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.nb-item__msg {
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--nb-ink);
+    line-height: 1.5;
+    display: block;
+}
+
+.nb-item--unread .nb-item__msg {
+    font-weight: 600;
+}
+
+.nb-item__meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.nb-item__time {
+    font-size: 11px;
+    color: var(--nb-ink-muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.nb-item__time i {
+    font-size: 10px;
+}
+
+.nb-item__type {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 2px 9px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.nb-item__type i {
+    font-size: 9px;
+}
+
+/* ── Unread Dot ── */
+.nb-item__dot {
+    flex-shrink: 0;
+    width: 9px;
+    height: 9px;
+    margin-top: 18px;
+    border-radius: 50%;
+    background: var(--nb-red);
+    box-shadow: 0 0 0 2.5px var(--nb-red-glow);
+    animation: nb-blink 2.2s ease-in-out infinite;
+}
+
+@keyframes nb-blink {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.4;
+    }
+}
+
+/* ═══════════════════════════════════════════════════
+   PERSISTENCE FIX — NotificationContext changes needed
+   ═══════════════════════════════════════════════════
+
+   The red dots persist after re-login because markAllRead()
+   only updates local React state. It never saves to your database.
+
+   In your NotificationContext.jsx, update markAllRead to:
+
+     const markAllRead = async () => {
+       try {
+         await fetch("/api/notifications/mark-all-read", {
+           method: "PATCH",
+           headers: { Authorization: `Bearer ${token}` },
+         });
+         setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+       } catch (err) {
+         console.error("markAllRead failed:", err);
+       }
+     };
+
+   And markOneRead for single item clicks:
+
+     const markOneRead = async (id) => {
+       try {
+         await fetch(`/api/notifications/${id}/read`, {
+           method: "PATCH",
+           headers: { Authorization: `Bearer ${token}` },
+         });
+         setNotifications(prev =>
+           prev.map(n => n._id === id ? { ...n, read: true } : n)
+         );
+       } catch (err) {
+         console.error("markOneRead failed:", err);
+       }
+     };
+
+   Your backend GET /api/notifications must return the saved
+   `read` field from the database — not always false.
+   ═══════════════════════════════════════════════════ */
+
+
+/* ── Responsive ── */
+@media (max-width: 540px) {
+    .nb-dropdown {
+        width: calc(100vw - 20px);
+        right: -52px;
+    }
+}
+
+@media (max-width: 400px) {
+    .nb-dropdown {
+        right: -72px;
+    }
+
+    .nb-header {
+        padding: 14px 16px 12px;
+    }
+
+    .nb-item {
+        padding: 14px 16px 14px 14px;
+        gap: 12px;
+    }
+
+    .nb-item__icon {
+        width: 40px;
+        height: 40px;
+    }
+
+    .nb-item__icon i {
+        font-size: 17px;
+    }
+}

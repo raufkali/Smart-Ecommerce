@@ -69,6 +69,15 @@ router.put(
   }),
 );
 
+// DELETE /notifications/all — clear all
+router.delete(
+  "/all",
+  authMiddleware,
+  asyncHandler(async (req, res) => {
+    await Notification.deleteMany({ user: req.user.id });
+    res.json({ success: true });
+  }),
+);
 // DELETE /notifications/:id — delete one
 router.delete(
   "/:id",
@@ -78,16 +87,6 @@ router.delete(
       _id: req.params.id,
       user: req.user.id,
     });
-    res.json({ success: true });
-  }),
-);
-
-// DELETE /notifications/all — clear all  ← this was missing
-router.delete(
-  "/all",
-  authMiddleware,
-  asyncHandler(async (req, res) => {
-    await Notification.deleteMany({ user: req.user.id });
     res.json({ success: true });
   }),
 );
