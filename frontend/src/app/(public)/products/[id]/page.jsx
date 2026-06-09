@@ -112,6 +112,7 @@ const ProductDetailPage = () => {
   const [user, setUser] = useState(null);
   const [addingToCart, setAddingToCart] = useState(false);
   const [toast, setToast] = useState(null);
+  const [token, setToken] = useState(null);
 
   // Reviews
   const [reviews, setReviews] = useState([]);
@@ -121,25 +122,44 @@ const ProductDetailPage = () => {
 
   // Seller
   const [seller, setSeller] = useState(null);
-  const [totalOrders, setTotalOrders] = useState(null);
 
   const showToast = (msg, type = "success") => setToast({ message: msg, type });
   const closeToast = () => setToast(null);
 
+  // Get token on client side
+  useEffect(() => {
+    const authToken = localStorage.getItem("token");
+    setToken(authToken);
+  }, []);
+
   const authHeaders = () => ({
     "Content-Type": "application/json",
-    Authorization: `Bearer ${localStorage.getItem("token")}`,
+    ...(token && { Authorization: `Bearer ${token}` }),
   });
+
+  // Helper function to get profile picture URL
+  const getProfilePictureUrl = (profilePic) => {
+    if (!profilePic) return null;
+    if (profilePic.startsWith("http")) return profilePic;
+    return `${API}/uploads/profiles/${profilePic}`;
+  };
+
+  // Helper function to get product image URL
+  const getImageUrl = (img) => {
+    if (!img) return "/placeholder.jpg";
+    if (img.startsWith("http")) return img;
+    if (img.startsWith("/uploads")) return `${API}${img}`;
+    return `${API}/uploads/products/${img}`;
+  };
 
   /* ── Fetch user ── */
   useEffect(() => {
-    const token = localStorage.getItem("token");
     if (!token) return;
     fetch(`${API}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => d && setUser(d.user))
       .catch(console.error);
-  }, []);
+  }, [token, API]);
 
   /* ── Fetch product ── */
   useEffect(() => {
@@ -150,41 +170,80 @@ const ProductDetailPage = () => {
         if (!r.ok) throw new Error();
         return r.json();
       })
-      .then((d) => setProduct(d.product || d))
+      .then((d) => {
+        const productData = d.product || d;
+        setProduct(productData);
+
+        // If product has sellerId, fetch seller data
+        if (productData.sellerId) {
+          const sellerId =
+            typeof productData.sellerId === "object"
+              ? productData.sellerId._id
+              : productData.sellerId;
+
+          if (sellerId) {
+            fetchSellerData(sellerId);
+          }
+        }
+      })
       .catch(() => {
         setError("Failed to load product.");
         showToast("Failed to load product", "error");
       })
       .finally(() => setLoading(false));
-  }, [productId]);
+  }, [productId, API]);
 
-  /* ── Fetch seller details ── */
-  useEffect(() => {
-    if (!product?.sellerId) return;
-    const sid = product.sellerId?._id || product.sellerId;
+  // Function to fetch seller data
+  const fetchSellerData = async (sellerId) => {
+    try {
+      // Since you don't have a public user endpoint,
+      // we'll try to get seller info from the product's sellerId if it's an object
+      if (product?.sellerId && typeof product.sellerId === "object") {
+        setSeller(product.sellerId);
+        return;
+      }
 
-    // Try to get full seller profile
-    fetch(`${API}/users/${sid}`, { headers: authHeaders() })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => d && setSeller(d.user || d))
-      .catch(() => {});
+      // If the seller is the currently logged in user, use profile endpoint
+      if (token) {
+        const profileRes = await fetch(`${API}/profile/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (profileRes.ok) {
+          const profileData = await profileRes.json();
+          const userData = profileData.user || profileData;
+          if (userData._id === sellerId || userData.id === sellerId) {
+            setSeller(userData);
+            return;
+          }
+        }
+      }
 
-    // Optional seller order stats — silently ignore if endpoint missing
-    fetch(`${API}/orders/seller/${sid}/stats`, { headers: authHeaders() })
-      .then((r) => (r.ok ? r.json() : null))
-      .then(
-        (d) => d && setTotalOrders(d.totalOrders ?? d.totalPurchases ?? null),
-      )
-      .catch(() => {});
-  }, [product]);
+      // If we can't get seller data, create placeholder with seller ID
+      setSeller({
+        fullname: `Seller ${sellerId.slice(-6)}`,
+        profilePicture: null,
+        averageRating: 0,
+        numReviews: 0,
+        createdAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Error fetching seller:", error);
+      setSeller({
+        fullname: "Shop Owner",
+        profilePicture: null,
+        averageRating: 0,
+        numReviews: 0,
+        createdAt: new Date().toISOString(),
+      });
+    }
+  };
 
-  /* ── Fetch reviews ── */
+  /* ── Fetch reviews (no auth required) ── */
   const fetchReviews = useCallback(
     async (page = 1, append = false) => {
       if (!productId) return;
       setReviewLoading(true);
       try {
-        // Fix: Use the correct endpoint format - targetType is "Product"
         const res = await fetch(
           `${API}/reviews/Product/${productId}?page=${page}&limit=6`,
         );
@@ -206,7 +265,7 @@ const ProductDetailPage = () => {
         setReviewLoading(false);
       }
     },
-    [API, productId], // Added API to dependencies
+    [API, productId],
   );
 
   useEffect(() => {
@@ -215,7 +274,7 @@ const ProductDetailPage = () => {
 
   /* ── Add to cart ── */
   const addToCart = async () => {
-    if (!user) {
+    if (!token) {
       showToast("Please login to add items to cart", "info");
       setTimeout(() => router.push("/login"), 1500);
       return;
@@ -224,7 +283,10 @@ const ProductDetailPage = () => {
       setAddingToCart(true);
       const res = await fetch(`${API}/cart/add`, {
         method: "POST",
-        headers: authHeaders(),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ productId: product._id, quantity }),
       });
       if (!res.ok) {
@@ -232,6 +294,7 @@ const ProductDetailPage = () => {
         throw new Error(e.message || "Failed");
       }
       showToast(`${quantity} × ${product.name} added to cart!`, "success");
+      window.dispatchEvent(new Event("cartUpdate"));
     } catch (err) {
       showToast(
         err.message.includes("low on Stock")
@@ -246,7 +309,7 @@ const ProductDetailPage = () => {
 
   /* ── Buy now ── */
   const buyNow = async () => {
-    if (!user) {
+    if (!token) {
       showToast("Please login to continue", "info");
       setTimeout(() => router.push("/login"), 1500);
       return;
@@ -255,7 +318,10 @@ const ProductDetailPage = () => {
       setAddingToCart(true);
       const res = await fetch(`${API}/cart/add`, {
         method: "POST",
-        headers: authHeaders(),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ productId: product._id, quantity }),
       });
       if (!res.ok) {
@@ -285,11 +351,7 @@ const ProductDetailPage = () => {
       )
     : 0;
   const images = product?.images?.length ? product.images : [];
-  const getImg = (img) => {
-    if (!img) return "/placeholder.jpg";
-    if (img.startsWith("http")) return img;
-    return `${API}${img}`;
-  };
+  const getImg = (img) => getImageUrl(img);
   const fmtDate = (d) =>
     new Date(d).toLocaleDateString("en-US", {
       year: "numeric",
@@ -304,8 +366,11 @@ const ProductDetailPage = () => {
       .slice(0, 2)
       .toUpperCase();
 
-  const sellerData = seller || product?.sellerId || {};
-  const sellerName = sellerData?.fullname || "Store";
+  const sellerData = seller || {};
+  const sellerName = sellerData?.fullname || "Shop Owner";
+  const sellerProfilePic = getProfilePictureUrl(sellerData?.profilePicture);
+  const sellerRating = sellerData?.averageRating || 0;
+  const sellerReviewCount = sellerData?.numReviews || 0;
 
   if (loading)
     return (
@@ -359,6 +424,10 @@ const ProductDetailPage = () => {
                 <img
                   src={getImg(images[selectedImage] || images[0])}
                   alt={product.name}
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = "/placeholder.jpg";
+                  }}
                 />
                 {discount > 0 && (
                   <span className="product-discount-badge">-{discount}%</span>
@@ -372,7 +441,14 @@ const ProductDetailPage = () => {
                       className={`product-thumbnail ${selectedImage === i ? "active" : ""}`}
                       onClick={() => setSelectedImage(i)}
                     >
-                      <img src={getImg(img)} alt={`${product.name} ${i + 1}`} />
+                      <img
+                        src={getImg(img)}
+                        alt={`${product.name} ${i + 1}`}
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = "/placeholder.jpg";
+                        }}
+                      />
                     </button>
                   ))}
                 </div>
@@ -478,7 +554,7 @@ const ProductDetailPage = () => {
                 <button
                   className="add-to-cart-btn"
                   onClick={addToCart}
-                  disabled={product.stock <= 0 || !user || addingToCart}
+                  disabled={product.stock <= 0 || !token || addingToCart}
                 >
                   {addingToCart ? (
                     <>
@@ -488,14 +564,14 @@ const ProductDetailPage = () => {
                   ) : (
                     <>
                       <i className="bi bi-cart-plus" />
-                      {!user ? "Login to Add" : "Add to Cart"}
+                      {!token ? "Login to Add" : "Add to Cart"}
                     </>
                   )}
                 </button>
                 <button
                   className="buy-now-btn"
                   onClick={buyNow}
-                  disabled={product.stock <= 0 || !user || addingToCart}
+                  disabled={product.stock <= 0 || !token || addingToCart}
                 >
                   {addingToCart ? (
                     <>
@@ -536,10 +612,10 @@ const ProductDetailPage = () => {
               </div>
 
               <div className="product-sku">
-                <span>SKU: {product._id}</span>
+                <span>SKU: {product._id.slice(-8).toUpperCase()}</span>
               </div>
 
-              {!user && (
+              {!token && (
                 <div className="product-login-warning">
                   <i className="bi bi-info-circle-fill" />
                   <span>
@@ -552,7 +628,7 @@ const ProductDetailPage = () => {
 
           {/* ══ Sections below ══ */}
           <div className="product-sections">
-            {/* ── Seller Card ── */}
+            {/* ── Seller Card with Profile Picture ── */}
             <div className="section-card bg-white">
               <div className="section-header">
                 <div className="section-header__left">
@@ -563,7 +639,23 @@ const ProductDetailPage = () => {
                 </div>
               </div>
               <div className="seller-card-body">
-                <div className="seller-avatar">{initials(sellerName)}</div>
+                <div className="seller-avatar">
+                  {sellerProfilePic ? (
+                    <img
+                      src={sellerProfilePic}
+                      alt={sellerName}
+                      className="seller-avatar-img"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.style.display = "none";
+                        e.target.parentElement.innerHTML = initials(sellerName);
+                        e.target.parentElement.classList.add("avatar-fallback");
+                      }}
+                    />
+                  ) : (
+                    initials(sellerName)
+                  )}
+                </div>
                 <div className="seller-details">
                   <div className="seller-name">{sellerName}</div>
                   <span className="seller-role">Verified Seller</span>
@@ -571,27 +663,18 @@ const ProductDetailPage = () => {
                     {/* Average rating */}
                     <div className="seller-stat">
                       <span className="seller-stat__val">
-                        {(sellerData?.averageRating || 0).toFixed(1)}
+                        {sellerRating.toFixed(1)}
                       </span>
                       <span className="seller-stat__label">Avg Rating</span>
                     </div>
                     {/* Seller reviews */}
                     <div className="seller-stat">
                       <span className="seller-stat__val">
-                        {sellerData?.numReviews || 0}
+                        {sellerReviewCount}
                       </span>
                       <span className="seller-stat__label">Reviews</span>
                     </div>
-                    {/* Total orders — only if available */}
-                    {totalOrders !== null && (
-                      <div className="seller-stat">
-                        <span className="seller-stat__val">
-                          {totalOrders.toLocaleString()}
-                        </span>
-                        <span className="seller-stat__label">Orders Sold</span>
-                      </div>
-                    )}
-                    {/* Member since */}
+                    {/* Member since - only if available */}
                     {sellerData?.createdAt && (
                       <div className="seller-stat">
                         <span className="seller-stat__val">
@@ -602,10 +685,10 @@ const ProductDetailPage = () => {
                     )}
                   </div>
                   {/* Seller star row */}
-                  {sellerData?.averageRating > 0 && (
+                  {sellerRating > 0 && (
                     <div className="seller-stars-row">
-                      <Stars rating={sellerData.averageRating} size={13} />
-                      <span>({sellerData.numReviews || 0} seller reviews)</span>
+                      <Stars rating={sellerRating} size={13} />
+                      <span>({sellerReviewCount} seller reviews)</span>
                     </div>
                   )}
                 </div>
@@ -661,18 +744,36 @@ const ProductDetailPage = () => {
                 ) : (
                   <div className="review-list shadow-sm rounded">
                     {reviews.map((r) => {
-                      // Fix: The field is reviewerId, not userId
                       const name =
                         r.reviewerId?.fullname ||
-                        r.userId?.fullname || // fallback for backward compatibility
+                        r.userId?.fullname ||
                         r.userName ||
                         "Verified Buyer";
+                      const reviewerProfilePic = getProfilePictureUrl(
+                        r.reviewerId?.profilePicture ||
+                          r.userId?.profilePicture,
+                      );
+
                       return (
                         <div className="review-item" key={r._id}>
                           <div className="review-item__header">
                             <div className="review-item__user">
                               <div className="review-avatar">
-                                {initials(name)}
+                                {reviewerProfilePic ? (
+                                  <img
+                                    src={reviewerProfilePic}
+                                    alt={name}
+                                    className="reviewer-avatar-img"
+                                    onError={(e) => {
+                                      e.target.onerror = null;
+                                      e.target.style.display = "none";
+                                      e.target.parentElement.innerHTML =
+                                        initials(name);
+                                    }}
+                                  />
+                                ) : (
+                                  initials(name)
+                                )}
                               </div>
                               <div>
                                 <div className="review-user-name">{name}</div>

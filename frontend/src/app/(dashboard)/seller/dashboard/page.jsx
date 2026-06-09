@@ -57,7 +57,6 @@ const SellerDashboard = () => {
         if (response.ok) {
           const data = await response.json();
           setUser(data.user);
-          // Seed rating from auth response immediately so stats card isn't blank
           setStats((prev) => ({
             ...prev,
             averageRating: data.user.averageRating ?? 0,
@@ -97,7 +96,6 @@ const SellerDashboard = () => {
           .length,
       }));
 
-      // Sort by stock desc as a proxy for popularity; no random values
       const sorted = [...products].sort((a, b) => b.stock - a.stock);
       setTopProducts(
         sorted.slice(0, 5).map((p) => ({
@@ -105,7 +103,6 @@ const SellerDashboard = () => {
           name: p.name,
           stock: p.stock,
           price: p.finalPrice ?? p.price,
-          // Real sales/revenue will be filled in by fetchSellerOrders
           sales: 0,
           revenue: 0,
         })),
@@ -125,38 +122,47 @@ const SellerDashboard = () => {
       );
 
       if (!response.ok) {
-        generateMockData();
+        console.log("No orders found, using demo data");
         return;
       }
 
       const data = await response.json();
       const orders = data.orders || [];
 
+      console.log("Raw orders data:", orders); // Debug: See order structure
+      console.log("Current sellerId:", sellerId); // Debug: See seller ID
+
       const todayMidnight = new Date().setHours(0, 0, 0, 0);
       let totalRevenue = 0;
       let todayRevenue = 0;
-      const pendingOrders = orders.filter((o) =>
-        o.orderItems?.some(
-          (item) =>
-            item.seller?._id?.toString() === sellerId &&
-            item.orderStatus === "pending",
-        ),
-      ).length;
+      let pendingOrdersCount = 0;
 
-      // Per-product sales accumulator for top-products enrichment
-      const productSalesMap = {}; // productId → { sales, revenue }
-
-      // Weekly sales (indexed Sun=0 … Sat=6)
+      const productSalesMap = {};
       const weekSales = [0, 0, 0, 0, 0, 0, 0];
-
-      // Recent-activity feed built from orders
       const activities = [];
 
       orders.forEach((order) => {
+        // Debug: Check order items structure
+        console.log("Order items:", order.orderItems);
+
+        // Filter seller items - try multiple possible field names
         const sellerItems =
-          order.orderItems?.filter(
-            (item) => item.seller?._id?.toString() === sellerId,
-          ) || [];
+          order.orderItems?.filter((item) => {
+            // Check for seller ID in different possible locations
+            const itemSellerId =
+              item.seller?._id?.toString() ||
+              item.seller?.toString() ||
+              item.sellerId?.toString();
+            console.log(
+              "Item seller ID:",
+              itemSellerId,
+              "Current seller ID:",
+              sellerId,
+            );
+            return itemSellerId === sellerId;
+          }) || [];
+
+        console.log("Filtered seller items count:", sellerItems.length);
 
         sellerItems.forEach((item) => {
           const itemRevenue = (item.price || 0) * (item.quantity || 0);
@@ -173,23 +179,33 @@ const SellerDashboard = () => {
 
           const pid = item.product?._id?.toString() || item.product?.toString();
           if (pid) {
-            if (!productSalesMap[pid])
+            if (!productSalesMap[pid]) {
               productSalesMap[pid] = { sales: 0, revenue: 0 };
+            }
             productSalesMap[pid].sales += item.quantity || 0;
             productSalesMap[pid].revenue += itemRevenue;
           }
         });
 
+        // Count pending orders for this seller
         if (sellerItems.length > 0) {
-          const status = sellerItems[0].orderStatus || "pending";
+          const hasPending = sellerItems.some(
+            (item) =>
+              item.orderStatus === "pending" || item.status === "pending",
+          );
+          if (hasPending) pendingOrdersCount++;
+
+          // Add activity for order
+          const orderStatus =
+            sellerItems[0]?.orderStatus || sellerItems[0]?.status || "pending";
           activities.push({
             type: "order",
-            description: `Order #${order._id.slice(-6).toUpperCase()} — ${status}`,
+            description: `Order #${order._id.slice(-6).toUpperCase()} - ${orderStatus}`,
             time: timeAgo(order.createdAt),
             status:
-              status === "delivered"
+              orderStatus === "delivered"
                 ? "success"
-                : status === "cancelled"
+                : orderStatus === "cancelled"
                   ? "danger"
                   : "pending",
           });
@@ -199,7 +215,7 @@ const SellerDashboard = () => {
       setStats((prev) => ({
         ...prev,
         totalOrders: orders.length,
-        pendingOrders,
+        pendingOrders: pendingOrdersCount,
         totalRevenue,
         todayRevenue,
       }));
@@ -215,34 +231,68 @@ const SellerDashboard = () => {
         }),
       );
 
-      // Recent orders (last 5)
+      // Recent orders (last 5) - IMPROVED VERSION
+      const filteredOrders = orders.filter((order) => {
+        // Only include orders that have items belonging to this seller
+        const hasSellerItems = order.orderItems?.some((item) => {
+          const itemSellerId =
+            item.seller?._id?.toString() ||
+            item.seller?.toString() ||
+            item.sellerId?.toString();
+          return itemSellerId === sellerId;
+        });
+        return hasSellerItems;
+      });
+
       setRecentOrders(
-        orders.slice(0, 5).map((order) => {
+        filteredOrders.slice(0, 5).map((order) => {
+          // Get only seller's items from this order
           const sellerItems =
-            order.orderItems?.filter(
-              (item) => item.seller?._id?.toString() === sellerId,
-            ) || [];
+            order.orderItems?.filter((item) => {
+              const itemSellerId =
+                item.seller?._id?.toString() ||
+                item.seller?.toString() ||
+                item.sellerId?.toString();
+              return itemSellerId === sellerId;
+            }) || [];
+
+          // Calculate total for seller's items only
           const orderTotal = sellerItems.reduce(
             (sum, item) => sum + (item.price || 0) * (item.quantity || 0),
             0,
           );
+
+          // Get status from first seller item
+          const orderStatus =
+            sellerItems[0]?.orderStatus || sellerItems[0]?.status || "pending";
+
+          // Get customer name from multiple possible fields
+          const customerName =
+            order.user?.fullname ||
+            order.user?.name ||
+            order.customerName ||
+            "Customer";
+
           return {
             id: order._id,
-            orderNumber: order._id.slice(-8).toUpperCase(),
-            customer: order.user?.fullname || "Customer",
-            items: sellerItems.length,
+            orderNumber: order.orderNumber || order._id.slice(-8).toUpperCase(),
+            customer: customerName,
+            items: sellerItems.reduce(
+              (sum, item) => sum + (item.quantity || 0),
+              0,
+            ),
             total: orderTotal,
-            status: sellerItems[0]?.orderStatus || "pending",
+            status: orderStatus,
             date: new Date(order.createdAt).toLocaleDateString(),
           };
         }),
       );
 
-      // Activity feed (latest 5)
-      setRecentActivities(activities.slice(0, 5));
+      setRecentActivities(activities.slice(0, 8));
     } catch (error) {
       console.error("Error fetching orders:", error);
-      generateMockData();
+      setSalesData({ labels: DAY_LABELS, values: [0, 0, 0, 0, 0, 0, 0] });
+      setRecentActivities([]);
     }
   }, []);
 
@@ -260,7 +310,6 @@ const SellerDashboard = () => {
       const data = await response.json();
       const reviews = data.reviews || [];
 
-      // Compute average from fetched reviews (more accurate than cached user field)
       const avgRating =
         reviews.length > 0
           ? reviews.reduce((sum, r) => sum + (r.rating || 0), 0) /
@@ -276,19 +325,19 @@ const SellerDashboard = () => {
       setRecentReviews(
         reviews.slice(0, 5).map((review) => ({
           id: review._id,
-          // reviewTarget on seller reviews is typically the seller, not a product
           product: review.product?.name || "Seller review",
           customer: review.reviewerId?.fullname || "Customer",
           rating: review.rating || 0,
           comment: review.comment || "No comment provided",
           date: new Date(review.createdAt).toLocaleDateString(),
+          createdAt: review.createdAt,
         })),
       );
 
-      // Merge review activities into the feed
-      const reviewActivities = reviews.slice(0, 3).map((r) => ({
+      // Add review activities
+      const reviewActivities = reviews.slice(0, 5).map((r) => ({
         type: "review",
-        description: `${r.reviewerId?.fullname || "Someone"} left you a ${r.rating}★ review`,
+        description: `${r.reviewerId?.fullname || "Someone"} left a ${r.rating}★ review`,
         time: timeAgo(r.createdAt),
         status:
           r.rating >= 4 ? "success" : r.rating >= 3 ? "pending" : "danger",
@@ -296,7 +345,11 @@ const SellerDashboard = () => {
 
       setRecentActivities((prev) => {
         const combined = [...reviewActivities, ...prev]
-          .sort((a, b) => 0) // keep insertion order; already sorted newest-first
+          .sort((a, b) => {
+            // Sort by time (assuming timeAgo strings might not sort well)
+            // Keep original order as fallback
+            return 0;
+          })
           .slice(0, 8);
         return combined;
       });
@@ -326,53 +379,8 @@ const SellerDashboard = () => {
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
 
-  const generateMockData = () => {
-    setRecentOrders((prev) =>
-      prev.length
-        ? prev
-        : [
-            {
-              id: "mock-1",
-              orderNumber: "ORD-DEMO01",
-              customer: "Sample Customer",
-              items: 2,
-              total: 79.99,
-              status: "pending",
-              date: new Date().toLocaleDateString(),
-            },
-          ],
-    );
-
-    setTopProducts((prev) =>
-      prev.length
-        ? prev
-        : [
-            {
-              _id: "mock-1",
-              name: "Sample Product",
-              sales: 0,
-              revenue: 0,
-              stock: 10,
-              price: 0,
-            },
-          ],
-    );
-
-    setRecentActivities((prev) =>
-      prev.length
-        ? prev
-        : [
-            {
-              type: "order",
-              description: "Welcome to your seller dashboard",
-              time: "Just now",
-              status: "success",
-            },
-          ],
-    );
-  };
-
   const timeAgo = (dateString) => {
+    if (!dateString) return "just now";
     const seconds = Math.floor((Date.now() - new Date(dateString)) / 1000);
     if (seconds < 60) return "just now";
     const minutes = Math.floor(seconds / 60);
@@ -408,10 +416,24 @@ const SellerDashboard = () => {
     );
   };
 
-  const activityIcon = (type) => {
-    if (type === "order") return "cart-check";
-    if (type === "review") return "star";
-    return "gift";
+  const getActivityIcon = (type, status) => {
+    if (type === "order") {
+      if (status === "success") return "bi bi-check-circle-fill";
+      if (status === "danger") return "bi bi-x-circle-fill";
+      return "bi bi-cart-check";
+    }
+    if (type === "review") {
+      if (status === "success") return "bi bi-star-fill";
+      if (status === "danger") return "bi bi-star";
+      return "bi bi-chat-dots";
+    }
+    return "bi bi-bell";
+  };
+
+  const getActivityIconColor = (status) => {
+    if (status === "success") return "success";
+    if (status === "danger") return "danger";
+    return "pending";
   };
 
   // ─── Loading state ─────────────────────────────────────────────────────────
@@ -549,7 +571,7 @@ const SellerDashboard = () => {
         {/* Charts Row */}
         <div className="dashboard-row">
           <div className="dashboard-col large">
-            <div className="dashboard-card">
+            <div className="dashboard-card mw-same">
               <div className="card-header">
                 <h5 className="card-title">
                   <i className="bi bi-graph-up"></i>
@@ -558,33 +580,43 @@ const SellerDashboard = () => {
                 <div className="card-header-decoration"></div>
               </div>
               <div className="card-body">
-                <div className="sales-chart">
-                  {salesData.labels.map((label, index) => {
-                    const maxValue = Math.max(...salesData.values, 1);
-                    const height = (salesData.values[index] / maxValue) * 180;
-                    return (
-                      <div key={label} className="chart-bar-container">
-                        <div
-                          className="chart-bar"
-                          style={{ height: `${height}px` }}
-                        >
-                          {salesData.values[index] > 0 && (
-                            <span className="chart-value">
-                              ${salesData.values[index].toFixed(0)}
-                            </span>
-                          )}
+                {salesData.values.some((v) => v > 0) ? (
+                  <div className="sales-chart">
+                    {salesData.labels.map((label, index) => {
+                      const maxValue = Math.max(...salesData.values, 1);
+                      const height = (salesData.values[index] / maxValue) * 180;
+                      return (
+                        <div key={label} className="chart-bar-container">
+                          <div
+                            className="chart-bar"
+                            style={{ height: `${height}px` }}
+                          >
+                            {salesData.values[index] > 0 && (
+                              <span className="chart-value">
+                                ${salesData.values[index].toFixed(0)}
+                              </span>
+                            )}
+                          </div>
+                          <span className="chart-label">{label}</span>
                         </div>
-                        <span className="chart-label">{label}</span>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="empty-chart">
+                    <i className="bi bi-bar-chart-steps"></i>
+                    <p>No sales data available</p>
+                    <span>
+                      Orders will appear here once you make your first sale
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
           <div className="dashboard-col small">
-            <div className="dashboard-card">
+            <div className="dashboard-card mw-same">
               <div className="card-header">
                 <h5 className="card-title">
                   <i className="bi bi-activity"></i>
@@ -597,9 +629,14 @@ const SellerDashboard = () => {
                   {recentActivities.length > 0 ? (
                     recentActivities.map((activity, index) => (
                       <div key={index} className="activity-item">
-                        <div className={`activity-icon ${activity.status}`}>
+                        <div
+                          className={`activity-icon ${getActivityIconColor(activity.status)}`}
+                        >
                           <i
-                            className={`bi bi-${activityIcon(activity.type)}`}
+                            className={getActivityIcon(
+                              activity.type,
+                              activity.status,
+                            )}
                           ></i>
                         </div>
                         <div className="activity-content">
@@ -609,9 +646,10 @@ const SellerDashboard = () => {
                       </div>
                     ))
                   ) : (
-                    <div className="no-reviews">
-                      <i className="bi bi-activity"></i>
-                      <p>No activity yet</p>
+                    <div className="empty-activity">
+                      <i className="bi bi-inbox"></i>
+                      <p>No recent activity</p>
+                      <span>New orders and reviews will appear here</span>
                     </div>
                   )}
                 </div>
@@ -632,22 +670,22 @@ const SellerDashboard = () => {
             </Link>
           </div>
           <div className="card-body no-padding">
-            <div className="dashboard-table-container">
-              <table className="dashboard-table">
-                <thead>
-                  <tr>
-                    <th>Order #</th>
-                    <th>Customer</th>
-                    <th>Items</th>
-                    <th>Total</th>
-                    <th>Status</th>
-                    <th>Date</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentOrders.length > 0 ? (
-                    recentOrders.map((order) => (
+            {recentOrders.length > 0 ? (
+              <div className="dashboard-table-container">
+                <table className="dashboard-table">
+                  <thead>
+                    <tr>
+                      <th>Order #</th>
+                      <th>Customer</th>
+                      <th>Items</th>
+                      <th>Total</th>
+                      <th>Status</th>
+                      <th>Date</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentOrders.map((order) => (
                       <tr key={order.id}>
                         <td className="order-number">{order.orderNumber}</td>
                         <td>{order.customer}</td>
@@ -670,17 +708,17 @@ const SellerDashboard = () => {
                           </Link>
                         </td>
                       </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="7" className="text-center">
-                        No orders yet
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="empty-table">
+                <i className="bi bi-inbox"></i>
+                <p>No orders yet</p>
+                <span>When customers place orders, they'll appear here</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -698,25 +736,25 @@ const SellerDashboard = () => {
                 </Link>
               </div>
               <div className="card-body no-padding">
-                <div className="dashboard-table-container">
-                  <table className="dashboard-table compact">
-                    <thead>
-                      <tr>
-                        <th>Product</th>
-                        <th>Units Sold</th>
-                        <th>Revenue</th>
-                        <th>Stock</th>
-                        <th>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {topProducts.length > 0 ? (
-                        topProducts.map((product) => (
+                {topProducts.length > 0 ? (
+                  <div className="dashboard-table-container">
+                    <table className="dashboard-table compact">
+                      <thead>
+                        <tr>
+                          <th>Product</th>
+                          <th>Units Sold</th>
+                          <th>Revenue</th>
+                          <th>Stock</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {topProducts.map((product) => (
                           <tr key={product._id}>
                             <td className="product-name">{product.name}</td>
-                            <td>{product.sales}</td>
+                            <td>{product.sales || 0}</td>
                             <td className="gold-text">
-                              {formatCurrency(product.revenue)}
+                              {formatCurrency(product.revenue || 0)}
                             </td>
                             <td>
                               <span
@@ -742,17 +780,17 @@ const SellerDashboard = () => {
                               </Link>
                             </td>
                           </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan="5" className="text-center">
-                            No products yet
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="empty-table">
+                    <i className="bi bi-box"></i>
+                    <p>No products yet</p>
+                    <span>Add your first product to get started</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -799,7 +837,7 @@ const SellerDashboard = () => {
                       </div>
                     ))
                   ) : (
-                    <div className="no-reviews">
+                    <div className="empty-reviews">
                       <i className="bi bi-chat-dots"></i>
                       <p>No reviews yet</p>
                       <span>

@@ -29,7 +29,7 @@ const Toast = ({ message, type, onClose }) => {
   );
 };
 
-// Edit Profile Modal
+// Edit Profile Modal with Profile Picture Upload
 const EditProfileModal = ({ show, onClose, profile, onUpdate }) => {
   const [formData, setFormData] = useState({
     fullname: "",
@@ -37,6 +37,8 @@ const EditProfileModal = ({ show, onClose, profile, onUpdate }) => {
     phone: "",
     address: "",
   });
+  const [profileImage, setProfileImage] = useState(null);
+  const [profilePreview, setProfilePreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -48,12 +50,50 @@ const EditProfileModal = ({ show, onClose, profile, onUpdate }) => {
         phone: profile.phone || "",
         address: profile.address || "",
       });
+      setProfilePreview(profile.profilePicture || null);
     }
   }, [profile]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     setError("");
+  };
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      const allowedTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
+      if (!allowedTypes.includes(file.type)) {
+        setError("Please select a valid image file (JPEG, PNG, GIF, or WEBP)");
+        return;
+      }
+
+      // Validate file size (2MB max)
+      if (file.size > 2 * 1024 * 1024) {
+        setError("File size must be less than 2MB");
+        return;
+      }
+
+      setProfileImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfilePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+      setError("");
+    }
+  };
+
+  const removeImage = () => {
+    setProfileImage(null);
+    setProfilePreview(profile?.profilePicture || null);
   };
 
   const handleSubmit = async (e) => {
@@ -63,15 +103,26 @@ const EditProfileModal = ({ show, onClose, profile, onUpdate }) => {
 
     try {
       const token = localStorage.getItem("token");
+      const formDataToSend = new FormData();
+
+      // Append text fields
+      formDataToSend.append("fullname", formData.fullname);
+      formDataToSend.append("phone", formData.phone);
+      formDataToSend.append("address", formData.address);
+
+      // Append image if selected
+      if (profileImage) {
+        formDataToSend.append("profileImage", profileImage);
+      }
+
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/profile/update`,
         {
           method: "PUT",
           headers: {
-            "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify(formData),
+          body: formDataToSend,
         },
       );
 
@@ -83,6 +134,9 @@ const EditProfileModal = ({ show, onClose, profile, onUpdate }) => {
 
       onUpdate(data.user);
       onClose();
+      // Reset image state
+      setProfileImage(null);
+      setProfilePreview(null);
     } catch (error) {
       console.error("Error updating profile:", error);
       setError(error.message);
@@ -95,7 +149,10 @@ const EditProfileModal = ({ show, onClose, profile, onUpdate }) => {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal-container modal-wide"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
           <h5 className="modal-title">
             <i className="bi bi-pencil-square"></i>
@@ -106,57 +163,104 @@ const EditProfileModal = ({ show, onClose, profile, onUpdate }) => {
           </button>
         </div>
         <form onSubmit={handleSubmit}>
-          <div className="modal-body">
-            <div className="form-group">
-              <label>
-                Full Name <span className="required">*</span>
-              </label>
-              <input
-                type="text"
-                className="form-input"
-                name="fullname"
-                value={formData.fullname}
-                onChange={handleChange}
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label>Email</label>
-              <input
-                type="email"
-                className="form-input"
-                value={formData.email}
-                disabled
-              />
-              <small className="form-hint">Email cannot be changed</small>
-            </div>
-            <div className="form-group">
-              <label>Phone</label>
-              <input
-                type="tel"
-                className="form-input"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-              />
-            </div>
-            <div className="form-group">
-              <label>Address</label>
-              <textarea
-                className="form-textarea"
-                name="address"
-                rows="3"
-                value={formData.address}
-                onChange={handleChange}
-              />
-            </div>
-            {error && (
-              <div className="error-message">
-                <i className="bi bi-exclamation-triangle-fill"></i>
-                {error}
+          <div className="modal-body-two-columns">
+            {/* Left Column - Profile Picture */}
+            <div className="profile-picture-column">
+              <label className="form-label">Profile Picture</label>
+              <div className="profile-preview-container">
+                <div className="profile-preview-large">
+                  {profilePreview ? (
+                    <img src={profilePreview} alt="Profile preview" />
+                  ) : (
+                    <div className="profile-preview-placeholder">
+                      <i className="bi bi-person-fill"></i>
+                    </div>
+                  )}
+                </div>
+                <div className="profile-preview-actions">
+                  <label htmlFor="profile-image-input" className="btn-upload">
+                    <i className="bi bi-camera"></i>
+                    {profilePreview ? "Change Photo" : "Upload Photo"}
+                  </label>
+                  <input
+                    id="profile-image-input"
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                    onChange={handleImageChange}
+                    style={{ display: "none" }}
+                  />
+                  {profilePreview && profile?.profilePicture && (
+                    <button
+                      type="button"
+                      className="btn-remove"
+                      onClick={removeImage}
+                    >
+                      <i className="bi bi-trash"></i> Remove
+                    </button>
+                  )}
+                </div>
+                <small className="form-hint">
+                  <i className="bi bi-info-circle"></i> JPG, PNG, GIF, WEBP up
+                  to 2MB
+                </small>
               </div>
-            )}
+            </div>
+
+            {/* Right Column - Form Fields */}
+            <div className="form-fields-column">
+              <div className="form-group">
+                <label>
+                  Full Name <span className="required">*</span>
+                </label>
+                <input
+                  type="text"
+                  className="form-input"
+                  name="fullname"
+                  value={formData.fullname}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Email</label>
+                <input
+                  type="email"
+                  className="form-input"
+                  value={formData.email}
+                  disabled
+                />
+                <small className="form-hint">Email cannot be changed</small>
+              </div>
+              <div className="form-group">
+                <label>Phone</label>
+                <input
+                  type="tel"
+                  className="form-input"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="form-group">
+                <label>Address</label>
+                <textarea
+                  className="form-textarea"
+                  name="address"
+                  rows="3"
+                  value={formData.address}
+                  onChange={handleChange}
+                />
+              </div>
+            </div>
           </div>
+
+          {error && (
+            <div className="error-message">
+              <i className="bi bi-exclamation-triangle-fill"></i>
+              {error}
+            </div>
+          )}
+
           <div className="modal-footer">
             <button type="button" className="btn-secondary" onClick={onClose}>
               Cancel
@@ -171,7 +275,7 @@ const EditProfileModal = ({ show, onClose, profile, onUpdate }) => {
   );
 };
 
-// Stripe Connect Modal
+// Stripe Connect Modal (unchanged)
 const StripeConnectModal = ({
   show,
   onClose,
@@ -291,7 +395,7 @@ const StripeConnectModal = ({
   );
 };
 
-// Withdraw Modal
+// Withdraw Modal (unchanged)
 const WithdrawModal = ({ show, onClose, wallet, onSuccess }) => {
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
@@ -440,6 +544,19 @@ const ProfilePage = () => {
 
   const showToast = (message, type = "success") => setToast({ message, type });
 
+  // Helper function to get profile picture URL
+  const getProfilePictureUrl = () => {
+    if (!profile) return null;
+    const profilePic = profile.profilePicture;
+    if (profilePic) {
+      if (profilePic.startsWith("http")) {
+        return profilePic;
+      }
+      return `${process.env.NEXT_PUBLIC_BACKEND_URL}/uploads/profiles/${profilePic}`;
+    }
+    return null;
+  };
+
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -530,7 +647,7 @@ const ProfilePage = () => {
         showToast("Stripe account connected successfully!", "success");
         await fetchStripeStatus();
         await fetchWallet();
-        router.replace("/seller/profile");
+        router.replace("/profile");
       }
     };
     checkOnboarding();
@@ -613,6 +730,7 @@ const ProfilePage = () => {
   const isSeller = profile?.role === "seller";
   const hasStripeAccount = stripeStatus?.hasAccount;
   const isStripeVerified = stripeStatus?.isComplete;
+  const profilePictureUrl = getProfilePictureUrl();
 
   return (
     <div className="profile-page">
@@ -683,8 +801,22 @@ const ProfilePage = () => {
           {/* Profile Information Card */}
           <div className="profile-card">
             <div className="profile-avatar">
-              <div className="avatar-icon">
-                <i className="bi bi-person-circle"></i>
+              <div className="avatar-wrapper">
+                {profilePictureUrl ? (
+                  <img
+                    src={profilePictureUrl}
+                    alt={profile?.fullname}
+                    className="profile-avatar-image"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.style.display = "none";
+                      e.target.parentElement.innerHTML =
+                        '<i class="bi bi-person-circle"></i>';
+                    }}
+                  />
+                ) : (
+                  <i className="bi bi-person-circle"></i>
+                )}
               </div>
               <h3 className="profile-name">{profile?.fullname}</h3>
               <p className="profile-email">{profile?.email}</p>
