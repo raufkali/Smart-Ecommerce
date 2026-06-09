@@ -12,6 +12,7 @@ const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" }) => {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [user, setUser] = useState(null);
+  const [fullUserData, setFullUserData] = useState(null);
   const [cartCount, setCartCount] = useState(0);
 
   // Handle scroll
@@ -36,11 +37,13 @@ const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" }) => {
 
       if (!token) {
         setUser(null);
+        setFullUserData(null);
         return;
       }
 
       try {
-        const response = await fetch(
+        // First get basic auth info
+        const authResponse = await fetch(
           `${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/me`,
           {
             headers: {
@@ -49,20 +52,50 @@ const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" }) => {
           },
         );
 
-        if (response.ok) {
-          const data = await response.json();
-          setUser(data.user);
+        if (authResponse.ok) {
+          const authData = await authResponse.json();
+          const basicUser = authData.user || authData;
+          setUser(basicUser);
+
+          // Then fetch full profile data from profile endpoint
+          const profileResponse = await fetch(
+            `${process.env.NEXT_PUBLIC_BACKEND_URL}/profile/`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            },
+          );
+
+          if (profileResponse.ok) {
+            const profileData = await profileResponse.json();
+            const fullProfile = profileData.user || profileData;
+            setFullUserData(fullProfile);
+          } else {
+            // If profile endpoint fails, use basic user data
+            setFullUserData(basicUser);
+          }
         } else {
           localStorage.removeItem("token");
           setUser(null);
+          setFullUserData(null);
         }
       } catch (error) {
         console.error("Error fetching user:", error);
         setUser(null);
+        setFullUserData(null);
       }
     };
 
     fetchUserData();
+
+    // Listen for auth changes
+    const handleAuthChange = () => {
+      fetchUserData();
+    };
+
+    window.addEventListener("authChange", handleAuthChange);
+    return () => window.removeEventListener("authChange", handleAuthChange);
   }, [pathname]);
 
   // Update cart count
@@ -88,6 +121,7 @@ const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" }) => {
       localStorage.removeItem("user");
       localStorage.removeItem("cart");
       setUser(null);
+      setFullUserData(null);
       window.dispatchEvent(new Event("authChange"));
       router.push("/");
     }
@@ -109,6 +143,52 @@ const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" }) => {
       gear: "bi bi-gear",
     };
     return iconMap[iconName] || "bi bi-circle";
+  };
+
+  // Helper function to get profile picture URL
+  const getProfilePictureUrl = () => {
+    // Use fullUserData which has complete profile info
+    const userData = fullUserData || user;
+    if (!userData) return null;
+
+    // Check for profile picture in different possible fields
+    const profilePic =
+      userData.profilePicture || userData.profileImage || userData.avatar;
+
+    if (profilePic) {
+      // If it's a full URL, use it directly
+      if (profilePic.startsWith("http")) {
+        return profilePic;
+      }
+      // Otherwise, construct the full URL
+      return `${process.env.NEXT_PUBLIC_BACKEND_URL}/uploads/profiles/${profilePic}`;
+    }
+    return null;
+  };
+
+  // Helper function to get user's display name
+  const getDisplayName = () => {
+    const userData = fullUserData || user;
+    if (!userData) return "User";
+    return (
+      userData.fullname ||
+      userData.name ||
+      userData.username ||
+      userData.email?.split("@")[0] ||
+      "User"
+    );
+  };
+
+  // Helper function to get user's first name (for compact display)
+  const getFirstName = () => {
+    const fullName = getDisplayName();
+    return fullName.split(" ")[0];
+  };
+
+  // Get user role
+  const getUserRole = () => {
+    const userData = fullUserData || user;
+    return userData?.role || "user";
   };
 
   const isLoggedIn = !!user;
@@ -164,21 +244,24 @@ const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" }) => {
                     onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                   >
                     <div className="user-avatar">
-                      {user?.profileImage ? (
+                      {getProfilePictureUrl() ? (
                         <img
-                          src={user.profileImage}
-                          alt={user.fullname}
+                          src={getProfilePictureUrl()}
+                          alt={getDisplayName()}
                           width="32"
                           height="32"
-                          style={{ borderRadius: "50%" }}
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.style.display = "none";
+                            e.target.parentElement.innerHTML =
+                              '<i class="bi bi-person-circle"></i>';
+                          }}
                         />
                       ) : (
                         <i className="bi bi-person-circle"></i>
                       )}
                     </div>
-                    <span className="user-name">
-                      {user?.fullname?.split(" ")[0] || "User"}
-                    </span>
+                    <span className="user-name">{getFirstName()}</span>
                     <i
                       className={`bi bi-chevron-${isUserMenuOpen ? "up" : "down"}`}
                     ></i>
@@ -189,12 +272,23 @@ const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" }) => {
                   >
                     {/* Mobile Header */}
                     <div className="dropdown-header-custom d-lg-none">
-                      <div className="user-fullname">{user?.fullname}</div>
-                      <div className="user-role-badge">{user?.role}</div>
+                      <div className="user-fullname">{getDisplayName()}</div>
+                      <div className="user-role-badge">{getUserRole()}</div>
+                    </div>
+
+                    {/* Show profile picture in dropdown on mobile */}
+                    <div className="dropdown-user-info d-lg-none">
+                      {getProfilePictureUrl() && (
+                        <img
+                          src={getProfilePictureUrl()}
+                          alt={getDisplayName()}
+                          className="dropdown-user-avatar"
+                        />
+                      )}
                     </div>
 
                     {/* ── ADMIN DROPDOWN ── */}
-                    {user?.role === "admin" && (
+                    {getUserRole() === "admin" && (
                       <>
                         <Link
                           href="/admin/dashboard"
@@ -203,6 +297,14 @@ const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" }) => {
                         >
                           <i className="bi bi-speedometer2"></i>
                           Dashboard
+                        </Link>
+                        <Link
+                          href="/profile"
+                          className="dropdown-item-custom"
+                          onClick={() => setIsUserMenuOpen(false)}
+                        >
+                          <i className="bi bi-person"></i>
+                          My Profile
                         </Link>
                         <div className="dropdown-divider-custom"></div>
                         <button
@@ -216,7 +318,7 @@ const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" }) => {
                     )}
 
                     {/* ── SELLER DROPDOWN ── */}
-                    {user?.role === "seller" && (
+                    {getUserRole() === "seller" && (
                       <>
                         <Link
                           href="/seller/dashboard"
@@ -224,7 +326,40 @@ const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" }) => {
                           onClick={() => setIsUserMenuOpen(false)}
                         >
                           <i className="bi bi-shop"></i>
-                          Dashboard
+                          Seller Dashboard
+                        </Link>
+                        <Link
+                          href="/seller/products"
+                          className="dropdown-item-custom"
+                          onClick={() => setIsUserMenuOpen(false)}
+                        >
+                          <i className="bi bi-box-seam"></i>
+                          My Products
+                        </Link>
+                        <Link
+                          href="/seller/orders"
+                          className="dropdown-item-custom"
+                          onClick={() => setIsUserMenuOpen(false)}
+                        >
+                          <i className="bi bi-bag-check"></i>
+                          Orders
+                        </Link>
+                        <Link
+                          href="/seller/analytics"
+                          className="dropdown-item-custom"
+                          onClick={() => setIsUserMenuOpen(false)}
+                        >
+                          <i className="bi bi-graph-up"></i>
+                          Analytics
+                        </Link>
+                        <div className="dropdown-divider-custom"></div>
+                        <Link
+                          href="/profile"
+                          className="dropdown-item-custom"
+                          onClick={() => setIsUserMenuOpen(false)}
+                        >
+                          <i className="bi bi-person"></i>
+                          My Profile
                         </Link>
                         <div className="dropdown-divider-custom"></div>
                         <button
@@ -238,7 +373,7 @@ const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" }) => {
                     )}
 
                     {/* ── BUYER/USER DROPDOWN ── */}
-                    {(user?.role === "user" || !user?.role) && (
+                    {getUserRole() === "user" && (
                       <>
                         <Link
                           href="/profile"
@@ -246,7 +381,7 @@ const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" }) => {
                           onClick={() => setIsUserMenuOpen(false)}
                         >
                           <i className="bi bi-person"></i>
-                          Profile
+                          My Profile
                         </Link>
                         <Link
                           href="/orders"
@@ -255,6 +390,14 @@ const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" }) => {
                         >
                           <i className="bi bi-bag-check"></i>
                           My Orders
+                        </Link>
+                        <Link
+                          href="/wishlist"
+                          className="dropdown-item-custom"
+                          onClick={() => setIsUserMenuOpen(false)}
+                        >
+                          <i className="bi bi-heart"></i>
+                          Wishlist
                         </Link>
                         <Link
                           href="/settings"

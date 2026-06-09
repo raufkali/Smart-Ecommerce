@@ -44,7 +44,10 @@ const EditProfileModal = ({ show, onClose, profile, onUpdate }) => {
     phone: "",
     address: "",
   });
+  const [profileImage, setProfileImage] = useState(null);
+  const [profilePreview, setProfilePreview] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   useEffect(() => {
     if (profile) {
@@ -54,38 +57,89 @@ const EditProfileModal = ({ show, onClose, profile, onUpdate }) => {
         phone: profile.phone || "",
         address: profile.address || "",
       });
+      setProfilePreview(profile.profilePicture || null);
     }
   }, [profile]);
 
   const handleChange = (e) =>
     setFormData({ ...formData, [e.target.name]: e.target.value });
 
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      const allowedTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
+      if (!allowedTypes.includes(file.type)) {
+        alert("Please select a valid image file (JPEG, PNG, GIF, or WEBP)");
+        return;
+      }
+
+      // Validate file size (2MB max)
+      if (file.size > 2 * 1024 * 1024) {
+        alert("File size must be less than 2MB");
+        return;
+      }
+
+      setProfileImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfilePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setUploadProgress(0);
+
     try {
       const token = localStorage.getItem("token");
+      const formDataToSend = new FormData();
+
+      // Append text fields
+      formDataToSend.append("fullname", formData.fullname);
+      formDataToSend.append("phone", formData.phone);
+      formDataToSend.append("address", formData.address);
+
+      // Append image if selected
+      if (profileImage) {
+        formDataToSend.append("profileImage", profileImage);
+      }
+
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/profile/update`,
         {
           method: "PUT",
           headers: {
-            "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify(formData),
+          body: formDataToSend,
         },
       );
+
       const data = await response.json();
       if (!response.ok)
         throw new Error(data.message || "Failed to update profile");
+
       onUpdate(data.user);
       onClose();
+      // Reset image state
+      setProfileImage(null);
+      setProfilePreview(null);
     } catch (error) {
       console.error("Error updating profile:", error);
       alert(error.message);
     } finally {
       setLoading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -93,7 +147,10 @@ const EditProfileModal = ({ show, onClose, profile, onUpdate }) => {
 
   return (
     <div className="profile-modal-overlay" onClick={onClose}>
-      <div className="profile-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="profile-modal profile-modal-wide"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-head">
           <h5>Edit Profile</h5>
           <button className="modal-close-btn" onClick={onClose}>
@@ -101,48 +158,123 @@ const EditProfileModal = ({ show, onClose, profile, onUpdate }) => {
           </button>
         </div>
         <form onSubmit={handleSubmit}>
-          <div className="modal-body">
-            <div className="form-group">
-              <label>Full Name</label>
-              <input
-                type="text"
-                name="fullname"
-                value={formData.fullname}
-                onChange={handleChange}
-                required
-              />
+          <div className="modal-body-two-columns">
+            {/* Left Column - Profile Picture */}
+            <div className="modal-left-column">
+              <div className="profile-picture-section-large">
+                <label className="profile-picture-label-large">
+                  Profile Photo
+                </label>
+                <div className="profile-picture-container-large">
+                  <div className="profile-picture-preview-large">
+                    {profilePreview ? (
+                      <img src={profilePreview} alt="Profile preview" />
+                    ) : (
+                      <div className="profile-picture-placeholder-large">
+                        <i className="bi bi-person-fill"></i>
+                      </div>
+                    )}
+                  </div>
+                  <div className="profile-picture-actions">
+                    <label
+                      htmlFor="profile-image-input-large"
+                      className="btn-upload-image-large"
+                    >
+                      <i className="bi bi-camera"></i>
+                      {profilePreview ? "Change" : "Upload"}
+                    </label>
+                    <input
+                      id="profile-image-input-large"
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                      onChange={handleImageChange}
+                      style={{ display: "none" }}
+                    />
+                    {profilePreview && profile?.profilePicture && (
+                      <button
+                        type="button"
+                        className="btn-remove-image-large"
+                        onClick={() => {
+                          setProfileImage(null);
+                          setProfilePreview(profile?.profilePicture || null);
+                        }}
+                      >
+                        <i className="bi bi-trash"></i> Remove
+                      </button>
+                    )}
+                  </div>
+                  <p className="form-hint-large">
+                    <i className="bi bi-info-circle"></i> JPG, PNG, GIF, WEBP up
+                    to 2MB
+                  </p>
+                </div>
+              </div>
             </div>
-            <div className="form-group">
-              <label>Email</label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                required
-                disabled
-              />
-              <p className="form-hint">Email cannot be changed</p>
-            </div>
-            <div className="form-group">
-              <label>Phone</label>
-              <input
-                type="tel"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-              />
-            </div>
-            <div className="form-group">
-              <label>Address</label>
-              <textarea
-                name="address"
-                rows="2"
-                value={formData.address}
-                onChange={handleChange}
-              ></textarea>
+
+            {/* Right Column - Form Fields */}
+            <div className="modal-right-column">
+              <div className="form-group">
+                <label>Full Name</label>
+                <input
+                  type="text"
+                  name="fullname"
+                  value={formData.fullname}
+                  onChange={handleChange}
+                  required
+                  placeholder="Enter your full name"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Email</label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                  disabled
+                />
+                <p className="form-hint">Email cannot be changed</p>
+              </div>
+
+              <div className="form-group">
+                <label>Phone Number</label>
+                <input
+                  type="tel"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  placeholder="Enter your phone number"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Address</label>
+                <textarea
+                  name="address"
+                  rows="3"
+                  value={formData.address}
+                  onChange={handleChange}
+                  placeholder="Enter your address"
+                ></textarea>
+              </div>
             </div>
           </div>
+
+          {/* Upload Progress Bar */}
+          {uploadProgress > 0 && uploadProgress < 100 && (
+            <div className="upload-progress-wrapper">
+              <div className="upload-progress">
+                <div
+                  className="upload-progress-bar"
+                  style={{ width: `${uploadProgress}%` }}
+                ></div>
+              </div>
+              <span className="upload-progress-text">{uploadProgress}%</span>
+            </div>
+          )}
+
           <div className="modal-foot">
             <button
               type="button"
@@ -610,9 +742,18 @@ const ProfilePage = () => {
           <div className="profile-card">
             <div className="profile-card-body">
               {/* Identity */}
+              {/* Identity */}
               <div className="identity-block">
                 <div className="avatar-ring">
-                  <i className="bi bi-person-fill"></i>
+                  {profile?.profilePicture ? (
+                    <img
+                      src={profile.profilePicture}
+                      alt={profile.fullname}
+                      className="profile-avatar-image"
+                    />
+                  ) : (
+                    <i className="bi bi-person-fill"></i>
+                  )}
                 </div>
                 <h3 className="identity-name">{profile?.fullname}</h3>
                 <p className="identity-email">{profile?.email}</p>

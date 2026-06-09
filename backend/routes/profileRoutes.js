@@ -5,8 +5,9 @@ const {
   getMyProfile,
   updateMyProfile,
 } = require("../controllers/profileController.js");
+const { uploadSingleProfile } = require("../middlewares/uploadMiddleware.js");
 
 router.get("/", authMiddleware, getMyProfile);
-router.put("/update", authMiddleware, updateMyProfile);
+router.put("/update", authMiddleware, uploadSingleProfile, updateMyProfile);
 
 module.exports = router;
