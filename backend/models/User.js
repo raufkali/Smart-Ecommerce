@@ -1,3 +1,4 @@
+// models/User.js - Add isDeleted field
 const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema(
@@ -25,6 +26,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: ["user", "seller", "admin"],
       default: "user",
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false, // Add this field for soft delete
     },
     stripeAccountId: {
       type: String,

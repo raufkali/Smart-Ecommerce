@@ -426,7 +426,7 @@ const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" }) => {
                     className="nav-link login-btn"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    <i className="bi bi-box-arrow-in-right"></i>
+                    <i className="bi bi-box-arrow-in-right me-2"></i>
                     Login
                   </Link>
                 </li>

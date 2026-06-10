@@ -200,6 +200,11 @@
     color: #3b82f6;
 }
 
+.stat-success .stat-icon {
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.05));
+    color: #22c55e;
+}
+
 .stat-danger .stat-icon {
     background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.05));
     color: #ef4444;
@@ -235,6 +240,13 @@
     text-transform: uppercase;
     color: var(--text-muted);
     margin: 0;
+}
+
+.stat-subtitle {
+    font-size: 10px;
+    color: var(--gold);
+    margin-top: 4px;
+    display: block;
 }
 
 /* Filters Bar */
@@ -387,9 +399,26 @@
     gap: 12px;
 }
 
+.user-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--gold-pale), rgba(184, 145, 42, 0.1));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
 .user-avatar i {
-    font-size: 40px;
+    font-size: 32px;
     color: var(--gold);
+}
+
+.user-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .user-info {
@@ -412,6 +441,31 @@
 .email-cell {
     color: var(--text-secondary);
     font-size: 13px;
+}
+
+/* Quick Stats Cell */
+.stats-cell {
+    min-width: 140px;
+}
+
+.quick-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.quick-stats span {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.quick-stats span i {
+    font-size: 12px;
+    color: var(--gold);
+    width: 16px;
 }
 
 /* Role Badges */
@@ -543,9 +597,20 @@ input:checked+.toggle-slider:before {
     color: var(--text-secondary);
 }
 
-.action-btn.edit:hover {
+.action-btn.analytics {
+    background: linear-gradient(135deg, rgba(184, 145, 42, 0.1), rgba(184, 145, 42, 0.05));
+}
+
+.action-btn.analytics:hover {
     background: var(--gold);
     border-color: var(--gold);
+    color: white;
+    transform: scale(1.05);
+}
+
+.action-btn.edit:hover {
+    background: #3b82f6;
+    border-color: #3b82f6;
     color: white;
     transform: scale(1.05);
 }
@@ -748,6 +813,10 @@ input:checked+.toggle-slider:before {
     animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+.modal-container.modal-large {
+    max-width: 800px;
+}
+
 @keyframes slideUp {
     from {
         opacity: 0;
@@ -769,6 +838,7 @@ input:checked+.toggle-slider:before {
     background: inherit;
     position: sticky;
     top: 0;
+    z-index: 10;
 }
 
 .modal-header-danger {
@@ -815,6 +885,11 @@ input:checked+.toggle-slider:before {
     padding: 24px;
 }
 
+.modal-body.analytics-body {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
 .modal-footer {
     padding: 16px 24px;
     border-top: 1px solid var(--border-gold);
@@ -824,6 +899,334 @@ input:checked+.toggle-slider:before {
     background: inherit;
     position: sticky;
     bottom: 0;
+    z-index: 10;
+}
+
+/* Analytics Styles */
+.analytics-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 28px;
+}
+
+.summary-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px;
+    background: rgba(184, 145, 42, 0.05);
+    border-radius: 16px;
+    border: 1px solid var(--border-gold);
+}
+
+.summary-card i {
+    font-size: 28px;
+    color: var(--gold);
+}
+
+.summary-card small {
+    display: block;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.summary-card p {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin: 0;
+    word-break: break-all;
+}
+
+.analytics-section {
+    margin-bottom: 28px;
+}
+
+.analytics-section h4 {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-weight: 500;
+    margin-bottom: 16px;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.analytics-section h4 i {
+    color: var(--gold);
+    font-size: 20px;
+}
+
+/* Stats Grid Small */
+.stats-grid-small {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+}
+
+.stat-card-mini {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: 14px;
+    border: 1px solid var(--border-gold);
+    transition: all 0.2s ease;
+}
+
+.stat-card-mini:hover {
+    background: white;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+}
+
+.stat-icon-mini {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: rgba(184, 145, 42, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    color: var(--gold);
+}
+
+.stat-info {
+    flex: 1;
+}
+
+.stat-label {
+    display: block;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.stat-number {
+    display: block;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-family: var(--font-display);
+}
+
+.stat-card-mini.success .stat-icon-mini {
+    background: rgba(34, 197, 94, 0.1);
+    color: #22c55e;
+}
+
+.stat-card-mini.warning .stat-icon-mini {
+    background: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+}
+
+.stat-card-mini.danger .stat-icon-mini {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.stat-card-mini.info .stat-icon-mini {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+}
+
+.stat-card-mini.primary .stat-icon-mini {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+}
+
+/* Status Breakdown */
+.status-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.status-badge {
+    min-width: 100px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: capitalize;
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--text-secondary);
+}
+
+.status-badge.pending {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+}
+
+.status-badge.processing {
+    background: rgba(59, 130, 246, 0.15);
+    color: #3b82f6;
+}
+
+.status-badge.confirmed {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+}
+
+.status-badge.shipped {
+    background: rgba(139, 92, 246, 0.15);
+    color: #8b5cf6;
+}
+
+.status-badge.delivered {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+}
+
+.status-badge.cancelled {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+.status-badge.small {
+    font-size: 10px;
+    padding: 2px 8px;
+}
+
+.status-bar-container {
+    flex: 1;
+    height: 6px;
+    background: rgba(0, 0, 0, 0.08);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.status-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--gold), var(--gold-light));
+    border-radius: 3px;
+    transition: width 0.5s ease;
+}
+
+.status-count {
+    min-width: 40px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-align: right;
+}
+
+/* Monthly Spending */
+.monthly-spending {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.month-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.month-label {
+    min-width: 100px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.month-bar-container {
+    flex: 1;
+    height: 8px;
+    background: rgba(0, 0, 0, 0.08);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.month-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--gold), #f59e0b);
+    border-radius: 4px;
+    transition: width 0.5s ease;
+}
+
+.month-amount {
+    min-width: 80px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-align: right;
+}
+
+/* Wallet Info */
+.wallet-info {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+}
+
+.wallet-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px;
+    background: linear-gradient(135deg, rgba(184, 145, 42, 0.05), rgba(184, 145, 42, 0.02));
+    border-radius: 16px;
+    border: 1px solid var(--border-gold);
+}
+
+.wallet-card i {
+    font-size: 28px;
+    color: var(--gold);
+}
+
+.wallet-card small {
+    display: block;
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.wallet-card strong {
+    font-size: 16px;
+    color: var(--text-primary);
+    font-family: var(--font-display);
+}
+
+.wallet-card.escrow i {
+    color: #8b5cf6;
+}
+
+/* Recent Orders Table */
+.recent-orders-table {
+    overflow-x: auto;
+}
+
+.mini-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.mini-table thead th {
+    text-align: left;
+    padding: 10px 8px;
+    background: rgba(184, 145, 42, 0.05);
+    font-weight: 600;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-gold);
+}
+
+.mini-table tbody td {
+    padding: 10px 8px;
+    border-bottom: 1px solid rgba(184, 145, 42, 0.08);
+    color: var(--text-primary);
 }
 
 /* Form Elements */
@@ -1039,6 +1442,23 @@ button:disabled {
     .users-table {
         min-width: 800px;
     }
+
+    .modal-container.modal-large {
+        max-width: 95%;
+        margin: 16px;
+    }
+
+    .analytics-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .stats-grid-small {
+        grid-template-columns: 1fr;
+    }
+
+    .wallet-info {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* Scrollbar */
@@ -1087,14 +1507,23 @@ button:disabled {
 
     .page-title,
     .stat-value,
-    .user-name {
+    .user-name,
+    .analytics-section h4,
+    .stat-number,
+    .month-amount,
+    .wallet-card strong,
+    .summary-card p {
         color: #f0ece2;
     }
 
     .page-subtitle,
     .stat-title,
     .user-id,
-    .email-cell {
+    .email-cell,
+    .stat-label,
+    .month-label,
+    .summary-card small,
+    .wallet-card small {
         color: #9a9080;
     }
 
@@ -1152,5 +1581,26 @@ button:disabled {
     .btn-secondary {
         background: rgba(42, 38, 31, 0.8);
         color: #c9c3b4;
+    }
+
+    .stat-card-mini {
+        background: rgba(42, 38, 31, 0.6);
+    }
+
+    .stat-card-mini:hover {
+        background: rgba(42, 38, 31, 0.8);
+    }
+
+    .summary-card {
+        background: rgba(42, 38, 31, 0.5);
+    }
+
+    .status-bar-container,
+    .month-bar-container {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .mini-table thead th {
+        background: rgba(42, 38, 31, 0.5);
     }
 }

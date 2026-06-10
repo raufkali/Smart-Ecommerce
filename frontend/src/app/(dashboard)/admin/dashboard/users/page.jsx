@@ -31,7 +31,7 @@ const Toast = ({ message, type, onClose }) => {
 };
 
 // Stat Card Component
-const StatCard = ({ title, value, icon, color }) => {
+const StatCard = ({ title, value, icon, color, subtitle }) => {
   return (
     <div className={`stat-card-premium stat-${color}`}>
       <div className="stat-icon-wrapper">
@@ -40,15 +40,471 @@ const StatCard = ({ title, value, icon, color }) => {
         </div>
       </div>
       <div className="stat-content">
-        <h3 className="stat-value">{value.toLocaleString()}</h3>
+        <h3 className="stat-value">
+          {typeof value === "number" ? value.toLocaleString() : value}
+        </h3>
         <p className="stat-title">{title}</p>
+        {subtitle && <small className="stat-subtitle">{subtitle}</small>}
       </div>
     </div>
   );
 };
 
-// User Row Component
-const UserRow = ({ user, index, onEdit, onDelete, onToggleStatus }) => {
+// User Analytics Modal Component
+const UserAnalyticsModal = ({ user, onClose }) => {
+  const [analytics, setAnalytics] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    fetchUserAnalytics();
+  }, [user]);
+
+  const fetchUserAnalytics = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.get(
+        `${API_URL}/users/${user._id}/analytics`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      setAnalytics(response.data.analytics);
+      setLoading(false);
+    } catch (err) {
+      console.error("Error fetching analytics:", err);
+      setError(err.response?.data?.message || "Failed to fetch user analytics");
+      setLoading(false);
+    }
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+    }).format(amount || 0);
+  };
+
+  const formatDate = (date) => {
+    return new Date(date).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="modal-overlay" onClick={onClose}>
+        <div
+          className="modal-container modal-large"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div
+            className="modal-body"
+            style={{ textAlign: "center", padding: "40px" }}
+          >
+            <div className="gold-spinner"></div>
+            <p>Loading user analytics...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="modal-overlay" onClick={onClose}>
+        <div
+          className="modal-container modal-large"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="modal-body">
+            <div className="error-message">{error}</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div
+        className="modal-container modal-large"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="modal-header">
+          <h5 className="modal-title">
+            <i className="bi bi-graph-up"></i>
+            User Analytics: {user?.fullname}
+          </h5>
+          <button className="modal-close" onClick={onClose}>
+            <i className="bi bi-x-lg"></i>
+          </button>
+        </div>
+        <div className="modal-body analytics-body">
+          {/* User Info Summary */}
+
+          <div className="analytics-summary">
+            <div className="summary-card">
+              {user?.profilePicture ? (
+                <img
+                  src={
+                    user.profilePicture.startsWith("http")
+                      ? user.profilePicture
+                      : `${process.env.NEXT_PUBLIC_BACKEND_URL}${user.profilePicture}`
+                  }
+                  alt={user?.fullname}
+                  style={{
+                    width: "48px",
+                    height: "48px",
+                    borderRadius: "50%",
+                    objectFit: "cover",
+                  }}
+                />
+              ) : (
+                <i className="bi bi-person-circle"></i>
+              )}
+              <div>
+                <small>User</small>
+                <p>{user?.fullname}</p>
+              </div>
+            </div>
+            {/* rest of summary cards */}
+          </div>
+
+          {/* Order Stats */}
+          <div className="analytics-section">
+            <h4>
+              <i className="bi bi-bag-check"></i> Order Statistics
+            </h4>
+            <div className="stats-grid-small">
+              <div className="stat-card-mini">
+                <div className="stat-icon-mini">
+                  <i className="bi bi-bag"></i>
+                </div>
+                <div className="stat-info">
+                  <span className="stat-label">Total Orders</span>
+                  <span className="stat-number">
+                    {analytics?.orders?.total || 0}
+                  </span>
+                </div>
+              </div>
+              <div className="stat-card-mini success">
+                <div className="stat-icon-mini">
+                  <i className="bi bi-check-circle"></i>
+                </div>
+                <div className="stat-info">
+                  <span className="stat-label">Completed</span>
+                  <span className="stat-number">
+                    {analytics?.orders?.byStatus?.delivered || 0}
+                  </span>
+                </div>
+              </div>
+              <div className="stat-card-mini warning">
+                <div className="stat-icon-mini">
+                  <i className="bi bi-hourglass"></i>
+                </div>
+                <div className="stat-info">
+                  <span className="stat-label">Pending</span>
+                  <span className="stat-number">
+                    {analytics?.orders?.byStatus?.pending || 0}
+                  </span>
+                </div>
+              </div>
+              <div className="stat-card-mini danger">
+                <div className="stat-icon-mini">
+                  <i className="bi bi-x-circle"></i>
+                </div>
+                <div className="stat-info">
+                  <span className="stat-label">Cancelled</span>
+                  <span className="stat-number">
+                    {analytics?.orders?.byStatus?.cancelled || 0}
+                  </span>
+                </div>
+              </div>
+              <div className="stat-card-mini info">
+                <div className="stat-icon-mini">
+                  <i className="bi bi-credit-card"></i>
+                </div>
+                <div className="stat-info">
+                  <span className="stat-label">Total Spent</span>
+                  <span className="stat-number">
+                    {formatCurrency(analytics?.orders?.totalAmount)}
+                  </span>
+                </div>
+              </div>
+              <div className="stat-card-mini primary">
+                <div className="stat-icon-mini">
+                  <i className="bi bi-calculator"></i>
+                </div>
+                <div className="stat-info">
+                  <span className="stat-label">Avg Order Value</span>
+                  <span className="stat-number">
+                    {formatCurrency(
+                      analytics?.orders?.totalAmount /
+                        (analytics?.orders?.total || 1),
+                    )}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Order Status Breakdown */}
+          <div className="analytics-section">
+            <h4>
+              <i className="bi bi-pie-chart"></i> Order Status Breakdown
+            </h4>
+            <div className="status-breakdown">
+              {Object.entries(analytics?.orders?.byStatus || {}).map(
+                ([status, count]) =>
+                  count > 0 && (
+                    <div key={status} className="status-item">
+                      <span className={`status-badge ${status}`}>{status}</span>
+                      <div className="status-bar-container">
+                        <div
+                          className="status-bar"
+                          style={{
+                            width: `${(count / (analytics?.orders?.total || 1)) * 100}%`,
+                          }}
+                        ></div>
+                      </div>
+                      <span className="status-count">{count}</span>
+                    </div>
+                  ),
+              )}
+            </div>
+          </div>
+
+          {/* Monthly Spending */}
+          {analytics?.monthlySpending &&
+            Object.keys(analytics.monthlySpending).length > 0 && (
+              <div className="analytics-section">
+                <h4>
+                  <i className="bi bi-graph-up"></i> Monthly Spending
+                </h4>
+                <div className="monthly-spending">
+                  {Object.entries(analytics.monthlySpending)
+                    .slice(-6)
+                    .map(([month, amount]) => (
+                      <div key={month} className="month-item">
+                        <span className="month-label">{month}</span>
+                        <div className="month-bar-container">
+                          <div
+                            className="month-bar"
+                            style={{
+                              width: `${Math.min(100, (amount / (analytics?.orders?.totalAmount || 1)) * 100)}%`,
+                            }}
+                          ></div>
+                        </div>
+                        <span className="month-amount">
+                          {formatCurrency(amount)}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
+          {/* Wallet Info */}
+          <div className="analytics-section">
+            <h4>
+              <i className="bi bi-wallet2"></i> Wallet & Escrow
+            </h4>
+            <div className="wallet-info">
+              <div className="wallet-card">
+                <i className="bi bi-cash-stack"></i>
+                <div>
+                  <small>Available Balance</small>
+                  <strong>{formatCurrency(analytics?.wallet?.balance)}</strong>
+                </div>
+              </div>
+              <div className="wallet-card escrow">
+                <i className="bi bi-shield-lock"></i>
+                <div>
+                  <small>In Escrow</small>
+                  <strong>
+                    {formatCurrency(analytics?.wallet?.escrowBalance)}
+                  </strong>
+                </div>
+              </div>
+              <div className="wallet-card">
+                <i className="bi bi-arrow-up-circle"></i>
+                <div>
+                  <small>Total Deposited</small>
+                  <strong>
+                    {formatCurrency(analytics?.wallet?.totalDeposited)}
+                  </strong>
+                </div>
+              </div>
+              <div className="wallet-card">
+                <i className="bi bi-arrow-down-circle"></i>
+                <div>
+                  <small>Total Withdrawn</small>
+                  <strong>
+                    {formatCurrency(analytics?.wallet?.totalWithdrawn)}
+                  </strong>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Seller Analytics (if seller) */}
+          {analytics?.sellerAnalytics && (
+            <>
+              <div className="analytics-section">
+                <h4>
+                  <i className="bi bi-shop"></i> Seller Performance
+                </h4>
+                <div className="stats-grid-small">
+                  <div className="stat-card-mini">
+                    <div className="stat-icon-mini">
+                      <i className="bi bi-box"></i>
+                    </div>
+                    <div className="stat-info">
+                      <span className="stat-label">Total Products</span>
+                      <span className="stat-number">
+                        {analytics.sellerAnalytics.products?.total || 0}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="stat-card-mini success">
+                    <div className="stat-icon-mini">
+                      <i className="bi bi-check-circle"></i>
+                    </div>
+                    <div className="stat-info">
+                      <span className="stat-label">Active Products</span>
+                      <span className="stat-number">
+                        {analytics.sellerAnalytics.products?.active || 0}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="stat-card-mini info">
+                    <div className="stat-icon-mini">
+                      <i className="bi bi-cart-check"></i>
+                    </div>
+                    <div className="stat-info">
+                      <span className="stat-label">Orders Received</span>
+                      <span className="stat-number">
+                        {analytics.sellerAnalytics.orders?.total || 0}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="stat-card-mini success">
+                    <div className="stat-icon-mini">
+                      <i className="bi bi-trophy"></i>
+                    </div>
+                    <div className="stat-info">
+                      <span className="stat-label">Total Revenue</span>
+                      <span className="stat-number">
+                        {formatCurrency(
+                          analytics.sellerAnalytics.orders?.totalRevenue,
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent Seller Orders */}
+              {analytics.sellerAnalytics.orders?.recentOrders?.length > 0 && (
+                <div className="analytics-section">
+                  <h4>
+                    <i className="bi bi-clock-history"></i> Recent Seller Orders
+                  </h4>
+                  <div className="recent-orders-table">
+                    <table className="mini-table">
+                      <thead>
+                        <tr>
+                          <th>Order ID</th>
+                          <th>Customer</th>
+                          <th>Amount</th>
+                          <th>Status</th>
+                          <th>Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {analytics.sellerAnalytics.orders.recentOrders.map(
+                          (order) => (
+                            <tr key={order.id}>
+                              <td>{order.id?.slice(-8).toUpperCase()}</td>
+                              <td>{order.customer || "N/A"}</td>
+                              <td>{formatCurrency(order.totalAmount)}</td>
+                              <td>
+                                <span
+                                  className={`status-badge small ${order.status}`}
+                                >
+                                  {order.status}
+                                </span>
+                              </td>
+                              <td>{formatDate(order.createdAt)}</td>
+                            </tr>
+                          ),
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Recent User Orders */}
+          {analytics?.orders?.recentOrders?.length > 0 && (
+            <div className="analytics-section">
+              <h4>
+                <i className="bi bi-clock-history"></i> Recent Orders
+              </h4>
+              <div className="recent-orders-table">
+                <table className="mini-table">
+                  <thead>
+                    <tr>
+                      <th>Order ID</th>
+                      <th>Items</th>
+                      <th>Amount</th>
+                      <th>Status</th>
+                      <th>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {analytics.orders.recentOrders.map((order) => (
+                      <tr key={order.id}>
+                        <td>{order.id?.slice(-8).toUpperCase()}</td>
+                        <td>{order.itemsCount}</td>
+                        <td>{formatCurrency(order.totalAmount)}</td>
+                        <td>
+                          <span
+                            className={`status-badge small ${order.status}`}
+                          >
+                            {order.status}
+                          </span>
+                        </td>
+                        <td>{formatDate(order.createdAt)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="modal-footer">
+          <button className="btn-secondary" onClick={onClose}>
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const UserRow = ({
+  user,
+  index,
+  onEdit,
+  onDelete,
+  onToggleStatus,
+  onViewAnalytics,
+}) => {
   const getRoleConfig = (role) => {
     const configs = {
       admin: {
@@ -63,13 +519,68 @@ const UserRow = ({ user, index, onEdit, onDelete, onToggleStatus }) => {
   };
 
   const roleConfig = getRoleConfig(user.role);
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+    }).format(amount || 0);
+  };
+
+  // Get profile image URL - FIXED for filename only storage
+  const getProfileImageUrl = () => {
+    if (!user.profilePicture) return null;
+
+    const imagePath = user.profilePicture;
+
+    // If it's already a full URL
+    if (imagePath.startsWith("http")) {
+      return imagePath;
+    }
+
+    // If it starts with /uploads
+    if (imagePath.startsWith("/uploads")) {
+      return `${process.env.NEXT_PUBLIC_BACKEND_URL}${imagePath}`;
+    }
+
+    // If it's just a filename (like 'profile-xxx.jpg')
+    // Construct the full path to the profiles folder
+    return `${process.env.NEXT_PUBLIC_BACKEND_URL}/uploads/profiles/${imagePath}`;
+  };
+
+  const profileImage = getProfileImageUrl();
 
   return (
     <tr className="user-row">
       <td className="index-cell">{index + 1}</td>
       <td className="user-cell">
         <div className="user-avatar">
-          <i className="bi bi-person-circle"></i>
+          {profileImage ? (
+            <img
+              src={profileImage}
+              alt={user.fullname}
+              style={{
+                width: "44px",
+                height: "44px",
+                borderRadius: "50%",
+                objectFit: "cover",
+              }}
+              onError={(e) => {
+                // If image fails to load, show icon
+                e.target.style.display = "none";
+                const parent = e.target.parentElement;
+                const icon = document.createElement("i");
+                icon.className = "bi bi-person-circle";
+                icon.style.fontSize = "44px";
+                icon.style.color = "var(--gold)";
+                parent.appendChild(icon);
+              }}
+            />
+          ) : (
+            <i
+              className="bi bi-person-circle"
+              style={{ fontSize: "44px", color: "var(--gold)" }}
+            ></i>
+          )}
         </div>
         <div className="user-info">
           <div className="user-name">{user.fullname || "N/A"}</div>
@@ -77,6 +588,17 @@ const UserRow = ({ user, index, onEdit, onDelete, onToggleStatus }) => {
         </div>
       </td>
       <td className="email-cell">{user.email}</td>
+      <td className="stats-cell">
+        <div className="quick-stats">
+          <span title="Total Orders">
+            <i className="bi bi-bag"></i> {user.stats?.totalOrders || 0}
+          </span>
+          <span title="Total Spent">
+            <i className="bi bi-credit-card"></i>{" "}
+            {formatCurrency(user.stats?.totalSpending)}
+          </span>
+        </div>
+      </td>
       <td className="role-cell">
         <span className={roleConfig.class}>
           <i className={`bi ${roleConfig.icon}`}></i>
@@ -102,13 +624,22 @@ const UserRow = ({ user, index, onEdit, onDelete, onToggleStatus }) => {
       </td>
       <td className="date-cell">
         <i className="bi bi-calendar3"></i>
-        {new Date(user.createdAt).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        })}
+        <span>
+          {new Date(user.createdAt).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          })}
+        </span>
       </td>
       <td className="actions-cell">
+        <button
+          className="action-btn analytics"
+          onClick={() => onViewAnalytics(user)}
+          title="View Analytics"
+        >
+          <i className="bi bi-graph-up"></i>
+        </button>
         <button
           className="action-btn edit"
           onClick={() => onEdit(user)}
@@ -127,7 +658,6 @@ const UserRow = ({ user, index, onEdit, onDelete, onToggleStatus }) => {
     </tr>
   );
 };
-
 const AdminUsers = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -140,6 +670,7 @@ const AdminUsers = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -306,6 +837,7 @@ const AdminUsers = () => {
   };
 
   const toggleUserStatus = async (user) => {
+    setActionLoading(true);
     try {
       const token = tokenRef.current;
       await axios.put(
@@ -315,13 +847,23 @@ const AdminUsers = () => {
       );
       await fetchUsers();
       showToast(
-        `User ${user.isDeleted ? "activated" : "deactivated"}`,
+        `User ${user.isDeleted ? "activated" : "deactivated"} successfully`,
         "success",
       );
     } catch (err) {
       console.error(err);
-      showToast("Failed to update user status", "error");
+      showToast(
+        err.response?.data?.message || "Failed to update user status",
+        "error",
+      );
+    } finally {
+      setActionLoading(false);
     }
+  };
+
+  const openAnalytics = (user) => {
+    setSelectedUser(user);
+    setShowAnalyticsModal(true);
   };
 
   const filteredUsers = users.filter((user) => {
@@ -346,6 +888,11 @@ const AdminUsers = () => {
     sellers: users.filter((u) => u.role === "seller").length,
     active: users.filter((u) => !u.isDeleted).length,
     deleted: users.filter((u) => u.isDeleted).length,
+    totalSpending: users.reduce(
+      (sum, u) => sum + (u.stats?.totalSpending || 0),
+      0,
+    ),
+    totalOrders: users.reduce((sum, u) => sum + (u.stats?.totalOrders || 0), 0),
   };
 
   const formatCurrency = (amount) => {
@@ -405,6 +952,12 @@ const AdminUsers = () => {
             color="primary"
           />
           <StatCard
+            title="Active Users"
+            value={stats.active}
+            icon="bi-check-circle-fill"
+            color="success"
+          />
+          <StatCard
             title="Admins"
             value={stats.admins}
             icon="bi-shield-lock-fill"
@@ -421,6 +974,18 @@ const AdminUsers = () => {
             value={stats.users}
             icon="bi-person"
             color="info"
+          />
+          <StatCard
+            title="Total Orders"
+            value={stats.totalOrders}
+            icon="bi-bag-check"
+            color="primary"
+          />
+          <StatCard
+            title="Total Spending"
+            value={formatCurrency(stats.totalSpending)}
+            icon="bi-currency-dollar"
+            color="success"
           />
         </div>
 
@@ -478,10 +1043,10 @@ const AdminUsers = () => {
                     <th style={{ width: "60px" }}>#</th>
                     <th>User</th>
                     <th>Email</th>
+                    <th>Quick Stats</th>
                     <th>Role</th>
                     <th>Status</th>
-                    <th>Joined</th>
-                    <th style={{ width: "100px" }}>Actions</th>
+                    <th>Joined & Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -494,11 +1059,12 @@ const AdminUsers = () => {
                         onEdit={openEdit}
                         onDelete={openDelete}
                         onToggleStatus={toggleUserStatus}
+                        onViewAnalytics={openAnalytics}
                       />
                     ))
                   ) : (
                     <tr className="empty-row">
-                      <td colSpan="7" className="empty-table-cell">
+                      <td colSpan="8" className="empty-table-cell">
                         <i className="bi bi-inbox"></i>
                         <h5>No users found</h5>
                         <p>Try adjusting your filters</p>
@@ -802,6 +1368,17 @@ const AdminUsers = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Analytics Modal */}
+      {showAnalyticsModal && selectedUser && (
+        <UserAnalyticsModal
+          user={selectedUser}
+          onClose={() => {
+            setShowAnalyticsModal(false);
+            setSelectedUser(null);
+          }}
+        />
       )}
     </div>
   );
