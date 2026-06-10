@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import "./ProfilePage.css";
 
 // Toast Component
 const Toast = ({ message, type, onClose }) => {
@@ -28,64 +28,18 @@ const Toast = ({ message, type, onClose }) => {
     }
   };
 
-  const getBgColor = () => {
-    switch (type) {
-      case "success":
-        return "bg-success";
-      case "error":
-        return "bg-danger";
-      case "warning":
-        return "bg-warning";
-      case "info":
-        return "bg-info";
-      default:
-        return "bg-primary";
-    }
-  };
-
   return (
-    <div
-      className={`toast-notification ${getBgColor()} text-white`}
-      role="alert"
-    >
-      <i className={`bi ${getIcon()} me-2`}></i>
-      <span className="flex-grow-1">{message}</span>
-      <button
-        type="button"
-        className="btn-close btn-close-white ms-3"
-        onClick={onClose}
-      ></button>
-      <style jsx>{`
-        .toast-notification {
-          position: fixed;
-          top: 20px;
-          right: 20px;
-          min-width: 300px;
-          max-width: 400px;
-          padding: 1rem 1.25rem;
-          border-radius: 0.5rem;
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-          display: flex;
-          align-items: center;
-          z-index: 9999;
-          animation: slideIn 0.3s ease forwards;
-        }
-        @keyframes slideIn {
-          from {
-            transform: translateX(100%);
-            opacity: 0;
-          }
-          to {
-            transform: translateX(0);
-            opacity: 1;
-          }
-        }
-      `}</style>
+    <div className={`toast-notification toast-${type}`}>
+      <i className={`bi ${getIcon()} toast-icon`}></i>
+      <span className="toast-message">{message}</span>
+      <button className="toast-close-btn" onClick={onClose}>
+        <i className="bi bi-x-lg"></i>
+      </button>
     </div>
   );
 };
 
-// Edit Profile Modal
+// Edit Profile Modal with Profile Picture Upload
 const EditProfileModal = ({ show, onClose, profile, onUpdate }) => {
   const [formData, setFormData] = useState({
     fullname: "",
@@ -93,7 +47,10 @@ const EditProfileModal = ({ show, onClose, profile, onUpdate }) => {
     phone: "",
     address: "",
   });
+  const [profileImage, setProfileImage] = useState(null);
+  const [profilePreview, setProfilePreview] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (profile) {
@@ -103,6 +60,13 @@ const EditProfileModal = ({ show, onClose, profile, onUpdate }) => {
         phone: profile.phone || "",
         address: profile.address || "",
       });
+      if (profile.profilePicture) {
+        const API = process.env.NEXT_PUBLIC_BACKEND_URL;
+        const profilePicUrl = profile.profilePicture.startsWith("http")
+          ? profile.profilePicture
+          : `${API}/uploads/profiles/${profile.profilePicture}`;
+        setProfilePreview(profilePicUrl);
+      }
     }
   }, [profile]);
 
@@ -111,23 +75,69 @@ const EditProfileModal = ({ show, onClose, profile, onUpdate }) => {
       ...formData,
       [e.target.name]: e.target.value,
     });
+    setError("");
+  };
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const allowedTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
+      if (!allowedTypes.includes(file.type)) {
+        setError("Please select a valid image file (JPEG, PNG, GIF, or WEBP)");
+        return;
+      }
+
+      if (file.size > 2 * 1024 * 1024) {
+        setError("File size must be less than 2MB");
+        return;
+      }
+
+      setProfileImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfilePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+      setError("");
+    }
+  };
+
+  const removeImage = () => {
+    setProfileImage(null);
+    setProfilePreview(null);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError("");
 
     try {
       const token = localStorage.getItem("token");
+      const formDataToSend = new FormData();
+
+      formDataToSend.append("fullname", formData.fullname);
+      formDataToSend.append("phone", formData.phone);
+      formDataToSend.append("address", formData.address);
+
+      if (profileImage) {
+        formDataToSend.append("profileImage", profileImage);
+      }
+
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/profile/update`,
         {
           method: "PUT",
           headers: {
-            "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify(formData),
+          body: formDataToSend,
         },
       );
 
@@ -139,9 +149,10 @@ const EditProfileModal = ({ show, onClose, profile, onUpdate }) => {
 
       onUpdate(data.user);
       onClose();
+      setProfileImage(null);
     } catch (error) {
       console.error("Error updating profile:", error);
-      alert(error.message);
+      setError(error.message);
     } finally {
       setLoading(false);
     }
@@ -150,383 +161,128 @@ const EditProfileModal = ({ show, onClose, profile, onUpdate }) => {
   if (!show) return null;
 
   return (
-    <div
-      className="modal show d-block"
-      style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-      onClick={onClose}
-    >
+    <div className="modal-overlay" onClick={onClose}>
       <div
-        className="modal-dialog modal-dialog-centered"
+        className="modal-container modal-wide"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="modal-content">
-          <div className="modal-header">
-            <h5 className="modal-title">Edit Profile</h5>
-            <button
-              type="button"
-              className="btn-close"
-              onClick={onClose}
-            ></button>
-          </div>
-          <form onSubmit={handleSubmit}>
-            <div className="modal-body">
-              <div className="mb-3">
-                <label className="form-label">Full Name</label>
+        <div className="modal-header">
+          <h5 className="modal-title">
+            <i className="bi bi-pencil-square"></i>
+            Edit Profile
+          </h5>
+          <button className="modal-close" onClick={onClose}>
+            <i className="bi bi-x-lg"></i>
+          </button>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="modal-body-two-columns">
+            {/* Left Column - Profile Picture */}
+            <div className="profile-picture-column">
+              <label className="form-label">Profile Picture</label>
+              <div className="profile-preview-container">
+                <div className="profile-preview-large">
+                  {profilePreview ? (
+                    <img src={profilePreview} alt="Profile preview" />
+                  ) : (
+                    <div className="profile-preview-placeholder">
+                      <i className="bi bi-person-fill"></i>
+                    </div>
+                  )}
+                </div>
+                <div className="profile-preview-actions">
+                  <label htmlFor="profile-image-input" className="btn-upload">
+                    <i className="bi bi-camera"></i>
+                    {profilePreview ? "Change Photo" : "Upload Photo"}
+                  </label>
+                  <input
+                    id="profile-image-input"
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                    onChange={handleImageChange}
+                    style={{ display: "none" }}
+                  />
+                  {profilePreview && (
+                    <button
+                      type="button"
+                      className="btn-remove"
+                      onClick={removeImage}
+                    >
+                      <i className="bi bi-trash"></i> Remove
+                    </button>
+                  )}
+                </div>
+                <small className="form-hint">
+                  <i className="bi bi-info-circle"></i> JPG, PNG, GIF, WEBP up
+                  to 2MB
+                </small>
+              </div>
+            </div>
+
+            {/* Right Column - Form Fields */}
+            <div className="form-fields-column">
+              <div className="form-group">
+                <label>
+                  Full Name <span className="required">*</span>
+                </label>
                 <input
                   type="text"
-                  className="form-control"
+                  className="form-input"
                   name="fullname"
                   value={formData.fullname}
                   onChange={handleChange}
                   required
                 />
               </div>
-              <div className="mb-3">
-                <label className="form-label">Email</label>
+              <div className="form-group">
+                <label>Email</label>
                 <input
                   type="email"
-                  className="form-control"
-                  name="email"
+                  className="form-input"
                   value={formData.email}
-                  onChange={handleChange}
-                  required
                   disabled
                 />
-                <small className="text-muted">Email cannot be changed</small>
+                <small className="form-hint">Email cannot be changed</small>
               </div>
-              <div className="mb-3">
-                <label className="form-label">Phone</label>
+              <div className="form-group">
+                <label>Phone</label>
                 <input
                   type="tel"
-                  className="form-control"
+                  className="form-input"
                   name="phone"
                   value={formData.phone}
                   onChange={handleChange}
                 />
               </div>
-              <div className="mb-3">
-                <label className="form-label">Address</label>
+              <div className="form-group">
+                <label>Address</label>
                 <textarea
-                  className="form-control"
+                  className="form-textarea"
                   name="address"
-                  rows="2"
+                  rows="3"
                   value={formData.address}
                   onChange={handleChange}
-                ></textarea>
+                />
               </div>
             </div>
-            <div className="modal-footer">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={onClose}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <span
-                      className="spinner-border spinner-border-sm me-2"
-                      role="status"
-                    ></span>
-                    Updating...
-                  </>
-                ) : (
-                  "Save Changes"
-                )}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Add Bank Account Modal
-const AddBankModal = ({ show, onClose, onSuccess }) => {
-  const [formData, setFormData] = useState({
-    accountHolderName: "",
-    routingNumber: "",
-    accountNumber: "",
-    bankName: "",
-  });
-  const [loading, setLoading] = useState(false);
-
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/wallet/bank-account`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(formData),
-        },
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to add bank account");
-      }
-
-      onSuccess();
-      onClose();
-      setFormData({
-        accountHolderName: "",
-        routingNumber: "",
-        accountNumber: "",
-        bankName: "",
-      });
-    } catch (error) {
-      console.error("Error adding bank account:", error);
-      alert(error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (!show) return null;
-
-  return (
-    <div
-      className="modal show d-block"
-      style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-      onClick={onClose}
-    >
-      <div
-        className="modal-dialog modal-dialog-centered"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="modal-content">
-          <div className="modal-header">
-            <h5 className="modal-title">Add Bank Account</h5>
-            <button
-              type="button"
-              className="btn-close"
-              onClick={onClose}
-            ></button>
           </div>
-          <form onSubmit={handleSubmit}>
-            <div className="modal-body">
-              <div className="mb-3">
-                <label className="form-label">Account Holder Name</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  name="accountHolderName"
-                  value={formData.accountHolderName}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-              <div className="mb-3">
-                <label className="form-label">Bank Name</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  name="bankName"
-                  value={formData.bankName}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-              <div className="row">
-                <div className="col-md-6 mb-3">
-                  <label className="form-label">Routing Number</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    name="routingNumber"
-                    value={formData.routingNumber}
-                    onChange={handleChange}
-                    required
-                    pattern="[0-9]{9}"
-                    title="9 digit routing number"
-                  />
-                </div>
-                <div className="col-md-6 mb-3">
-                  <label className="form-label">Account Number</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    name="accountNumber"
-                    value={formData.accountNumber}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-              </div>
-              <small className="text-muted">
-                Your bank details are encrypted and secure
-              </small>
+
+          {error && (
+            <div className="error-message">
+              <i className="bi bi-exclamation-triangle-fill"></i>
+              {error}
             </div>
-            <div className="modal-footer">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={onClose}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <span
-                      className="spinner-border spinner-border-sm me-2"
-                      role="status"
-                    ></span>
-                    Adding...
-                  </>
-                ) : (
-                  "Add Bank Account"
-                )}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
-};
+          )}
 
-// Withdraw Modal
-const WithdrawModal = ({ show, onClose, wallet, onSuccess }) => {
-  const [amount, setAmount] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/wallet/withdraw`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ amount: parseFloat(amount) }),
-        },
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to process withdrawal");
-      }
-
-      onSuccess();
-      onClose();
-      setAmount("");
-    } catch (error) {
-      console.error("Error processing withdrawal:", error);
-      alert(error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (!show) return null;
-
-  const maxAmount = wallet?.availableBalance || 0;
-
-  return (
-    <div
-      className="modal show d-block"
-      style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-      onClick={onClose}
-    >
-      <div
-        className="modal-dialog modal-dialog-centered"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="modal-content">
-          <div className="modal-header">
-            <h5 className="modal-title">Withdraw Funds</h5>
-            <button
-              type="button"
-              className="btn-close"
-              onClick={onClose}
-            ></button>
+          <div className="modal-footer">
+            <button type="button" className="btn-secondary" onClick={onClose}>
+              Cancel
+            </button>
+            <button type="submit" className="btn-primary" disabled={loading}>
+              {loading ? <span className="spinner"></span> : "Save Changes"}
+            </button>
           </div>
-          <form onSubmit={handleSubmit}>
-            <div className="modal-body">
-              <div className="alert alert-info">
-                <strong>Available Balance:</strong> ${maxAmount.toFixed(2)}
-              </div>
-              <div className="mb-3">
-                <label className="form-label">Amount to Withdraw ($)</label>
-                <input
-                  type="number"
-                  className="form-control"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  min="1"
-                  max={maxAmount}
-                  step="0.01"
-                  required
-                />
-              </div>
-              <p className="text-muted small">
-                Funds will be transferred to your bank account within 2-7
-                business days.
-              </p>
-            </div>
-            <div className="modal-footer">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={onClose}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={loading || !amount || amount > maxAmount}
-              >
-                {loading ? (
-                  <>
-                    <span
-                      className="spinner-border spinner-border-sm me-2"
-                      role="status"
-                    ></span>
-                    Processing...
-                  </>
-                ) : (
-                  "Withdraw"
-                )}
-              </button>
-            </div>
-          </form>
-        </div>
+        </form>
       </div>
     </div>
   );
@@ -535,28 +291,32 @@ const WithdrawModal = ({ show, onClose, wallet, onSuccess }) => {
 const ProfilePage = () => {
   const router = useRouter();
   const [profile, setProfile] = useState(null);
-  const [wallet, setWallet] = useState(null);
-  const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
-
-  // Modal states
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showBankModal, setShowBankModal] = useState(false);
-  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
-
-  // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const transactionsPerPage = 10;
 
   const showToast = (message, type = "success") => setToast({ message, type });
   const closeToast = () => setToast(null);
+
+  // Helper function to get profile picture URL
+  const getProfilePictureUrl = () => {
+    if (!profile?.profilePicture) return null;
+    const API = process.env.NEXT_PUBLIC_BACKEND_URL;
+    if (profile.profilePicture.startsWith("http")) {
+      return profile.profilePicture;
+    }
+    return `${API}/uploads/profiles/${profile.profilePicture}`;
+  };
 
   // Fetch profile
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem("token");
+      if (!token) {
+        router.push("/login");
+        return;
+      }
+
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/profile/`,
         {
@@ -564,135 +324,53 @@ const ProfilePage = () => {
         },
       );
 
-      if (!response.ok) throw new Error("Failed to fetch profile");
+      if (!response.ok) {
+        if (response.status === 401) {
+          localStorage.removeItem("token");
+          router.push("/login");
+          return;
+        }
+        throw new Error("Failed to fetch profile");
+      }
       const data = await response.json();
       setProfile(data.user || data);
     } catch (error) {
       console.error("Error fetching profile:", error);
       showToast("Failed to load profile", "error");
+    } finally {
+      setLoading(false);
     }
-  };
-
-  // Fetch wallet
-  const fetchWallet = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/wallet/me`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
-
-      if (!response.ok) throw new Error("Failed to fetch wallet");
-      const data = await response.json();
-      setWallet(data.wallet);
-    } catch (error) {
-      console.error("Error fetching wallet:", error);
-    }
-  };
-
-  // Fetch transactions
-  const fetchTransactions = async (page = 1) => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/wallet/transactions?page=${page}&limit=${transactionsPerPage}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
-
-      if (!response.ok) throw new Error("Failed to fetch transactions");
-      const data = await response.json();
-      setTransactions(data.transactions || []);
-      setTotalPages(data.pagination?.pages || 1);
-      setCurrentPage(data.pagination?.page || 1);
-    } catch (error) {
-      console.error("Error fetching transactions:", error);
-    }
-  };
-
-  // Load all data
-  const loadData = async () => {
-    setLoading(true);
-    await Promise.all([fetchProfile(), fetchWallet(), fetchTransactions()]);
-    setLoading(false);
   };
 
   useEffect(() => {
-    loadData();
+    fetchProfile();
   }, []);
-
-  const handlePageChange = (newPage) => {
-    setCurrentPage(newPage);
-    fetchTransactions(newPage);
-  };
 
   const formatDate = (date) => {
     return new Date(date).toLocaleDateString("en-US", {
       year: "numeric",
-      month: "short",
+      month: "long",
       day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
     });
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(Math.abs(amount));
-  };
-
-  const getTransactionIcon = (type) => {
-    switch (type) {
-      case "received":
-        return "bi-arrow-down-circle-fill text-success";
-      case "send":
-        return "bi-arrow-up-circle-fill text-danger";
-      case "withdrawal":
-        return "bi-bank text-warning";
-      case "refund":
-        return "bi-arrow-return-left text-info";
-      default:
-        return "bi-circle-fill text-secondary";
-    }
-  };
-
-  const getStatusBadge = (status) => {
-    const colors = {
-      pending: "warning",
-      locked: "info",
-      available: "success",
-      completed: "success",
-      failed: "danger",
-    };
-    return colors[status] || "secondary";
   };
 
   if (loading) {
     return (
-      <div className="container py-5 text-center">
-        <div className="spinner-border text-primary mb-3" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
-        <h5 className="text-muted">Loading profile...</h5>
+      <div className="loading-container">
+        <div className="gold-spinner"></div>
+        <p>Loading profile...</p>
       </div>
     );
   }
 
-  const isSeller = profile?.role === "seller";
+  const profilePictureUrl = getProfilePictureUrl();
 
   return (
-    <div className="container py-4">
-      {/* Toast */}
+    <div className="profile-page">
       {toast && (
         <Toast message={toast.message} type={toast.type} onClose={closeToast} />
       )}
 
-      {/* Modals */}
       <EditProfileModal
         show={showEditModal}
         onClose={() => setShowEditModal(false)}
@@ -703,276 +381,199 @@ const ProfilePage = () => {
         }}
       />
 
-      <AddBankModal
-        show={showBankModal}
-        onClose={() => setShowBankModal(false)}
-        onSuccess={() => {
-          fetchWallet();
-          showToast("Bank account added successfully", "success");
-        }}
-      />
-
-      <WithdrawModal
-        show={showWithdrawModal}
-        onClose={() => setShowWithdrawModal(false)}
-        wallet={wallet}
-        onSuccess={() => {
-          fetchWallet();
-          fetchTransactions();
-          showToast("Withdrawal initiated successfully", "success");
-        }}
-      />
-
-      {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <h1 className="h2 fw-bold mb-2">My Profile</h1>
-          <p className="text-muted mb-0">Manage your account and finances</p>
+      <div className="profile-container">
+        {/* Header */}
+        <div className="page-header">
+          <div>
+            <div className="header-badge">
+              <i className="bi bi-person-circle"></i>
+              <span>My Profile</span>
+            </div>
+            <h1 className="page-title">Account Settings</h1>
+            <p className="page-subtitle">Manage your account information</p>
+          </div>
+          <button
+            className="btn-primary-gold"
+            onClick={() => setShowEditModal(true)}
+          >
+            <i className="bi bi-pencil-square"></i>
+            Edit Profile
+          </button>
         </div>
-        <button
-          className="btn btn-primary"
-          onClick={() => setShowEditModal(true)}
-        >
-          <i className="bi bi-pencil-square me-2"></i>
-          Edit Profile
-        </button>
-      </div>
 
-      <div className="row">
-        {/* Profile Information */}
-        <div className="col-lg-4 mb-4">
-          <div className="card border-0 shadow-sm h-100">
-            <div className="card-body">
-              <div className="text-center mb-4">
-                <div className="bg-light rounded-circle d-inline-flex p-4 mb-3">
-                  <i className="bi bi-person-circle fs-1 text-primary"></i>
-                </div>
-                <h4 className="fw-bold mb-1">{profile?.fullname}</h4>
-                <p className="text-muted mb-2">{profile?.email}</p>
-                <span
-                  className={`badge bg-${profile?.role === "seller" ? "success" : "info"} px-3 py-2`}
-                >
-                  {profile?.role?.toUpperCase()}
+        <div className="profile-grid">
+          {/* Profile Information Card */}
+          <div className="profile-card">
+            <div className="profile-avatar">
+              <div className="avatar-wrapper">
+                {profilePictureUrl ? (
+                  <img
+                    src={profilePictureUrl}
+                    alt={profile?.fullname}
+                    className="profile-avatar-image"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.style.display = "none";
+                      e.target.parentElement.innerHTML =
+                        '<i class="bi bi-person-circle"></i>';
+                    }}
+                  />
+                ) : (
+                  <i className="bi bi-person-circle"></i>
+                )}
+              </div>
+              <h3 className="profile-name">{profile?.fullname}</h3>
+              <p className="profile-email">{profile?.email}</p>
+              <span
+                className={`role-badge ${profile?.role === "admin" ? "seller" : "buyer"}`}
+              >
+                {profile?.role?.toUpperCase()}
+              </span>
+            </div>
+
+            <div className="profile-divider"></div>
+
+            <div className="profile-info-section">
+              <h4 className="section-title-small">
+                <i className="bi bi-info-circle"></i>
+                Contact Information
+              </h4>
+              <div className="info-item">
+                <i className="bi bi-telephone"></i>
+                <span>{profile?.phone || "Not provided"}</span>
+              </div>
+              <div className="info-item">
+                <i className="bi bi-geo-alt"></i>
+                <span>{profile?.address || "Not provided"}</span>
+              </div>
+              <div className="info-item">
+                <i className="bi bi-calendar"></i>
+                <span>
+                  Joined{" "}
+                  {profile?.createdAt ? formatDate(profile.createdAt) : "N/A"}
                 </span>
               </div>
-
-              <hr />
-
-              <div className="mb-3">
-                <h6 className="fw-semibold mb-3">Contact Information</h6>
-                <div className="d-flex mb-2">
-                  <i className="bi bi-telephone me-3 text-muted"></i>
-                  <span>{profile?.phone || "Not provided"}</span>
-                </div>
-                <div className="d-flex mb-2">
-                  <i className="bi bi-geo-alt me-3 text-muted"></i>
-                  <span>{profile?.address || "Not provided"}</span>
-                </div>
-                <div className="d-flex">
-                  <i className="bi bi-calendar me-3 text-muted"></i>
-                  <span>
-                    Joined{" "}
-                    {profile?.createdAt
-                      ? new Date(profile.createdAt).toLocaleDateString()
-                      : "N/A"}
-                  </span>
-                </div>
-              </div>
-
-              {isSeller && (
-                <>
-                  <hr />
-                  <div className="mb-3">
-                    <h6 className="fw-semibold mb-3">Bank Account</h6>
-                    {wallet?.bankAccountLast4 ? (
-                      <div className="d-flex align-items-center">
-                        <i className="bi bi-bank2 me-3 text-primary fs-4"></i>
-                        <div>
-                          <div className="fw-semibold">
-                            {wallet.bankAccountName}
-                          </div>
-                          <small className="text-muted">
-                            ****{wallet.bankAccountLast4}
-                          </small>
-                        </div>
-                      </div>
-                    ) : (
-                      <button
-                        className="btn btn-outline-primary w-100"
-                        onClick={() => setShowBankModal(true)}
-                      >
-                        <i className="bi bi-plus-circle me-2"></i>
-                        Add Bank Account
-                      </button>
-                    )}
-                  </div>
-                </>
-              )}
             </div>
-          </div>
-        </div>
 
-        {/* Wallet & Transactions */}
-        <div className="col-lg-8">
-          {/* Wallet Cards */}
-          <div className="row g-4 mb-4">
-            <div className="col-md-4">
-              <div className="card border-0 shadow-sm bg-primary bg-opacity-10 h-100">
-                <div className="card-body">
-                  <h6 className="text-muted mb-2">Available Balance</h6>
-                  <h3 className="fw-bold text-primary mb-0">
-                    {formatCurrency(wallet?.availableBalance || 0)}
-                  </h3>
-                  <small className="text-muted">Ready for withdrawal</small>
-                </div>
+            <div className="profile-divider"></div>
+
+            <div className="profile-info-section">
+              <h4 className="section-title-small">
+                <i className="bi bi-shield-check"></i>
+                Account Details
+              </h4>
+              <div className="info-item">
+                <i className="bi bi-person-badge"></i>
+                <span>Role: {profile?.role?.toUpperCase() || "User"}</span>
               </div>
-            </div>
-            <div className="col-md-4">
-              <div className="card border-0 shadow-sm bg-warning bg-opacity-10 h-100">
-                <div className="card-body">
-                  <h6 className="text-muted mb-2">Locked Balance</h6>
-                  <h3 className="fw-bold text-warning mb-0">
-                    {formatCurrency(wallet?.lockedBalance || 0)}
-                  </h3>
-                  <small className="text-muted">In escrow</small>
-                </div>
+              <div className="info-item">
+                <i className="bi bi-envelope"></i>
+                <span>{profile?.email}</span>
               </div>
-            </div>
-            <div className="col-md-4">
-              <div className="card border-0 shadow-sm bg-info bg-opacity-10 h-100">
-                <div className="card-body">
-                  <h6 className="text-muted mb-2">Total Earned</h6>
-                  <h3 className="fw-bold text-info mb-0">
-                    {formatCurrency(wallet?.totalEarned || 0)}
-                  </h3>
-                  <small className="text-muted">Lifetime earnings</small>
-                </div>
+              <div className="info-item">
+                <i className="bi bi-calendar-week"></i>
+                <span>
+                  Member since{" "}
+                  {profile?.createdAt ? formatDate(profile.createdAt) : "N/A"}
+                </span>
               </div>
             </div>
           </div>
 
-          {/* Withdraw Button for Sellers */}
-          {isSeller && wallet?.availableBalance > 0 && (
-            <div className="mb-4">
-              <button
-                className="btn btn-success w-100 py-3"
-                onClick={() => setShowWithdrawModal(true)}
+          {/* Quick Actions Card */}
+          <div className="profile-card">
+            <div className="profile-avatar" style={{ paddingBottom: "20px" }}>
+              <div
+                className="avatar-icon"
+                style={{ width: "70px", height: "70px" }}
               >
-                <i className="bi bi-cash-stack me-2"></i>
-                Withdraw Funds (${wallet.availableBalance.toFixed(2)} available)
-              </button>
+                <i className="bi bi-gear-fill" style={{ fontSize: "36px" }}></i>
+              </div>
+              <h3 className="profile-name" style={{ marginTop: "12px" }}>
+                Quick Actions
+              </h3>
             </div>
-          )}
 
-          {/* Transaction History */}
-          <div className="card border-0 shadow-sm">
-            <div className="card-header bg-white border-0 py-3">
-              <h5 className="card-title fw-semibold mb-0">
-                <i className="bi bi-clock-history me-2"></i>
-                Transaction History
-              </h5>
-            </div>
-            <div className="card-body p-0">
-              {transactions.length === 0 ? (
-                <div className="text-center py-5">
-                  <i className="bi bi-arrow-left-right display-1 text-muted"></i>
-                  <h6 className="mt-3 text-muted">No transactions yet</h6>
+            <div className="profile-divider"></div>
+
+            <div className="profile-info-section">
+              <h4 className="section-title-small">
+                <i className="bi bi-star"></i>
+                Account Management
+              </h4>
+
+              {profile?.role === "admin" && (
+                <div
+                  className="info-item"
+                  style={{ cursor: "pointer" }}
+                  onClick={() => router.push("/admin/dashboard")}
+                >
+                  <i className="bi bi-speedometer2"></i>
+                  <span>Go to Admin Dashboard</span>
+                  <i
+                    className="bi bi-arrow-right ms-auto"
+                    style={{ color: "var(--gold)" }}
+                  ></i>
                 </div>
-              ) : (
-                <>
-                  <div className="table-responsive">
-                    <table className="table table-hover align-middle mb-0">
-                      <thead className="bg-light">
-                        <tr>
-                          <th>Type</th>
-                          <th>Description</th>
-                          <th>Amount</th>
-                          <th>Status</th>
-                          <th>Date</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {transactions.map((tx, index) => (
-                          <tr key={index}>
-                            <td>
-                              <i
-                                className={`bi ${getTransactionIcon(tx.type)} me-2 fs-5`}
-                              ></i>
-                              <span className="text-capitalize">{tx.type}</span>
-                            </td>
-                            <td>{tx.description}</td>
-                            <td
-                              className={
-                                tx.amount > 0 ? "text-success" : "text-danger"
-                              }
-                            >
-                              <strong>
-                                {tx.amount > 0 ? "+" : ""}
-                                {formatCurrency(tx.amount)}
-                              </strong>
-                            </td>
-                            <td>
-                              <span
-                                className={`badge bg-${getStatusBadge(tx.status)}`}
-                              >
-                                {tx.status}
-                              </span>
-                            </td>
-                            <td>
-                              <small className="text-muted">
-                                {formatDate(tx.createdAt)}
-                              </small>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Pagination */}
-                  {totalPages > 1 && (
-                    <div className="d-flex justify-content-center py-3">
-                      <nav>
-                        <ul className="pagination">
-                          <li
-                            className={`page-item ${currentPage === 1 ? "disabled" : ""}`}
-                          >
-                            <button
-                              className="page-link"
-                              onClick={() => handlePageChange(currentPage - 1)}
-                            >
-                              Previous
-                            </button>
-                          </li>
-                          {[...Array(totalPages)].map((_, i) => (
-                            <li
-                              key={i + 1}
-                              className={`page-item ${currentPage === i + 1 ? "active" : ""}`}
-                            >
-                              <button
-                                className="page-link"
-                                onClick={() => handlePageChange(i + 1)}
-                              >
-                                {i + 1}
-                              </button>
-                            </li>
-                          ))}
-                          <li
-                            className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}
-                          >
-                            <button
-                              className="page-link"
-                              onClick={() => handlePageChange(currentPage + 1)}
-                            >
-                              Next
-                            </button>
-                          </li>
-                        </ul>
-                      </nav>
-                    </div>
-                  )}
-                </>
               )}
+
+              {profile?.role === "seller" && (
+                <div
+                  className="info-item"
+                  style={{ cursor: "pointer" }}
+                  onClick={() => router.push("/seller/dashboard")}
+                >
+                  <i className="bi bi-shop"></i>
+                  <span>Go to Seller Dashboard</span>
+                  <i
+                    className="bi bi-arrow-right ms-auto"
+                    style={{ color: "var(--gold)" }}
+                  ></i>
+                </div>
+              )}
+
+              <div
+                className="info-item"
+                style={{ cursor: "pointer" }}
+                onClick={() => router.push("/orders")}
+              >
+                <i className="bi bi-bag-check"></i>
+                <span>My Orders</span>
+                <i
+                  className="bi bi-arrow-right ms-auto"
+                  style={{ color: "var(--gold)" }}
+                ></i>
+              </div>
+
+              <div
+                className="info-item"
+                style={{ cursor: "pointer" }}
+                onClick={() => setShowEditModal(true)}
+              >
+                <i className="bi bi-pencil-square"></i>
+                <span>Edit Profile</span>
+                <i
+                  className="bi bi-arrow-right ms-auto"
+                  style={{ color: "var(--gold)" }}
+                ></i>
+              </div>
+            </div>
+
+            <div className="profile-divider"></div>
+
+            <div className="profile-info-section">
+              <h4 className="section-title-small">
+                <i className="bi bi-question-circle"></i>
+                Need Help?
+              </h4>
+              <div className="info-item">
+                <i className="bi bi-headset"></i>
+                <span>Contact Support</span>
+              </div>
+              <div className="info-item">
+                <i className="bi bi-file-text"></i>
+                <span>FAQs</span>
+              </div>
             </div>
           </div>
         </div>

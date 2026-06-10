@@ -299,7 +299,7 @@ const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" }) => {
                           Dashboard
                         </Link>
                         <Link
-                          href="/profile"
+                          href="/admin/dashboard/profile"
                           className="dropdown-item-custom"
                           onClick={() => setIsUserMenuOpen(false)}
                         >
