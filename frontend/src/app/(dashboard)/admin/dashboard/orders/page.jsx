@@ -500,7 +500,7 @@ const AdminOrders = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="stats-grid-premium">
+        <div className="stats-grid-premium d-flex align-items-stretch justify-content-center">
           <StatCard
             title="Total Revenue"
             value={formatCurrency(stats.revenue)}
