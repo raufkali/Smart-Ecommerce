@@ -40,7 +40,9 @@ const StatCard = ({ title, value, icon, color, trend }) => {
         </div>
       </div>
       <div className="stat-content">
-        <h3 className="stat-value">{value.toLocaleString()}</h3>
+        <h3 className="stat-value">
+          {typeof value === "number" ? value.toLocaleString() : value}
+        </h3>
         <p className="stat-title">{title}</p>
         {trend && (
           <div className={`stat-trend ${trend.direction}`}>
@@ -53,6 +55,17 @@ const StatCard = ({ title, value, icon, color, trend }) => {
   );
 };
 
+// Helper function to get profile image URL
+const getProfileImageUrl = (profilePicture) => {
+  if (!profilePicture) return null;
+  if (profilePicture.startsWith("http")) return profilePicture;
+  if (profilePicture.startsWith("/uploads")) {
+    return `${process.env.NEXT_PUBLIC_BACKEND_URL}${profilePicture}`;
+  }
+  return `${process.env.NEXT_PUBLIC_BACKEND_URL}/uploads/profiles/${profilePicture}`;
+};
+
+// Recent Order Row Component
 // Recent Order Row Component
 const RecentOrderRow = ({ order }) => {
   const getStatusConfig = (status) => {
@@ -103,6 +116,9 @@ const RecentOrderRow = ({ order }) => {
   };
 
   const config = getStatusConfig(order.orderStatus);
+  const user = order.user || {};
+  const userName = user.fullname || user.fullName || "Guest";
+  const profileImageUrl = getProfileImageUrl(user.profilePicture);
 
   return (
     <tr>
@@ -116,8 +132,27 @@ const RecentOrderRow = ({ order }) => {
       </td>
       <td className="customer-cell">
         <div className="customer-info">
-          <i className="bi bi-person-circle"></i>
-          <span>{order.user?.fullName || order.user?.fullname || "Guest"}</span>
+          {profileImageUrl ? (
+            <img
+              src={profileImageUrl}
+              alt={userName}
+              className="customer-avatar-small"
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.style.display = "none";
+                const parent = e.target.parentElement;
+                const icon = document.createElement("i");
+                icon.className = "bi bi-person-circle";
+                icon.style.fontSize = "24px";
+                icon.style.color = "var(--gold)";
+                parent.insertBefore(icon, e.target);
+                e.target.remove();
+              }}
+            />
+          ) : (
+            <i className="bi bi-person-circle"></i>
+          )}
+          <span>{userName}</span>
         </div>
       </td>
       <td className="status-cell">
@@ -141,7 +176,7 @@ const RecentOrderRow = ({ order }) => {
             })
           : "N/A"}
       </td>
-      <td className="action-cell">
+      {/* <td className="action-cell">
         <Link
           href={`/admin/dashboard/orders/${order._id}`}
           className="view-details-link"
@@ -149,11 +184,10 @@ const RecentOrderRow = ({ order }) => {
           <i className="bi bi-eye"></i>
           View
         </Link>
-      </td>
+      </td> */}
     </tr>
   );
 };
-
 // Main Admin Dashboard Component
 const AdminDashboard = () => {
   const router = useRouter();
@@ -365,60 +399,6 @@ const AdminDashboard = () => {
           />
         </div>
 
-        {/* Charts and Recent Activity Row */}
-        <div className="dashboard-row">
-          {/* Sales Chart */}
-          <div className="dashboard-col large">
-            <div className="dashboard-card">
-              <div className="card-header-custom">
-                <h5 className="card-title-custom">
-                  <i className="bi bi-graph-up"></i>
-                  Sales Overview
-                </h5>
-                <div className="card-header-decoration"></div>
-              </div>
-              <div className="card-body">
-                <div className="sales-chart-placeholder">
-                  <i className="bi bi-bar-chart-steps"></i>
-                  <p>Sales chart will appear here</p>
-                  <small>Integration with charting library coming soon</small>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Recent Activity */}
-          <div className="dashboard-col small">
-            <div className="dashboard-card">
-              <div className="card-header-custom">
-                <h5 className="card-title-custom">
-                  <i className="bi bi-activity"></i>
-                  Recent Activity
-                </h5>
-                <div className="card-header-decoration"></div>
-              </div>
-              <div className="card-body">
-                <div className="activity-timeline">
-                  {recentOrders.slice(0, 4).map((order) => (
-                    <div key={order._id} className="activity-item">
-                      <div className="activity-icon success">
-                        <i className="bi bi-cart-check"></i>
-                      </div>
-                      <div className="activity-content">
-                        <p>New order #{order._id?.slice(-8).toUpperCase()}</p>
-                        <span className="activity-time">
-                          ${(order.totalPrice || 0).toFixed(2)} ·{" "}
-                          {new Date(order.createdAt).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Recent Orders Table */}
         <div className="dashboard-card full-width">
           <div className="card-header-custom">
@@ -441,12 +421,12 @@ const AdminDashboard = () => {
                     <th>Status</th>
                     <th>Total</th>
                     <th>Date</th>
-                    <th>Action</th>
+                    {/* <th>Action</th> */}
                   </tr>
                 </thead>
                 <tbody>
                   {recentOrders.length === 0 ? (
-                    <tr>
+                    <tr className="empty-row">
                       <td colSpan="6" className="empty-table-cell">
                         <i className="bi bi-inbox"></i>
                         <span>No recent orders</span>
@@ -486,26 +466,50 @@ const AdminDashboard = () => {
                       <p>No users yet</p>
                     </div>
                   ) : (
-                    recentUsers.map((user) => (
-                      <div key={user._id} className="user-item">
-                        <div className="user-avatar">
-                          <i className="bi bi-person-circle"></i>
-                        </div>
-                        <div className="user-info">
-                          <div className="user-name">
-                            {user.fullname || user.fullName || "User"}
+                    recentUsers.map((user) => {
+                      const profileImageUrl = getProfileImageUrl(
+                        user.profilePicture,
+                      );
+                      const userName = user.fullname || user.fullName || "User";
+
+                      return (
+                        <div key={user._id} className="user-item">
+                          <div className="user-avatar">
+                            {profileImageUrl ? (
+                              <img
+                                src={profileImageUrl}
+                                alt={userName}
+                                className="user-avatar-img"
+                                onError={(e) => {
+                                  e.target.onerror = null;
+                                  e.target.style.display = "none";
+                                  const parent = e.target.parentElement;
+                                  const icon = document.createElement("i");
+                                  icon.className = "bi bi-person-circle";
+                                  icon.style.fontSize = "32px";
+                                  icon.style.color = "var(--gold)";
+                                  parent.appendChild(icon);
+                                  e.target.remove();
+                                }}
+                              />
+                            ) : (
+                              <i className="bi bi-person-circle"></i>
+                            )}
                           </div>
-                          <div className="user-email">{user.email}</div>
+                          <div className="user-info">
+                            <div className="user-name">{userName}</div>
+                            <div className="user-email">{user.email}</div>
+                          </div>
+                          <div className="user-role">
+                            <span
+                              className={`role-badge ${user.role === "admin" ? "admin" : user.role === "seller" ? "seller" : "user"}`}
+                            >
+                              {user.role || "user"}
+                            </span>
+                          </div>
                         </div>
-                        <div className="user-role">
-                          <span
-                            className={`role-badge ${user.role === "admin" ? "admin" : user.role === "seller" ? "seller" : "user"}`}
-                          >
-                            {user.role || "user"}
-                          </span>
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>

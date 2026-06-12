@@ -1075,3 +1075,37 @@
         background: rgba(42, 38, 31, 0.3);
     }
 }
+
+/* Customer Avatar Small */
+.customer-avatar-small {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--gold);
+}
+
+/* User Avatar Image */
+.user-avatar-img {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--gold);
+}
+
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-surface);
+    flex-shrink: 0;
+}
+
+.user-avatar i {
+    font-size: 32px;
+    color: var(--gold);
+}
