@@ -1,35 +1,11 @@
 "use client";
 
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
+import Toast from "@/app/components/Toast";
 import "./AdminOrders.css";
 
-const API_URL = `${process.env.NEXT_PUBLIC_BACKEND_URL}/admin`;
-
-// Toast Component
-const Toast = ({ message, type, onClose }) => {
-  useEffect(() => {
-    const timer = setTimeout(onClose, 3000);
-    return () => clearTimeout(timer);
-  }, [onClose]);
-
-  const icons = {
-    success: "bi-check-circle-fill",
-    error: "bi-exclamation-circle-fill",
-    warning: "bi-exclamation-triangle-fill",
-    info: "bi-info-circle-fill",
-  };
-
-  return (
-    <div className={`toast-notification toast-${type}`}>
-      <i className={`bi ${icons[type] || "bi-bell-fill"} toast-icon`}></i>
-      <span className="toast-message">{message}</span>
-      <button className="toast-close-btn" onClick={onClose}>
-        <i className="bi bi-x-lg"></i>
-      </button>
-    </div>
-  );
-};
+const API_URL = `${process.env.NEXT_PUBLIC_BACKEND_URL}`;
 
 // Stat Card Component
 const StatCard = ({ title, value, icon, color }) => {
@@ -41,7 +17,9 @@ const StatCard = ({ title, value, icon, color }) => {
         </div>
       </div>
       <div className="stat-content">
-        <h3 className="stat-value">{value.toLocaleString()}</h3>
+        <h3 className="stat-value">
+          {typeof value === "number" ? value.toLocaleString() : value}
+        </h3>
         <p className="stat-title">{title}</p>
       </div>
     </div>
@@ -110,6 +88,7 @@ const OrderStatusSelect = ({ item, orderId, onUpdate, updating }) => {
 
   const statusConfigs = {
     pending: { class: "status-option pending", label: "Pending" },
+    confirmed: { class: "status-option confirmed", label: "Confirmed" },
     processing: { class: "status-option processing", label: "Processing" },
     shipped: { class: "status-option shipped", label: "Shipped" },
     delivered: { class: "status-option delivered", label: "Delivered" },
@@ -124,12 +103,23 @@ const OrderStatusSelect = ({ item, orderId, onUpdate, updating }) => {
       disabled={updating === orderId}
     >
       <option value="pending">Pending</option>
+      <option value="confirmed">Confirmed</option>
       <option value="processing">Processing</option>
       <option value="shipped">Shipped</option>
       <option value="delivered">Delivered</option>
       <option value="cancelled">Cancelled</option>
     </select>
   );
+};
+
+// Helper function to get profile image URL
+const getProfileImageUrl = (profilePicture) => {
+  if (!profilePicture) return null;
+  if (profilePicture.startsWith("http")) return profilePicture;
+  if (profilePicture.startsWith("/uploads")) {
+    return `${process.env.NEXT_PUBLIC_BACKEND_URL}${profilePicture}`;
+  }
+  return `${process.env.NEXT_PUBLIC_BACKEND_URL}/uploads/profiles/${profilePicture}`;
 };
 
 // Order Row Component
@@ -142,6 +132,7 @@ const OrderRow = ({
   updatingOrder,
 }) => {
   const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
     const date = new Date(dateString);
     const now = new Date();
     const diffTime = Math.abs(now - date);
@@ -161,8 +152,16 @@ const OrderRow = ({
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
-    }).format(amount);
+    }).format(amount || 0);
   };
+
+  // Get user data from populated order
+  const user = order.user || {};
+  console.log(user);
+  const userName = user.fullname || user.name || "Guest";
+  const userEmail = user.email || "";
+  const userPhone = order.shippingAddress?.phone || user.phone || "No phone";
+  const profileImageUrl = getProfileImageUrl(user.profilePicture);
 
   return (
     <React.Fragment>
@@ -177,13 +176,34 @@ const OrderRow = ({
         </td>
         <td className="customer-cell">
           <div className="customer-info">
-            <i className="bi bi-person-circle"></i>
+            {profileImageUrl ? (
+              <img
+                src={profileImageUrl}
+                alt={userName}
+                className="customer-avatar"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.style.display = "none";
+                  const parent = e.target.parentElement;
+                  const icon = document.createElement("i");
+                  icon.className = "bi bi-person-circle";
+                  icon.style.fontSize = "32px";
+                  icon.style.color = "var(--gold)";
+                  parent.insertBefore(icon, e.target);
+                  e.target.remove();
+                }}
+              />
+            ) : (
+              <i
+                className="bi bi-person-circle"
+                style={{ fontSize: "32px", color: "var(--gold)" }}
+              ></i>
+            )}
             <div>
-              <div className="customer-name">
-                {order.user?.name || order.user?.fullname || "Guest"}
-              </div>
+              <div className="customer-name">{userName}</div>
+              {userEmail && <div className="customer-email">{userEmail}</div>}
               <div className="customer-phone">
-                {order.shippingAddress?.phone || "No phone"}
+                <i className="bi bi-telephone"></i> {userPhone}
               </div>
             </div>
           </div>
@@ -205,20 +225,12 @@ const OrderRow = ({
             <span>{formatDate(order.createdAt)}</span>
           </div>
         </td>
-        <td className="actions-cell">
-          <button className="icon-btn print" title="Print Invoice">
-            <i className="bi bi-printer"></i>
-          </button>
-          <button className="icon-btn email" title="Contact Customer">
-            <i className="bi bi-envelope"></i>
-          </button>
-        </td>
       </tr>
 
       {/* Expanded Details */}
       {isExpanded && (
-        <tr className="expanded-row">
-          <td colSpan="8" className="expanded-cell">
+        <tr className="expanded-row border border-sm">
+          <td colSpan="12" className="expanded-cell">
             <div className="expanded-content">
               {/* Shipping Information */}
               <div className="info-section">
@@ -229,21 +241,32 @@ const OrderRow = ({
                 <div className="info-card">
                   <div className="info-row">
                     <span>Full Name:</span>
-                    <strong>{order.shippingAddress?.fullName || "N/A"}</strong>
+                    <strong>
+                      {order.shippingAddress?.fullName || userName}
+                    </strong>
                   </div>
                   <div className="info-row">
                     <span>Phone:</span>
-                    <strong>{order.shippingAddress?.phone || "N/A"}</strong>
+                    <strong>{order.shippingAddress?.phone || userPhone}</strong>
+                  </div>
+                  <div className="info-row">
+                    <span>Email:</span>
+                    <strong>{userEmail || "N/A"}</strong>
                   </div>
                   <div className="info-row">
                     <span>Address:</span>
                     <div className="address-text">
-                      {order.shippingAddress?.address}
+                      {order.shippingAddress?.address || "N/A"}
                       <br />
-                      {order.shippingAddress?.city},{" "}
-                      {order.shippingAddress?.postalCode}
-                      <br />
-                      {order.shippingAddress?.country}
+                      {order.shippingAddress?.city && (
+                        <>
+                          {order.shippingAddress.city}
+                          {order.shippingAddress?.postalCode &&
+                            `, ${order.shippingAddress.postalCode}`}
+                          <br />
+                        </>
+                      )}
+                      {order.shippingAddress?.country || "N/A"}
                     </div>
                   </div>
                 </div>
@@ -260,6 +283,7 @@ const OrderRow = ({
                     <thead>
                       <tr>
                         <th>Product</th>
+                        <th>Seller</th>
                         <th>Status</th>
                         <th className="text-center">Qty</th>
                         <th className="text-end">Price</th>
@@ -270,6 +294,12 @@ const OrderRow = ({
                       {order.orderItems?.map((item, idx) => (
                         <tr key={idx}>
                           <td className="product-name-cell">{item.name}</td>
+                          <td className="seller-name-cell">
+                            {item.seller?.fullname ||
+                              item.seller?.name ||
+                              "Unknown Seller"}
+                          </td>
+
                           <td className="status-cell">
                             <OrderStatusSelect
                               item={item}
@@ -338,7 +368,10 @@ const AdminOrders = () => {
 
   const showToast = (message, type = "success") => {
     setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
+  };
+
+  const closeToast = () => {
+    setToast(null);
   };
 
   useEffect(() => {
@@ -365,6 +398,7 @@ const AdminOrders = () => {
       );
       setOrders(data.orders || []);
     } catch (err) {
+      console.error("Error fetching orders:", err);
       setError(err.response?.data?.message || "Failed to fetch orders");
       showToast("Failed to fetch orders", "error");
     } finally {
@@ -381,7 +415,7 @@ const AdminOrders = () => {
       setUpdatingOrder(orderId);
       const token = tokenRef.current;
       await axios.put(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/orders/${orderId}/items/${itemId}/status`,
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/orders/admin/${orderId}/items/${itemId}/status`,
         { status: newStatus },
         { headers: { Authorization: `Bearer ${token}` } },
       );
@@ -389,7 +423,10 @@ const AdminOrders = () => {
       showToast(`Order status updated to ${newStatus}`, "success");
     } catch (err) {
       console.error("Error updating order status:", err);
-      showToast("Failed to update order status", "error");
+      showToast(
+        err.response?.data?.message || "Failed to update order status",
+        "error",
+      );
     } finally {
       setUpdatingOrder(null);
     }
@@ -401,9 +438,7 @@ const AdminOrders = () => {
     const matchesSearch =
       searchTerm === "" ||
       order._id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.user?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.user?.fullname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.shippingAddress?.phone?.includes(searchTerm);
+      (order.shippingAddress?.phone || "").includes(searchTerm);
     return matchesStatus && matchesSearch;
   });
 
@@ -424,7 +459,7 @@ const AdminOrders = () => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
-    }).format(amount);
+    }).format(amount || 0);
   };
 
   if (loading) {
@@ -440,12 +475,9 @@ const AdminOrders = () => {
 
   return (
     <div className="admin-orders">
+      {/* Toast Notification */}
       {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast(null)}
-        />
+        <Toast message={toast.message} type={toast.type} onClose={closeToast} />
       )}
 
       <div className="orders-container">
@@ -501,7 +533,7 @@ const AdminOrders = () => {
             <i className="bi bi-search"></i>
             <input
               type="text"
-              placeholder="Search by ID, customer, or phone..."
+              placeholder="Search by Order ID or Phone..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -536,7 +568,6 @@ const AdminOrders = () => {
                   <th>Payment</th>
                   <th>Delivery</th>
                   <th>Date</th>
-                  <th style={{ width: "100px" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -553,8 +584,8 @@ const AdminOrders = () => {
                     />
                   ))
                 ) : (
-                  <tr>
-                    <td colSpan="8" className="empty-table-cell">
+                  <tr className="empty-row">
+                    <td colSpan="7" className="empty-table-cell">
                       <i className="bi bi-inbox"></i>
                       <h5>No orders found</h5>
                       <p>Try adjusting your filters or search term</p>

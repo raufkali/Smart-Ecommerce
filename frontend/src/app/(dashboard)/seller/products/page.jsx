@@ -587,7 +587,12 @@ const SellerProducts = () => {
       );
       if (response.ok) {
         const data = await response.json();
-        setCategories(data.categories || []);
+        const allCategories = data.categories || [];
+        // ✅ Only show active categories
+        const activeCategories = allCategories.filter(
+          (cat) => cat.isActive === true,
+        );
+        setCategories(activeCategories);
       }
     } catch (error) {
       console.error("Error fetching categories:", error);

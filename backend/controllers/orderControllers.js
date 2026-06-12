@@ -141,7 +141,7 @@ const getAllOrders = asyncHandler(async (req, res) => {
   const orders = await Order.find()
     .populate({
       path: "user",
-      select: "name email role",
+      select: "fullname email role profilePicture",
     })
     .populate({
       path: "orderItems.product",
@@ -149,7 +149,7 @@ const getAllOrders = asyncHandler(async (req, res) => {
     })
     .populate({
       path: "orderItems.seller",
-      select: "name email",
+      select: "fullname email profilePicture",
     })
     .sort({ createdAt: -1 });
 
@@ -175,6 +175,142 @@ const notify = async (userId, { title, message, type = "info", link = "" }) => {
 
 // AUTO_RELEASE_DAYS: buyer has this many days after shipping to confirm or dispute
 const AUTO_RELEASE_DAYS = 10;
+
+// @desc  Admin updates order item status
+// @route PUT /api/orders/admin/:orderId/items/:itemId/status
+// @access Private (Admin only)
+const adminUpdateOrderStatus = asyncHandler(async (req, res) => {
+  const { orderId, itemId } = req.params;
+  const { status } = req.body;
+
+  const allowedStatuses = [
+    "pending",
+    "confirmed",
+    "processing",
+    "shipped",
+    "delivered",
+    "cancelled",
+  ];
+
+  if (!allowedStatuses.includes(status)) {
+    res.status(400);
+    throw new Error(`Status must be one of: ${allowedStatuses.join(", ")}`);
+  }
+
+  const order = await Order.findById(orderId).populate(
+    "user",
+    "fullname email",
+  );
+
+  if (!order) {
+    res.status(404);
+    throw new Error("Order not found");
+  }
+
+  const item = order.orderItems.id(itemId);
+  if (!item) {
+    res.status(404);
+    throw new Error("Order item not found");
+  }
+
+  const oldStatus = item.orderStatus;
+
+  // Update the item status
+  item.orderStatus = status;
+
+  // Handle status-specific logic
+  if (status === "delivered" && oldStatus !== "delivered") {
+    item.deliveredAt = new Date();
+    item.escrowStatus = "released";
+
+    // Update escrow status for the order
+    const allItemsDelivered = order.orderItems.every(
+      (i) => i.orderStatus === "delivered",
+    );
+    if (allItemsDelivered) {
+      order.isDelivered = true;
+      order.deliveredAt = new Date();
+      order.orderStatus = "delivered";
+    }
+
+    // Notify the user
+    try {
+      const Notification = require("../models/Notification");
+      await Notification.create({
+        user: order.user._id,
+        title: "Item Delivered",
+        message: `Your item "${item.name}" has been marked as delivered. Thank you for shopping with us!`,
+        type: "success",
+        link: `/orders/${orderId}`,
+      });
+    } catch (err) {
+      console.error("Notification error:", err.message);
+    }
+  }
+
+  if (status === "cancelled" && oldStatus !== "cancelled") {
+    item.cancelledAt = new Date();
+    item.escrowStatus = "refunded";
+
+    // Notify the user
+    try {
+      const Notification = require("../models/Notification");
+      await Notification.create({
+        user: order.user._id,
+        title: "Item Cancelled",
+        message: `Your item "${item.name}" has been cancelled.`,
+        type: "warning",
+        link: `/orders/${orderId}`,
+      });
+    } catch (err) {
+      console.error("Notification error:", err.message);
+    }
+  }
+
+  if (status === "shipped" && oldStatus !== "shipped") {
+    item.shippedAt = new Date();
+
+    // Notify the user
+    try {
+      const Notification = require("../models/Notification");
+      await Notification.create({
+        user: order.user._id,
+        title: "Item Shipped",
+        message: `Your item "${item.name}" has been shipped!`,
+        type: "info",
+        link: `/orders/${orderId}`,
+      });
+    } catch (err) {
+      console.error("Notification error:", err.message);
+    }
+  }
+
+  // Update order-level status based on all items
+  const allStatuses = order.orderItems.map((i) => i.orderStatus);
+
+  if (allStatuses.every((s) => s === "delivered")) {
+    order.orderStatus = "delivered";
+    order.isDelivered = true;
+    order.deliveredAt = new Date();
+  } else if (allStatuses.every((s) => s === "cancelled")) {
+    order.orderStatus = "cancelled";
+    order.isCancelled = true;
+  } else if (allStatuses.some((s) => s === "shipped")) {
+    order.orderStatus = "shipped";
+  } else if (allStatuses.some((s) => s === "processing")) {
+    order.orderStatus = "processing";
+  } else if (allStatuses.some((s) => s === "confirmed")) {
+    order.orderStatus = "confirmed";
+  }
+
+  await order.save();
+
+  res.json({
+    success: true,
+    message: `Order item status updated to ${status}`,
+    order,
+  });
+});
 
 // @desc  Seller updates the status of their item in an order
 // @route PUT /api/orders/update
@@ -353,4 +489,5 @@ module.exports = {
   getOrderById,
   getAllOrders,
   getSellerOrders,
+  adminUpdateOrderStatus,
 };

@@ -8,6 +8,7 @@ const {
   getOrderById,
   getAllOrders,
   getSellerOrders,
+  adminUpdateOrderStatus,
 } = require("../controllers/orderControllers");
 const { authMiddleware, verifyRole } = require("../middlewares/authMiddleware");
 
@@ -29,5 +30,11 @@ router.get("/", authMiddleware, verifyRole("admin"), getAllOrders);
 
 // Shared Routes
 router.get("/:id", authMiddleware, getOrderById);
-
+// Add this route for admin
+router.put(
+  "/admin/:orderId/items/:itemId/status",
+  authMiddleware,
+  verifyRole("admin"),
+  adminUpdateOrderStatus,
+);
 module.exports = router;

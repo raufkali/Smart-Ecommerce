@@ -40,7 +40,9 @@ const StatCard = ({ title, value, icon, color }) => {
         </div>
       </div>
       <div className="stat-content">
-        <h3 className="stat-value">{value.toLocaleString()}</h3>
+        <h3 className="stat-value">
+          {typeof value === "number" ? value.toLocaleString() : value}
+        </h3>
         <p className="stat-title">{title}</p>
       </div>
     </div>
@@ -49,6 +51,9 @@ const StatCard = ({ title, value, icon, color }) => {
 
 // Category Row Component
 const CategoryRow = ({ category, index, onEdit, onDelete, onToggleStatus }) => {
+  // Get the correct ID (supports both _id and id)
+  const categoryId = category._id || category.id;
+
   return (
     <tr className="category-row">
       <td className="index-cell">{index + 1}</td>
@@ -141,7 +146,8 @@ const AdminCategories = () => {
       const response = await axios.get(`${backendUrl}/category/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setCategories(response.data.categories || response.data || []);
+      const categoriesData = response.data.categories || response.data || [];
+      setCategories(categoriesData);
     } catch (err) {
       console.error("Error fetching categories:", err);
       setError(err.response?.data?.message || "Failed to fetch categories");
@@ -220,11 +226,18 @@ const AdminCategories = () => {
     setActionLoading(true);
     setError("");
 
+    // Get the correct ID (supports both _id and id)
+    const categoryId = selectedCategory._id || selectedCategory.id;
+
     try {
       const token = tokenRef.current;
       await axios.put(
-        `${backendUrl}/category/update/${selectedCategory.id}`,
-        formData,
+        `${backendUrl}/category/update/${categoryId}`,
+        {
+          name: formData.name,
+          description: formData.description,
+          isActive: formData.isActive,
+        },
         { headers: { Authorization: `Bearer ${token}` } },
       );
       await fetchCategories();
@@ -247,9 +260,12 @@ const AdminCategories = () => {
       return;
     }
 
+    // Get the correct ID (supports both _id and id)
+    const categoryId = category._id || category.id;
+
     try {
       const token = tokenRef.current;
-      await axios.delete(`${backendUrl}/category/delete/${category.id}`, {
+      await axios.delete(`${backendUrl}/category/delete/${categoryId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       await fetchCategories();
@@ -264,28 +280,38 @@ const AdminCategories = () => {
   };
 
   const handleToggleActive = async (category) => {
+    // Get the correct ID (supports both _id and id)
+    const categoryId = category._id || category.id;
+
     try {
       const token = tokenRef.current;
       await axios.put(
-        `${backendUrl}/category/update/${category.id}`,
-        { ...category, isActive: !category.isActive },
+        `${backendUrl}/category/update/${categoryId}`,
+        {
+          name: category.name,
+          description: category.description,
+          isActive: !category.isActive,
+        },
         { headers: { Authorization: `Bearer ${token}` } },
       );
       await fetchCategories();
       showToast(
-        `Category ${category.isActive ? "deactivated" : "activated"}`,
+        `Category ${category.isActive ? "deactivated" : "activated"} successfully`,
         "success",
       );
     } catch (err) {
       console.error("Error toggling category status:", err);
-      showToast("Failed to update category status", "error");
+      showToast(
+        err.response?.data?.message || "Failed to update category status",
+        "error",
+      );
     }
   };
 
   const filteredCategories = categories.filter((category) => {
     const matchesSearch =
       searchTerm === "" ||
-      category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      category.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (category.description &&
         category.description.toLowerCase().includes(searchTerm.toLowerCase()));
 
@@ -365,7 +391,10 @@ const AdminCategories = () => {
           />
           <StatCard
             title="Products Count"
-            value="0"
+            value={categories.reduce(
+              (sum, cat) => sum + (cat.productCount || 0),
+              0,
+            )}
             icon="bi-box-seam"
             color="warning"
           />
@@ -423,7 +452,7 @@ const AdminCategories = () => {
                   {filteredCategories.length > 0 ? (
                     filteredCategories.map((category, index) => (
                       <CategoryRow
-                        key={category.id || category._id}
+                        key={category._id || category.id}
                         category={category}
                         index={index}
                         onEdit={handleOpenEdit}
@@ -477,7 +506,6 @@ const AdminCategories = () => {
                     Category Name <span className="required">*</span>
                   </label>
                   <input
-                    id="name"
                     name="name"
                     type="text"
                     className="form-input"
@@ -491,7 +519,6 @@ const AdminCategories = () => {
                 <div className="form-group">
                   <label>Description</label>
                   <textarea
-                    id="description"
                     name="description"
                     className="form-textarea"
                     rows="3"
@@ -504,7 +531,6 @@ const AdminCategories = () => {
                 <div className="form-group">
                   <label className="checkbox-label">
                     <input
-                      id="isActive"
                       name="isActive"
                       type="checkbox"
                       checked={formData.isActive}

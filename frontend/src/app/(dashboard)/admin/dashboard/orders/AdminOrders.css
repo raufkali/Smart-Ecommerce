@@ -46,7 +46,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: 
+    background:
         radial-gradient(circle at 20% 80%, rgba(184, 145, 42, 0.08) 0%, transparent 50%),
         radial-gradient(circle at 80% 20%, rgba(184, 145, 42, 0.06) 0%, transparent 50%);
     pointer-events: none;
@@ -700,7 +700,9 @@
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* Empty State */
@@ -748,16 +750,28 @@
     backdrop-filter: blur(16px);
 }
 
-.toast-success { background: linear-gradient(135deg, #22c55e, #16a34a); }
-.toast-error { background: linear-gradient(135deg, #ef4444, #dc2626); }
-.toast-warning { background: linear-gradient(135deg, #f59e0b, #d97706); }
-.toast-info { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+.toast-success {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+}
+
+.toast-error {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+.toast-warning {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.toast-info {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
 
 @keyframes slideInRight {
     from {
         transform: translateX(100%);
         opacity: 0;
     }
+
     to {
         transform: translateX(0);
         opacity: 1;
@@ -785,40 +799,139 @@
     .admin-orders {
         background: linear-gradient(135deg, #1a1712 0%, #1f1c16 100%);
     }
-    
+
     .stat-card-premium,
     .orders-card {
         background: rgba(36, 32, 26, 0.9);
     }
-    
+
     .page-title,
     .stat-value,
     .customer-name,
     .order-id {
         color: #f0ece2;
     }
-    
+
     .orders-table thead th {
         background: rgba(42, 38, 31, 0.8);
         color: #c9c3b4;
     }
-    
+
     .search-box,
     .filter-select {
         background: rgba(42, 38, 31, 0.9);
         color: #f0ece2;
     }
-    
+
     .search-box input {
         color: #f0ece2;
     }
-    
+
     .search-box input::placeholder {
         color: #5a5448;
     }
-    
+
     .info-card,
     .summary-card {
         background: rgba(42, 38, 31, 0.5);
     }
+}
+
+/* Customer Avatar Styles */
+.customer-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.customer-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--gold);
+}
+
+.customer-avatar-skeleton {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.customer-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+.customer-email {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.customer-phone {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.customer-phone i {
+    font-size: 10px;
+}
+
+/* Seller Name Cell */
+.seller-name-cell {
+    font-size: 12px;
+    color: var(--text-secondary);
+    max-width: 150px;
+    word-break: break-word;
+}
+
+/* Empty Row Styles */
+.empty-row td {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.empty-table-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+.empty-table-cell i {
+    font-size: 64px;
+    color: var(--text-muted);
+    opacity: 0.5;
+}
+
+.empty-table-cell h5 {
+    font-size: 18px;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.empty-table-cell p {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 0;
 }

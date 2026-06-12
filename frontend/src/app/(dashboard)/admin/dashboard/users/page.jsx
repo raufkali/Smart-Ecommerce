@@ -91,6 +91,15 @@ const UserAnalyticsModal = ({ user, onClose }) => {
     });
   };
 
+  const getProfileImageUrl = (profilePicture) => {
+    if (!profilePicture) return null;
+    if (profilePicture.startsWith("http")) return profilePicture;
+    if (profilePicture.startsWith("/uploads")) {
+      return `${process.env.NEXT_PUBLIC_BACKEND_URL}${profilePicture}`;
+    }
+    return `${process.env.NEXT_PUBLIC_BACKEND_URL}/uploads/profiles/${profilePicture}`;
+  };
+
   if (loading) {
     return (
       <div className="modal-overlay" onClick={onClose}>
@@ -125,6 +134,8 @@ const UserAnalyticsModal = ({ user, onClose }) => {
     );
   }
 
+  const profileImageUrl = getProfileImageUrl(user?.profilePicture);
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div
@@ -142,22 +153,18 @@ const UserAnalyticsModal = ({ user, onClose }) => {
         </div>
         <div className="modal-body analytics-body">
           {/* User Info Summary */}
-
           <div className="analytics-summary">
             <div className="summary-card">
-              {user?.profilePicture ? (
+              {profileImageUrl ? (
                 <img
-                  src={
-                    user.profilePicture.startsWith("http")
-                      ? user.profilePicture
-                      : `${process.env.NEXT_PUBLIC_BACKEND_URL}${user.profilePicture}`
-                  }
+                  src={profileImageUrl}
                   alt={user?.fullname}
-                  style={{
-                    width: "48px",
-                    height: "48px",
-                    borderRadius: "50%",
-                    objectFit: "cover",
+                  className="analytics-user-avatar"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.style.display = "none";
+                    e.target.parentElement.innerHTML =
+                      '<i class="bi bi-person-circle"></i>';
                   }}
                 />
               ) : (
@@ -166,190 +173,141 @@ const UserAnalyticsModal = ({ user, onClose }) => {
               <div>
                 <small>User</small>
                 <p>{user?.fullname}</p>
-              </div>
-            </div>
-            {/* rest of summary cards */}
-          </div>
-
-          {/* Order Stats */}
-          <div className="analytics-section">
-            <h4>
-              <i className="bi bi-bag-check"></i> Order Statistics
-            </h4>
-            <div className="stats-grid-small">
-              <div className="stat-card-mini">
-                <div className="stat-icon-mini">
-                  <i className="bi bi-bag"></i>
-                </div>
-                <div className="stat-info">
-                  <span className="stat-label">Total Orders</span>
-                  <span className="stat-number">
-                    {analytics?.orders?.total || 0}
-                  </span>
-                </div>
-              </div>
-              <div className="stat-card-mini success">
-                <div className="stat-icon-mini">
-                  <i className="bi bi-check-circle"></i>
-                </div>
-                <div className="stat-info">
-                  <span className="stat-label">Completed</span>
-                  <span className="stat-number">
-                    {analytics?.orders?.byStatus?.delivered || 0}
-                  </span>
-                </div>
-              </div>
-              <div className="stat-card-mini warning">
-                <div className="stat-icon-mini">
-                  <i className="bi bi-hourglass"></i>
-                </div>
-                <div className="stat-info">
-                  <span className="stat-label">Pending</span>
-                  <span className="stat-number">
-                    {analytics?.orders?.byStatus?.pending || 0}
-                  </span>
-                </div>
-              </div>
-              <div className="stat-card-mini danger">
-                <div className="stat-icon-mini">
-                  <i className="bi bi-x-circle"></i>
-                </div>
-                <div className="stat-info">
-                  <span className="stat-label">Cancelled</span>
-                  <span className="stat-number">
-                    {analytics?.orders?.byStatus?.cancelled || 0}
-                  </span>
-                </div>
-              </div>
-              <div className="stat-card-mini info">
-                <div className="stat-icon-mini">
-                  <i className="bi bi-credit-card"></i>
-                </div>
-                <div className="stat-info">
-                  <span className="stat-label">Total Spent</span>
-                  <span className="stat-number">
-                    {formatCurrency(analytics?.orders?.totalAmount)}
-                  </span>
-                </div>
-              </div>
-              <div className="stat-card-mini primary">
-                <div className="stat-icon-mini">
-                  <i className="bi bi-calculator"></i>
-                </div>
-                <div className="stat-info">
-                  <span className="stat-label">Avg Order Value</span>
-                  <span className="stat-number">
-                    {formatCurrency(
-                      analytics?.orders?.totalAmount /
-                        (analytics?.orders?.total || 1),
-                    )}
-                  </span>
-                </div>
+                <small className="text-muted">{user?.email}</small>
               </div>
             </div>
           </div>
 
-          {/* Order Status Breakdown */}
-          <div className="analytics-section">
-            <h4>
-              <i className="bi bi-pie-chart"></i> Order Status Breakdown
-            </h4>
-            <div className="status-breakdown">
-              {Object.entries(analytics?.orders?.byStatus || {}).map(
-                ([status, count]) =>
-                  count > 0 && (
-                    <div key={status} className="status-item">
-                      <span className={`status-badge ${status}`}>{status}</span>
-                      <div className="status-bar-container">
-                        <div
-                          className="status-bar"
-                          style={{
-                            width: `${(count / (analytics?.orders?.total || 1)) * 100}%`,
-                          }}
-                        ></div>
-                      </div>
-                      <span className="status-count">{count}</span>
-                    </div>
-                  ),
-              )}
-            </div>
-          </div>
-
-          {/* Monthly Spending */}
-          {analytics?.monthlySpending &&
-            Object.keys(analytics.monthlySpending).length > 0 && (
+          {/* Only show order stats for non-admin users */}
+          {user?.role !== "admin" && (
+            <>
+              {/* Order Stats */}
               <div className="analytics-section">
                 <h4>
-                  <i className="bi bi-graph-up"></i> Monthly Spending
+                  <i className="bi bi-bag-check"></i> Order Statistics
                 </h4>
-                <div className="monthly-spending">
-                  {Object.entries(analytics.monthlySpending)
-                    .slice(-6)
-                    .map(([month, amount]) => (
-                      <div key={month} className="month-item">
-                        <span className="month-label">{month}</span>
-                        <div className="month-bar-container">
-                          <div
-                            className="month-bar"
-                            style={{
-                              width: `${Math.min(100, (amount / (analytics?.orders?.totalAmount || 1)) * 100)}%`,
-                            }}
-                          ></div>
-                        </div>
-                        <span className="month-amount">
-                          {formatCurrency(amount)}
-                        </span>
-                      </div>
-                    ))}
+                <div className="stats-grid-small">
+                  <div className="stat-card-mini">
+                    <div className="stat-icon-mini">
+                      <i className="bi bi-bag"></i>
+                    </div>
+                    <div className="stat-info">
+                      <span className="stat-label">Total Orders</span>
+                      <span className="stat-number">
+                        {analytics?.orders?.total || 0}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="stat-card-mini success">
+                    <div className="stat-icon-mini">
+                      <i className="bi bi-check-circle"></i>
+                    </div>
+                    <div className="stat-info">
+                      <span className="stat-label">Completed</span>
+                      <span className="stat-number">
+                        {analytics?.orders?.byStatus?.delivered || 0}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="stat-card-mini warning">
+                    <div className="stat-icon-mini">
+                      <i className="bi bi-hourglass"></i>
+                    </div>
+                    <div className="stat-info">
+                      <span className="stat-label">Pending</span>
+                      <span className="stat-number">
+                        {analytics?.orders?.byStatus?.pending || 0}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="stat-card-mini danger">
+                    <div className="stat-icon-mini">
+                      <i className="bi bi-x-circle"></i>
+                    </div>
+                    <div className="stat-info">
+                      <span className="stat-label">Cancelled</span>
+                      <span className="stat-number">
+                        {analytics?.orders?.byStatus?.cancelled || 0}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
-            )}
 
-          {/* Wallet Info */}
-          <div className="analytics-section">
-            <h4>
-              <i className="bi bi-wallet2"></i> Wallet & Escrow
-            </h4>
-            <div className="wallet-info">
-              <div className="wallet-card">
-                <i className="bi bi-cash-stack"></i>
-                <div>
-                  <small>Available Balance</small>
-                  <strong>{formatCurrency(analytics?.wallet?.balance)}</strong>
-                </div>
-              </div>
-              <div className="wallet-card escrow">
-                <i className="bi bi-shield-lock"></i>
-                <div>
-                  <small>In Escrow</small>
-                  <strong>
-                    {formatCurrency(analytics?.wallet?.escrowBalance)}
-                  </strong>
-                </div>
-              </div>
-              <div className="wallet-card">
-                <i className="bi bi-arrow-up-circle"></i>
-                <div>
-                  <small>Total Deposited</small>
-                  <strong>
-                    {formatCurrency(analytics?.wallet?.totalDeposited)}
-                  </strong>
-                </div>
-              </div>
-              <div className="wallet-card">
-                <i className="bi bi-arrow-down-circle"></i>
-                <div>
-                  <small>Total Withdrawn</small>
-                  <strong>
-                    {formatCurrency(analytics?.wallet?.totalWithdrawn)}
-                  </strong>
-                </div>
-              </div>
-            </div>
-          </div>
+              {/* Order Status Breakdown */}
+              {analytics?.orders?.byStatus &&
+                Object.keys(analytics.orders.byStatus).length > 0 && (
+                  <div className="analytics-section">
+                    <h4>
+                      <i className="bi bi-pie-chart"></i> Order Status Breakdown
+                    </h4>
+                    <div className="status-breakdown">
+                      {Object.entries(analytics.orders.byStatus).map(
+                        ([status, count]) =>
+                          count > 0 && (
+                            <div key={status} className="status-item">
+                              <span className={`status-badge ${status}`}>
+                                {status}
+                              </span>
+                              <div className="status-bar-container">
+                                <div
+                                  className="status-bar"
+                                  style={{
+                                    width: `${(count / (analytics?.orders?.total || 1)) * 100}%`,
+                                  }}
+                                ></div>
+                              </div>
+                              <span className="status-count">{count}</span>
+                            </div>
+                          ),
+                      )}
+                    </div>
+                  </div>
+                )}
 
-          {/* Seller Analytics (if seller) */}
-          {analytics?.sellerAnalytics && (
+              {/* Recent User Orders */}
+              {analytics?.orders?.recentOrders?.length > 0 && (
+                <div className="analytics-section">
+                  <h4>
+                    <i className="bi bi-clock-history"></i> Recent Orders
+                  </h4>
+                  <div className="recent-orders-table">
+                    <table className="mini-table">
+                      <thead>
+                        <tr>
+                          <th>Order ID</th>
+                          <th>Items</th>
+                          <th>Amount</th>
+                          <th>Status</th>
+                          <th>Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {analytics.orders.recentOrders.map((order) => (
+                          <tr key={order.id}>
+                            <td>{order.id?.slice(-8).toUpperCase()}</td>
+                            <td>{order.itemsCount}</td>
+                            <td>{formatCurrency(order.totalAmount)}</td>
+                            <td>
+                              <span
+                                className={`status-badge small ${order.status}`}
+                              >
+                                {order.status}
+                              </span>
+                            </td>
+                            <td>{formatDate(order.createdAt)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Seller Analytics (only for sellers) */}
+          {user?.role === "seller" && analytics?.sellerAnalytics && (
             <>
               <div className="analytics-section">
                 <h4>
@@ -389,23 +347,10 @@ const UserAnalyticsModal = ({ user, onClose }) => {
                       </span>
                     </div>
                   </div>
-                  <div className="stat-card-mini success">
-                    <div className="stat-icon-mini">
-                      <i className="bi bi-trophy"></i>
-                    </div>
-                    <div className="stat-info">
-                      <span className="stat-label">Total Revenue</span>
-                      <span className="stat-number">
-                        {formatCurrency(
-                          analytics.sellerAnalytics.orders?.totalRevenue,
-                        )}
-                      </span>
-                    </div>
-                  </div>
                 </div>
               </div>
 
-              {/* Recent Seller Orders */}
+              {/* Recent Seller Orders (only orders where this user is the seller) */}
               {analytics.sellerAnalytics.orders?.recentOrders?.length > 0 && (
                 <div className="analytics-section">
                   <h4>
@@ -417,6 +362,8 @@ const UserAnalyticsModal = ({ user, onClose }) => {
                         <tr>
                           <th>Order ID</th>
                           <th>Customer</th>
+                          <th>Product</th>
+                          <th>Quantity</th>
                           <th>Amount</th>
                           <th>Status</th>
                           <th>Date</th>
@@ -428,7 +375,13 @@ const UserAnalyticsModal = ({ user, onClose }) => {
                             <tr key={order.id}>
                               <td>{order.id?.slice(-8).toUpperCase()}</td>
                               <td>{order.customer || "N/A"}</td>
-                              <td>{formatCurrency(order.totalAmount)}</td>
+                              <td>{order.productName || "N/A"}</td>
+                              <td>{order.quantity || 1}</td>
+                              <td>
+                                {formatCurrency(
+                                  order.itemAmount || order.totalAmount,
+                                )}
+                              </td>
                               <td>
                                 <span
                                   className={`status-badge small ${order.status}`}
@@ -448,41 +401,18 @@ const UserAnalyticsModal = ({ user, onClose }) => {
             </>
           )}
 
-          {/* Recent User Orders */}
-          {analytics?.orders?.recentOrders?.length > 0 && (
+          {/* Admin users get minimal info */}
+          {user?.role === "admin" && (
             <div className="analytics-section">
-              <h4>
-                <i className="bi bi-clock-history"></i> Recent Orders
-              </h4>
-              <div className="recent-orders-table">
-                <table className="mini-table">
-                  <thead>
-                    <tr>
-                      <th>Order ID</th>
-                      <th>Items</th>
-                      <th>Amount</th>
-                      <th>Status</th>
-                      <th>Date</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {analytics.orders.recentOrders.map((order) => (
-                      <tr key={order.id}>
-                        <td>{order.id?.slice(-8).toUpperCase()}</td>
-                        <td>{order.itemsCount}</td>
-                        <td>{formatCurrency(order.totalAmount)}</td>
-                        <td>
-                          <span
-                            className={`status-badge small ${order.status}`}
-                          >
-                            {order.status}
-                          </span>
-                        </td>
-                        <td>{formatDate(order.createdAt)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="info-alert info">
+                <i className="bi bi-shield-check"></i>
+                <div>
+                  <strong>Administrator Account</strong>
+                  <p>
+                    Admin users have full platform access. No order or financial
+                    data is displayed.
+                  </p>
+                </div>
               </div>
             </div>
           )}
@@ -519,6 +449,7 @@ const UserRow = ({
   };
 
   const roleConfig = getRoleConfig(user.role);
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -558,14 +489,9 @@ const UserRow = ({
             <img
               src={profileImage}
               alt={user.fullname}
-              style={{
-                width: "44px",
-                height: "44px",
-                borderRadius: "50%",
-                objectFit: "cover",
-              }}
+              className="user-avatar-img"
               onError={(e) => {
-                // If image fails to load, show icon
+                e.target.onerror = null;
                 e.target.style.display = "none";
                 const parent = e.target.parentElement;
                 const icon = document.createElement("i");
@@ -590,13 +516,19 @@ const UserRow = ({
       <td className="email-cell">{user.email}</td>
       <td className="stats-cell">
         <div className="quick-stats">
-          <span title="Total Orders">
-            <i className="bi bi-bag"></i> {user.stats?.totalOrders || 0}
-          </span>
-          <span title="Total Spent">
-            <i className="bi bi-credit-card"></i>{" "}
-            {formatCurrency(user.stats?.totalSpending)}
-          </span>
+          {user.role !== "admin" ? (
+            <>
+              <span title="Total Orders">
+                <i className="bi bi-bag"></i> {user.stats?.totalOrders || 0}
+              </span>
+              <span title="Total Spent">
+                <i className="bi bi-credit-card"></i>{" "}
+                {formatCurrency(user.stats?.totalSpending || 0)}
+              </span>
+            </>
+          ) : (
+            <span className="text-muted">Admin Account</span>
+          )}
         </div>
       </td>
       <td className="role-cell">
@@ -658,6 +590,7 @@ const UserRow = ({
     </tr>
   );
 };
+
 const AdminUsers = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
