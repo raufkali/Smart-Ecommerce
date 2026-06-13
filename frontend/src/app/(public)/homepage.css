@@ -719,6 +719,7 @@ button {
     color: var(--gold);
     transform: translateY(-2px);
     background: rgba(184, 145, 42, 0.05);
+
 }
 
 /* Carousel Navigation - Enhanced */
@@ -1250,14 +1251,14 @@ button {
     content: '';
     position: absolute;
     inset: 0;
-    background: var(--gold-light);
+    background: var(--gold-pale);
     transform: scaleX(0);
     transform-origin: left;
     transition: transform 0.3s var(--ease-out-expo);
 }
 
 .add-to-cart-btn:not(:disabled):hover {
-    color: #1a1712;
+    color: var(--gold-darkdeep) !important;
     border-color: var(--gold-light);
     box-shadow: 0 2px 12px var(--gold-glow);
 }

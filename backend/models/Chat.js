@@ -2,14 +2,11 @@ const mongoose = require("mongoose");
 
 const chatSchema = new mongoose.Schema(
   {
-    // Chat type
     type: {
       type: String,
       enum: ["order", "dispute", "support", "broadcast"],
       required: true,
     },
-
-    // Reference to order (for order and dispute chats)
     orderId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Order",
@@ -17,8 +14,6 @@ const chatSchema = new mongoose.Schema(
         return this.type === "order" || this.type === "dispute";
       },
     },
-
-    // Reference to dispute (for dispute chats only)
     disputeId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Dispute",
@@ -26,15 +21,11 @@ const chatSchema = new mongoose.Schema(
         return this.type === "dispute";
       },
     },
-
-    // Chat title/name
     title: {
       type: String,
       required: true,
       trim: true,
     },
-
-    // Participants
     participants: [
       {
         userId: {
@@ -47,73 +38,36 @@ const chatSchema = new mongoose.Schema(
           enum: ["buyer", "seller", "admin"],
           required: true,
         },
-        name: {
-          type: String,
-          required: true,
-        },
+        name: String,
         email: String,
         profilePicture: String,
-        joinedAt: {
-          type: Date,
-          default: Date.now,
-        },
-        lastReadAt: {
-          type: Date,
-          default: Date.now,
-        },
-        isActive: {
-          type: Boolean,
-          default: true,
-        },
+        joinedAt: { type: Date, default: Date.now },
+        lastReadAt: { type: Date, default: Date.now },
+        isActive: { type: Boolean, default: true },
         leftAt: Date,
       },
     ],
-
-    // Admin specific fields
-    adminNotes: {
-      type: String,
-      default: "",
-    },
-    isResolved: {
-      type: Boolean,
-      default: false,
-    },
+    adminNotes: { type: String, default: "" },
+    isResolved: { type: Boolean, default: false },
     resolvedAt: Date,
-    resolvedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
-
-    // Chat status
+    resolvedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     status: {
       type: String,
       enum: ["active", "archived", "closed"],
       default: "active",
     },
-
-    // Last message preview
     lastMessage: {
       content: String,
       senderName: String,
       senderRole: String,
       sentAt: Date,
     },
-
-    // Unread counts per participant
     unreadCounts: [
       {
-        userId: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "User",
-        },
-        count: {
-          type: Number,
-          default: 0,
-        },
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        count: { type: Number, default: 0 },
       },
     ],
-
-    // Metadata
     metadata: {
       orderTotal: Number,
       productName: String,
@@ -125,16 +79,13 @@ const chatSchema = new mongoose.Schema(
       },
     },
   },
-  {
-    timestamps: true,
-  },
+  { timestamps: true },
 );
 
-// Indexes for faster queries
+// Indexes
 chatSchema.index({ type: 1, status: 1 });
 chatSchema.index({ "participants.userId": 1 });
 chatSchema.index({ orderId: 1 });
-chatSchema.index({ disputeId: 1 });
 chatSchema.index({ updatedAt: -1 });
 
 // Method to add participant
@@ -186,6 +137,8 @@ chatSchema.methods.incrementUnread = function (userId) {
   );
   if (unread) {
     unread.count += 1;
+  } else {
+    this.unreadCounts.push({ userId, count: 1 });
   }
   return this;
 };

@@ -39,22 +39,45 @@ const chatRoutes = require("./routes/chatRoutes");
 
 const app = express();
 const server = http.createServer(app);
+
+// ─── Socket.IO Configuration ──────────────────────────────────────────────
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: ["http://localhost:3000", "http://localhost:8080"],
+    credentials: true,
+    methods: ["GET", "POST"],
   },
+  transports: ["websocket", "polling"],
 });
 app.set("io", io);
 
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
-  // join user room
+  // Join user room
   socket.on("joinRoom", ({ userId, role }) => {
-    socket.join(userId);
-    console.log(`User joined room: ${userId}`);
-    if (role == "admin") {
+    if (userId) {
+      socket.join(userId);
+      console.log(`User ${userId} joined room`);
+    }
+    if (role === "admin") {
       socket.join("admin-room");
+      console.log(`Admin ${userId} joined admin room`);
+    }
+  });
+
+  // Join specific chat room
+  socket.on("joinChat", (chatId) => {
+    if (chatId) {
+      socket.join(`chat_${chatId}`);
+      console.log(`Socket ${socket.id} joined chat: ${chatId}`);
+    }
+  });
+
+  // Handle typing events
+  socket.on("typing", ({ chatId, userId }) => {
+    if (chatId && userId) {
+      socket.to(`chat_${chatId}`).emit("user_typing", { chatId, userId });
     }
   });
 
@@ -62,7 +85,8 @@ io.on("connection", (socket) => {
     console.log("User disconnected:", socket.id);
   });
 });
-// Webhook MUST receive raw body before express.json() parses it
+
+// ─── Webhook ─────────────────────────────────────────────────────────────
 app.use("/payment/webhook", express.raw({ type: "application/json" }));
 
 app.use(express.json());
@@ -99,7 +123,7 @@ app.use("/profile", profileRoutes);
 app.use("/seller", sellerRoutes);
 app.use("/notifications", notificationRoutes);
 app.use("/reviews", reviewRoutes);
-app.use("/api/chat", chatRoutes);
+app.use("/chat", chatRoutes);
 
 // Error handling middleware (must be last)
 app.use(errorHandler);
@@ -107,5 +131,6 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 8080;
 
 server.listen(PORT, "0.0.0.0", () => {
-  console.log("App started on PORT:", PORT);
+  console.log(`Server started on PORT: ${PORT}`);
+  console.log(`Socket.IO ready`);
 });

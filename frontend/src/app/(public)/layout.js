@@ -143,7 +143,7 @@ export default function RootLayout({ children }) {
 
           .main-content {
             flex: 1;
-            margin-top: 65px;
+            margin-top: 60px;
           }
 
           @media (max-width: 768px) {

@@ -30,11 +30,6 @@ const sellerSidebarItems = [
     link: "/seller/profile",
     icon: "profile",
   },
-  {
-    name: "Settings",
-    link: "/seller/settings",
-    icon: "settings",
-  },
 ];
 
 export default function SellerLayout({ children }) {

@@ -14,7 +14,7 @@
 /* Sidebar Container */
 .sidebar {
     position: fixed;
-    top: 70px;
+    top: 60px;
     left: 0;
     height: calc(100vh - 70px);
     width: 280px;

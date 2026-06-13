@@ -113,6 +113,7 @@ const ProductDetailPage = () => {
   const [addingToCart, setAddingToCart] = useState(false);
   const [toast, setToast] = useState(null);
   const [token, setToken] = useState(null);
+  const [creatingChat, setCreatingChat] = useState(false);
 
   // Reviews
   const [reviews, setReviews] = useState([]);
@@ -196,14 +197,11 @@ const ProductDetailPage = () => {
   // Function to fetch seller data
   const fetchSellerData = async (sellerId) => {
     try {
-      // Since you don't have a public user endpoint,
-      // we'll try to get seller info from the product's sellerId if it's an object
       if (product?.sellerId && typeof product.sellerId === "object") {
         setSeller(product.sellerId);
         return;
       }
 
-      // If the seller is the currently logged in user, use profile endpoint
       if (token) {
         const profileRes = await fetch(`${API}/profile/`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -218,8 +216,8 @@ const ProductDetailPage = () => {
         }
       }
 
-      // If we can't get seller data, create placeholder with seller ID
       setSeller({
+        _id: sellerId,
         fullname: `Seller ${sellerId.slice(-6)}`,
         profilePicture: null,
         averageRating: 0,
@@ -229,12 +227,85 @@ const ProductDetailPage = () => {
     } catch (error) {
       console.error("Error fetching seller:", error);
       setSeller({
+        _id: sellerId,
         fullname: "Shop Owner",
         profilePicture: null,
         averageRating: 0,
         numReviews: 0,
         createdAt: new Date().toISOString(),
       });
+    }
+  };
+
+  // Function to create or get chat and redirect
+  const startChatWithSeller = async () => {
+    if (!token) {
+      showToast("Please login to chat with seller", "info");
+      setTimeout(() => router.push("/login"), 1500);
+      return;
+    }
+
+    if (!seller?._id) {
+      showToast("Seller information not available", "error");
+      return;
+    }
+
+    setCreatingChat(true);
+    try {
+      // First check if chat already exists
+      const checkResponse = await fetch(`${API}/chat/seller/${seller._id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      let chatId = null;
+
+      if (checkResponse.ok) {
+        const data = await checkResponse.json();
+        if (data.chat) {
+          chatId = data.chat._id;
+        }
+      }
+
+      // If no chat exists, create one
+      if (!chatId) {
+        const createResponse = await fetch(`${API}/chat/create-seller-chat`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            sellerId: seller._id,
+            productId: product._id,
+            productName: product.name,
+          }),
+        });
+
+        if (createResponse.ok) {
+          const data = await createResponse.json();
+          chatId = data.chat._id;
+        }
+      }
+
+      if (chatId) {
+        // Redirect to chat page with the specific chat open
+        // Determine the correct chat route based on user role
+        let chatRoute = "/chat";
+        if (user?.role === "admin") {
+          chatRoute = "/admin/chat";
+        } else if (user?.role === "seller") {
+          chatRoute = "/seller/chat";
+        }
+
+        router.push(`${chatRoute}?chat=${chatId}`);
+      } else {
+        throw new Error("Failed to create or find chat");
+      }
+    } catch (error) {
+      console.error("Error starting chat:", error);
+      showToast("Failed to start chat. Please try again.", "error");
+    } finally {
+      setCreatingChat(false);
     }
   };
 
@@ -603,12 +674,34 @@ const ProductDetailPage = () => {
                 </div>
               </div>
 
-              {/* Seller quick line */}
-              <div className="product-seller-info">
-                <i className="bi bi-shop" />
-                <span>
-                  Sold by: <strong>{sellerName}</strong>
-                </span>
+              {/* Seller & Chat Section */}
+              <div className="product-seller-section">
+                <div className="product-seller-info">
+                  <i className="bi bi-shop" />
+                  <span>
+                    Sold by: <strong>{sellerName}</strong>
+                  </span>
+                </div>
+
+                {token && seller?._id && user?._id !== seller?._id && (
+                  <button
+                    className="chat-with-seller-btn"
+                    onClick={startChatWithSeller}
+                    disabled={creatingChat}
+                  >
+                    {creatingChat ? (
+                      <>
+                        <span className="spinner-small"></span>
+                        Starting Chat...
+                      </>
+                    ) : (
+                      <>
+                        <i className="bi bi-chat-dots-fill"></i>
+                        Chat with Seller
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
 
               <div className="product-sku">
@@ -620,6 +713,7 @@ const ProductDetailPage = () => {
                   <i className="bi bi-info-circle-fill" />
                   <span>
                     Please <Link href="/login">login</Link> to add items to cart
+                    or chat with seller
                   </span>
                 </div>
               )}
@@ -660,21 +754,18 @@ const ProductDetailPage = () => {
                   <div className="seller-name">{sellerName}</div>
                   <span className="seller-role">Verified Seller</span>
                   <div className="seller-stats">
-                    {/* Average rating */}
                     <div className="seller-stat">
                       <span className="seller-stat__val">
                         {sellerRating.toFixed(1)}
                       </span>
                       <span className="seller-stat__label">Avg Rating</span>
                     </div>
-                    {/* Seller reviews */}
                     <div className="seller-stat">
                       <span className="seller-stat__val">
                         {sellerReviewCount}
                       </span>
                       <span className="seller-stat__label">Reviews</span>
                     </div>
-                    {/* Member since - only if available */}
                     {sellerData?.createdAt && (
                       <div className="seller-stat">
                         <span className="seller-stat__val">
@@ -684,12 +775,31 @@ const ProductDetailPage = () => {
                       </div>
                     )}
                   </div>
-                  {/* Seller star row */}
                   {sellerRating > 0 && (
                     <div className="seller-stars-row">
                       <Stars rating={sellerRating} size={13} />
                       <span>({sellerReviewCount} seller reviews)</span>
                     </div>
+                  )}
+
+                  {token && seller?._id && user?._id !== seller?._id && (
+                    <button
+                      className="seller-chat-btn"
+                      onClick={startChatWithSeller}
+                      disabled={creatingChat}
+                    >
+                      {creatingChat ? (
+                        <>
+                          <span className="spinner-small"></span>
+                          Starting Chat...
+                        </>
+                      ) : (
+                        <>
+                          <i className="bi bi-chat-dots-fill"></i>
+                          Message Seller
+                        </>
+                      )}
+                    </button>
                   )}
                 </div>
               </div>
@@ -713,7 +823,6 @@ const ProductDetailPage = () => {
               </div>
 
               <div className="reviews-body">
-                {/* Overview: big score + breakdown */}
                 {product.numReviews > 0 && (
                   <div className="reviews-overview">
                     <div className="reviews-score-big">
@@ -733,7 +842,6 @@ const ProductDetailPage = () => {
                   </div>
                 )}
 
-                {/* List */}
                 {reviewLoading && reviews.length === 0 ? (
                   <ReviewSkeleton />
                 ) : reviews.length === 0 ? (
@@ -800,7 +908,6 @@ const ProductDetailPage = () => {
                     })}
                   </div>
                 )}
-                {/* Load more */}
                 {hasMore && (
                   <button
                     className="load-more-btn"
@@ -823,7 +930,6 @@ const ProductDetailPage = () => {
               </div>
             </div>
           </div>
-          {/* end product-sections */}
         </div>
       </div>
 
@@ -837,6 +943,54 @@ const ProductDetailPage = () => {
           display: inline-block;
           animation: spin 0.6s linear infinite;
         }
+
+        .product-seller-section {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-top: 16px;
+          padding-top: 16px;
+          border-top: 1px solid var(--border, #e5e5e5);
+        }
+
+        .chat-with-seller-btn,
+        .seller-chat-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 16px;
+          background: linear-gradient(
+            135deg,
+            var(--gold, #b8912a),
+            var(--gold-light, #d4a93a)
+          );
+          color: white;
+          border: none;
+          border-radius: 40px;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+
+        .chat-with-seller-btn:hover:not(:disabled),
+        .seller-chat-btn:hover:not(:disabled) {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(184, 145, 42, 0.3);
+        }
+
+        .chat-with-seller-btn:disabled,
+        .seller-chat-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        .seller-chat-btn {
+          margin-top: 16px;
+          width: 100%;
+          justify-content: center;
+        }
+
         @keyframes spin {
           to {
             transform: rotate(360deg);

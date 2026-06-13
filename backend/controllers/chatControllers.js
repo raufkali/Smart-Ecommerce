@@ -4,6 +4,93 @@ const Order = require("../models/Order");
 const User = require("../models/User");
 const asyncHandler = require("express-async-handler");
 
+// Add these functions to your existing chatControllers.js file
+
+// @desc    Get or create chat with seller (for buyers)
+// @route   POST /api/chat/create-seller-chat
+// @access  Private
+const getOrCreateSellerChat = asyncHandler(async (req, res) => {
+  const { sellerId, productId, productName } = req.body;
+  const buyerId = req.user.id;
+
+  if (!sellerId) {
+    res.status(400);
+    throw new Error("Seller ID is required");
+  }
+
+  // Find existing chat between buyer and seller (support type)
+  let chat = await Chat.findOne({
+    type: "support",
+    "participants.userId": { $all: [buyerId, sellerId] },
+    status: "active",
+  });
+
+  if (!chat) {
+    // Get buyer and seller details
+    const buyer = await User.findById(buyerId).select(
+      "fullname email profilePicture",
+    );
+    const seller = await User.findById(sellerId).select(
+      "fullname email profilePicture",
+    );
+
+    if (!seller) {
+      res.status(404);
+      throw new Error("Seller not found");
+    }
+
+    // Create chat title
+    const title = productName
+      ? `Chat about: ${productName.substring(0, 40)}...`
+      : `Chat between ${buyer.fullname} and ${seller.fullname}`;
+
+    // Create new chat
+    chat = await Chat.create({
+      type: "support",
+      title,
+      participants: [
+        {
+          userId: buyerId,
+          role: "buyer",
+          name: buyer.fullname,
+          email: buyer.email,
+          profilePicture: buyer.profilePicture,
+        },
+        {
+          userId: sellerId,
+          role: "seller",
+          name: seller.fullname,
+          email: seller.email,
+          profilePicture: seller.profilePicture,
+        },
+      ],
+    });
+  }
+
+  res.json({
+    success: true,
+    chat,
+  });
+});
+
+// @desc    Get chat by seller ID
+// @route   GET /api/chat/seller/:sellerId
+// @access  Private
+const getChatBySeller = asyncHandler(async (req, res) => {
+  const { sellerId } = req.params;
+  const buyerId = req.user.id;
+
+  const chat = await Chat.findOne({
+    type: "support",
+    "participants.userId": { $all: [buyerId, sellerId] },
+    status: "active",
+  }).populate("participants.userId", "fullname email profilePicture");
+
+  res.json({
+    success: true,
+    chat: chat || null,
+  });
+});
 // @desc    Create a new chat (order chat)
 // @route   POST /api/chat/create
 // @access  Private
@@ -194,14 +281,18 @@ const getUserChats = asyncHandler(async (req, res) => {
     .sort({ updatedAt: -1 })
     .populate("participants.userId", "fullname email profilePicture role");
 
-  // Get unread counts for each chat
+  // Get unread counts for each chat - handle missing unreadCounts
   const chatsWithUnread = chats.map((chat) => {
-    const unreadEntry = chat.unreadCounts.find(
-      (u) => u.userId.toString() === userId,
-    );
+    let unreadCount = 0;
+    if (chat.unreadCounts && Array.isArray(chat.unreadCounts)) {
+      const unreadEntry = chat.unreadCounts.find(
+        (u) => u.userId && u.userId.toString() === userId,
+      );
+      unreadCount = unreadEntry?.count || 0;
+    }
     return {
       ...chat.toObject(),
-      unreadCount: unreadEntry?.count || 0,
+      unreadCount,
     };
   });
 
@@ -275,7 +366,6 @@ const getChatMessages = asyncHandler(async (req, res) => {
     throw new Error("Chat not found");
   }
 
-  // Check if user is participant
   const isParticipant = chat.participants.some(
     (p) => p.userId.toString() === userId,
   );
@@ -289,12 +379,14 @@ const getChatMessages = asyncHandler(async (req, res) => {
   await chat.resetUnread(userId);
   await chat.save();
 
-  const skip = (page - 1) * limit;
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+
+  // FIX: Sort by createdAt in ASCENDING order (oldest first)
+  // Do NOT chain multiple .sort() calls
   const messages = await Message.find({ chatId, isHidden: false })
-    .sort({ createdAt: -1 })
+    .sort({ createdAt: 1 })
     .skip(skip)
-    .limit(limit)
-    .sort({ createdAt: 1 });
+    .limit(parseInt(limit));
 
   const total = await Message.countDocuments({ chatId, isHidden: false });
 
@@ -302,8 +394,8 @@ const getChatMessages = asyncHandler(async (req, res) => {
     success: true,
     messages,
     pagination: {
-      currentPage: page,
-      totalPages: Math.ceil(total / limit),
+      currentPage: parseInt(page),
+      totalPages: Math.ceil(total / parseInt(limit)),
       totalMessages: total,
     },
   });
@@ -314,8 +406,13 @@ const getChatMessages = asyncHandler(async (req, res) => {
 // @access  Private
 const sendMessage = asyncHandler(async (req, res) => {
   const { chatId } = req.params;
-  const { content, attachments, replyTo } = req.body;
+  const { content } = req.body;
   const userId = req.user.id;
+
+  if (!content || !content.trim()) {
+    res.status(400);
+    throw new Error("Message content is required");
+  }
 
   const chat = await Chat.findById(chatId);
   if (!chat) {
@@ -333,42 +430,59 @@ const sendMessage = asyncHandler(async (req, res) => {
     throw new Error("Not authorized to send message in this chat");
   }
 
-  if (!content && (!attachments || attachments.length === 0)) {
-    res.status(400);
-    throw new Error("Message content or attachment required");
+  // Get sender name from participant or user
+  let senderName = req.user.fullname || req.user.name;
+
+  // If still no name, get from participant
+  if (!senderName && participant) {
+    senderName = participant.name;
   }
 
-  // Create message
+  // Final fallback
+  if (!senderName) {
+    senderName = req.user.email ? req.user.email.split("@")[0] : "User";
+  }
+
+  // Create message with all required fields
   const message = await Message.create({
     chatId,
     sender: {
       userId,
       role: participant?.role || "admin",
-      name: req.user.fullname,
-      email: req.user.email,
-      profilePicture: req.user.profilePicture,
+      name: senderName, // Make sure this is always a string
+      email: req.user.email || participant?.email || "",
+      profilePicture:
+        req.user.profilePicture || participant?.profilePicture || null,
     },
-    content: content || "",
-    attachments: attachments || [],
-    replyTo,
+    content: content.trim(),
   });
 
   // Update chat's last message
-  await chat.updateLastMessage(message, {
-    name: req.user.fullname,
-    role: participant?.role || "admin",
-  });
+  chat.lastMessage = {
+    content: content.trim().substring(0, 100),
+    senderName: senderName,
+    senderRole: participant?.role || "admin",
+    sentAt: new Date(),
+  };
+  chat.updatedAt = new Date();
 
   // Increment unread count for other participants
   for (const p of chat.participants) {
     if (p.userId.toString() !== userId) {
-      await chat.incrementUnread(p.userId);
+      const unreadEntry = chat.unreadCounts.find(
+        (u) => u.userId?.toString() === p.userId.toString(),
+      );
+      if (unreadEntry) {
+        unreadEntry.count += 1;
+      } else {
+        chat.unreadCounts.push({ userId: p.userId, count: 1 });
+      }
     }
   }
 
   await chat.save();
 
-  // Emit socket event (will implement later)
+  // Emit socket event
   const io = req.app.get("io");
   if (io) {
     io.to(`chat_${chatId}`).emit("new_message", {
@@ -379,9 +493,9 @@ const sendMessage = asyncHandler(async (req, res) => {
     // Notify other participants
     for (const p of chat.participants) {
       if (p.userId.toString() !== userId) {
-        io.to(`user_${p.userId}`).emit("chat_notification", {
+        io.to(p.userId.toString()).emit("chat_notification", {
           chatId,
-          message: `New message from ${req.user.fullname}`,
+          message: `New message from ${senderName}`,
           chatTitle: chat.title,
         });
       }
@@ -526,4 +640,6 @@ module.exports = {
   markAsRead,
   deleteMessage,
   closeChat,
+  getOrCreateSellerChat,
+  getChatBySeller,
 };
