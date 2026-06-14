@@ -549,7 +549,6 @@ const NewChatModal = ({
               placeholder="Search by name or email..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              autoFocus
             />
           </div>
           <div className="user-list">

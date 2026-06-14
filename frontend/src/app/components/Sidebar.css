@@ -393,7 +393,6 @@
     }
 
     .sidebar.mobile-open {
-        left: 0;
         box-shadow: 5px 0 30px rgba(0, 0, 0, 0.5);
     }
 
@@ -403,6 +402,7 @@
 
     .sidebar-mobile-toggle {
         display: flex;
+        top: 100px;
     }
 
     .sidebar.collapsed {
