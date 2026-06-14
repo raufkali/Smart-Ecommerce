@@ -17,6 +17,20 @@ const getFullImageUrl = (url) => {
   return `${API_URL}/uploads/profiles/${url}`;
 };
 
+// Helper: get display name from participant (works for admin too)
+const getParticipantDisplayName = (participant, fallbackTitle = "Chat") => {
+  if (!participant) return fallbackTitle;
+  // 1. Denormalized name from participant
+  if (participant.name) return participant.name;
+  // 2. Populated user object
+  if (participant.userId) {
+    if (participant.userId.fullname) return participant.userId.fullname;
+    if (participant.userId.name) return participant.userId.name;
+    if (participant.userId.email) return participant.userId.email.split("@")[0];
+  }
+  return fallbackTitle;
+};
+
 // ----------------------------------------------------------------------
 // Toast notification (auto-dismiss)
 // ----------------------------------------------------------------------
@@ -74,7 +88,6 @@ const Avatar = ({ src, name, size = 40, badge = 0 }) => {
 // Chat list item (sidebar)
 // ----------------------------------------------------------------------
 const ChatListItem = ({ chat, isActive, onClick, currentUser }) => {
-  // Safely get current user ID as string
   const currentUserId =
     currentUser?._id?.toString() || currentUser?.id?.toString();
 
@@ -84,12 +97,12 @@ const ChatListItem = ({ chat, isActive, onClick, currentUser }) => {
     return pid !== currentUserId;
   });
 
-  // Use denormalized fields from participant (name, profilePicture) – they are stored directly
-  const name = other?.name || chat.title || "Chat";
+  // Use helper to get display name
+  const displayName = getParticipantDisplayName(other, chat.title || "Chat");
   const preview = chat.lastMessage?.content || "No messages yet";
   const unread = chat.unreadCount || 0;
   const time = chat.lastMessage?.sentAt || chat.updatedAt;
-  const avatarSrc = other?.profilePicture || null; // already stored on participant
+  const avatarSrc = other?.profilePicture || null;
 
   const formatTime = (date) => {
     if (!date) return "";
@@ -111,9 +124,9 @@ const ChatListItem = ({ chat, isActive, onClick, currentUser }) => {
       className={`chat-list-item ${isActive ? "active" : ""}`}
       onClick={onClick}
     >
-      <Avatar src={avatarSrc} name={name} size={48} badge={unread} />
+      <Avatar src={avatarSrc} name={displayName} size={48} badge={unread} />
       <div className="chat-info">
-        <div className="chat-name">{name}</div>
+        <div className="chat-name">{displayName}</div>
         <div className="chat-preview">
           <i
             className={`bi ${chat.type === "order" ? "bi-bag-check" : chat.type === "dispute" ? "bi-exclamation-triangle" : "bi-chat-dots"}`}
@@ -131,7 +144,7 @@ const ChatListItem = ({ chat, isActive, onClick, currentUser }) => {
 // ----------------------------------------------------------------------
 // Message bubble (single message)
 // ----------------------------------------------------------------------
-const MessageBubble = ({ message, isSent }) => {
+const MessageBubble = ({ message, isSent, senderName, isAdmin }) => {
   const formatTime = (date) =>
     new Date(date).toLocaleTimeString("en-US", {
       hour: "2-digit",
@@ -140,13 +153,24 @@ const MessageBubble = ({ message, isSent }) => {
 
   return (
     <div className={`message-row ${isSent ? "sent" : "received"}`}>
-      <div className="message-bubble">
-        <div className="message-text">{message.content}</div>
-        <div className="message-time">
-          {formatTime(message.createdAt)}
-          {isSent && <i className="bi bi-check-all" />}
+      <div className="message-bubble-wrapper">
+        {" "}
+        {/* ← add this wrapper */}
+        {senderName && (
+          <div className={`message-sender-name ${isAdmin ? "admin" : ""}`}>
+            {isAdmin && <span className="admin-badge">Admin</span>}
+            {senderName}
+          </div>
+        )}
+        <div className={`message-bubble ${isAdmin ? "admin-bubble" : ""}`}>
+          <div className="message-text">{message.content}</div>
+          <div className="message-time">
+            {formatTime(message.createdAt)}
+            {isSent && <i className="bi bi-check-all" />}
+          </div>
         </div>
-      </div>
+      </div>{" "}
+      {/* ← close wrapper */}
     </div>
   );
 };
@@ -166,19 +190,20 @@ const ChatWindow = ({ chat, currentUser, onMessageSent, apiUrl, socket }) => {
   const other = chat?.participants?.find(
     (p) => p.userId?._id !== currentUser?._id,
   );
-  const chatName = other?.name || chat?.title || "Chat";
+  const chatDisplayName = getParticipantDisplayName(
+    other,
+    chat?.title || "Chat",
+  );
   const chatAvatar = other?.profilePicture;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Scroll when new messages arrive
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  // Fetch messages when chat changes
   const fetchMessages = async () => {
     if (!chat) return;
     setLoading(true);
@@ -190,7 +215,6 @@ const ChatWindow = ({ chat, currentUser, onMessageSent, apiUrl, socket }) => {
       if (res.ok) {
         const data = await res.json();
         setMessages(data.messages || []);
-        // Mark all as read
         await fetch(`${apiUrl}/chat/${chat._id}/read`, {
           method: "PUT",
           headers: { Authorization: `Bearer ${token}` },
@@ -203,20 +227,16 @@ const ChatWindow = ({ chat, currentUser, onMessageSent, apiUrl, socket }) => {
     }
   };
 
-  // Socket listeners (only once per chat change)
   useEffect(() => {
     if (!chat || !socket) return;
-
     fetchMessages();
     socket.emit("joinChat", chat._id);
+
     const handleNewMessage = ({ chatId, message }) => {
       if (chatId !== chat._id) return;
       setMessages((prev) => {
-        // Avoid duplicates
         if (prev.some((m) => m._id === message._id)) return prev;
-        return [...prev, message].sort(
-          (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
-        );
+        return [...prev, message];
       });
       onMessageSent();
     };
@@ -240,7 +260,6 @@ const ChatWindow = ({ chat, currentUser, onMessageSent, apiUrl, socket }) => {
     };
   }, [chat?._id, socket]);
 
-  // Send message
   const sendMessage = async () => {
     const content = input.trim();
     if (!content || sending) return;
@@ -291,7 +310,6 @@ const ChatWindow = ({ chat, currentUser, onMessageSent, apiUrl, socket }) => {
     }
   };
 
-  // Group messages by date
   const groupByDate = () => {
     const groups = {};
     messages.forEach((msg) => {
@@ -340,12 +358,11 @@ const ChatWindow = ({ chat, currentUser, onMessageSent, apiUrl, socket }) => {
 
   return (
     <div className="chat-window">
-      {/* Header */}
       <div className="chat-header">
         <div className="chat-header-info">
-          <Avatar src={chatAvatar} name={chatName} size={44} />
+          <Avatar src={chatAvatar} name={chatDisplayName} size={44} />
           <div className="chat-header-details">
-            <h3>{chatName}</h3>
+            <h3>{chatDisplayName}</h3>
             <span className="chat-type-badge">
               <i
                 className={`bi ${chat.type === "order" ? "bi-bag-check" : chat.type === "dispute" ? "bi-exclamation-triangle" : "bi-headset"}`}
@@ -356,27 +373,36 @@ const ChatWindow = ({ chat, currentUser, onMessageSent, apiUrl, socket }) => {
         </div>
       </div>
 
-      {/* Messages */}
       <div className="messages-area">
         {Object.entries(grouped).map(([date, msgs]) => (
           <div key={date}>
             <div className="message-date">
               <span>{formatDateHeader(date)}</span>
             </div>
-            {msgs.map((msg, idx) => (
-              <MessageBubble
-                key={msg._id}
-                message={msg}
-                isSent={
-                  msg.sender?.userId === (currentUser?._id || currentUser?.id)
-                }
-              />
-            ))}
+            {msgs.map((msg) => {
+              const isSent =
+                msg.sender?.userId === (currentUser?._id || currentUser?.id);
+              const isAdmin = msg.sender?.role === "admin";
+              const senderName =
+                msg.sender?.fullname ||
+                msg.sender?.name ||
+                (isSent ? currentUser?.fullname || currentUser?.name : null);
+
+              return (
+                <MessageBubble
+                  key={msg._id}
+                  message={msg}
+                  isSent={isSent}
+                  senderName={senderName}
+                  isAdmin={isAdmin}
+                />
+              );
+            })}
           </div>
         ))}
         {typing && (
           <div className="typing-indicator">
-            <span>{other?.name} is typing</span>
+            <span>{chatDisplayName} is typing</span>
             <div className="typing-dots">
               <span />
               <span />
@@ -387,7 +413,6 @@ const ChatWindow = ({ chat, currentUser, onMessageSent, apiUrl, socket }) => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
       <div className="message-input-area">
         <div className="input-wrapper">
           <textarea
@@ -623,16 +648,14 @@ const ChatPage = ({ userRole, currentUser: propUser }) => {
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [toast, setToast] = useState(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false); // will be set after mount
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const socketRef = useRef(null);
-  const initialRender = useRef(true);
 
   const showToast = (message, type = "success") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   };
 
-  // Detect mobile sidebar state after mount (avoid SSR mismatch)
   useEffect(() => {
     setSidebarOpen(window.innerWidth > 768);
     const handleResize = () => setSidebarOpen(window.innerWidth > 768);
@@ -640,7 +663,6 @@ const ChatPage = ({ userRole, currentUser: propUser }) => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Fetch current user if not provided as prop
   useEffect(() => {
     if (propUser) {
       setCurrentUser(propUser);
@@ -659,7 +681,6 @@ const ChatPage = ({ userRole, currentUser: propUser }) => {
       .catch(() => router.push("/login"));
   }, [propUser, router]);
 
-  // Socket connection
   useEffect(() => {
     if (!currentUser) return;
     const token = localStorage.getItem("token");
@@ -706,13 +727,12 @@ const ChatPage = ({ userRole, currentUser: propUser }) => {
       const other = chat.participants?.find(
         (p) => p.userId?._id !== currentUser?._id,
       );
-      const name = other?.name || chat.title;
-      return name.toLowerCase().includes(search.toLowerCase());
+      const otherName = getParticipantDisplayName(other, chat.title);
+      return otherName.toLowerCase().includes(search.toLowerCase());
     }
     return true;
   });
 
-  // Chat selection – prevent unwanted scroll
   const handleSelectChat = (chat) => {
     const scrollY = window.scrollY;
     setSelectedChat(chat);
@@ -740,7 +760,6 @@ const ChatPage = ({ userRole, currentUser: propUser }) => {
     <div className="chat-container">
       {toast && <Toast {...toast} onClose={() => setToast(null)} />}
 
-      {/* Sidebar */}
       <div className={`chat-sidebar ${sidebarOpen ? "open" : ""}`}>
         <div className="chat-sidebar-header">
           <h2>
@@ -812,7 +831,6 @@ const ChatPage = ({ userRole, currentUser: propUser }) => {
         </div>
       </div>
 
-      {/* Mobile toggle button */}
       {typeof window !== "undefined" && window.innerWidth <= 768 && (
         <button
           className="mobile-toggle"
@@ -824,7 +842,6 @@ const ChatPage = ({ userRole, currentUser: propUser }) => {
         </button>
       )}
 
-      {/* Main Chat Window */}
       <div className="chat-window">
         <ChatWindow
           chat={selectedChat}

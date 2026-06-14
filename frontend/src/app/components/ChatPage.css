@@ -912,3 +912,113 @@ body.chat-open {
         background: var(--cp-bg-card);
     }
 }
+
+/* Sender name above bubble */
+.message-sender-name {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--color-text-secondary, #888);
+    margin-bottom: 4px;
+    padding: 0 4px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.sent .message-sender-name {
+    justify-content: flex-end;
+    color: #534AB7;
+}
+
+/* Admin badge pill */
+.admin-badge {
+    background: #EEEDFE;
+    color: #534AB7;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+}
+
+/* Admin message bubble — distinct purple style */
+.message-bubble.admin-bubble {
+    background: #534AB7;
+    color: #fff;
+    border-color: transparent;
+}
+
+.message-bubble.admin-bubble .message-text {
+    color: #fff;
+}
+
+.message-bubble.admin-bubble .message-time {
+    color: rgba(255, 255, 255, 0.65);
+}
+
+/* Wrapper stacks name + bubble vertically */
+.message-bubble-wrapper {
+    display: flex;
+    flex-direction: column;
+    max-width: 70%;
+}
+
+.message-row.sent .message-bubble-wrapper {
+    align-items: flex-end;
+}
+
+.message-row.received .message-bubble-wrapper {
+    align-items: flex-start;
+}
+
+/* Remove max-width from bubble itself since wrapper now controls it */
+.message-bubble {
+    max-width: 100%;
+}
+
+/* Sender name */
+.message-sender-name {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--cp-text-muted);
+    margin-bottom: 4px;
+    padding: 0 4px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.message-row.sent .message-sender-name {
+    justify-content: flex-end;
+    color: var(--cp-gold-deep);
+}
+
+/* Admin badge pill — matches golden theme */
+.admin-badge {
+    background: var(--cp-gold-pale);
+    color: var(--cp-gold-deep);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    border: 1px solid var(--cp-border-gold);
+}
+
+/* Admin bubble */
+.message-bubble.admin-bubble {
+    background: linear-gradient(135deg, var(--cp-gold-deep), var(--cp-gold));
+    color: #fff;
+    border-color: transparent;
+    box-shadow: var(--cp-shadow-gold);
+}
+
+.message-bubble.admin-bubble .message-text {
+    color: #fff;
+}
+
+.message-bubble.admin-bubble .message-time {
+    color: rgba(255, 255, 255, 0.65);
+}

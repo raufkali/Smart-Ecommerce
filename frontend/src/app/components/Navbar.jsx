@@ -135,7 +135,7 @@ const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" }) => {
   // Role‑based chat link
   const chatLink =
     role === "admin"
-      ? "/admin/chat"
+      ? "/admin/dashboard/chat"
       : role === "seller"
         ? "/seller/chat"
         : "/chat";
