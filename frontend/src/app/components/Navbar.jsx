@@ -37,7 +37,30 @@ const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" }) => {
     return () => document.removeEventListener("mousedown", onOutside);
   }, []);
 
-  // Fetch unread chat count
+  // ── Cart count (backend) ───────────────────────────────────────────────
+  const fetchCartCount = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setCartCount(0);
+      return;
+    }
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/cart/count`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setCartCount(data.count || 0);
+      } else {
+        setCartCount(0);
+      }
+    } catch {
+      setCartCount(0);
+    }
+  };
+
+  // ── Unread chat count (backend) ────────────────────────────────────────
   const fetchUnreadCount = async () => {
     const token = localStorage.getItem("token");
     if (!token) {
@@ -58,24 +81,32 @@ const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" }) => {
     }
   };
 
-  // Fetch on mount and when route changes (user may have read a chat)
+  // Fetch both on mount and on every route change
   useEffect(() => {
+    fetchCartCount();
     fetchUnreadCount();
   }, [pathname]);
 
-  // Listen for custom "newChatMessage" event
+  // Listen for cart updates dispatched anywhere in the app
   useEffect(() => {
-    const handleNewMessage = () => fetchUnreadCount();
-    window.addEventListener("newChatMessage", handleNewMessage);
-    return () => window.removeEventListener("newChatMessage", handleNewMessage);
+    window.addEventListener("cartUpdate", fetchCartCount);
+    return () => window.removeEventListener("cartUpdate", fetchCartCount);
   }, []);
 
+  // Listen for new chat messages
+  useEffect(() => {
+    window.addEventListener("newChatMessage", fetchUnreadCount);
+    return () => window.removeEventListener("newChatMessage", fetchUnreadCount);
+  }, []);
+
+  // ── Auth ───────────────────────────────────────────────────────────────
   useEffect(() => {
     const fetchUser = async () => {
       const token = localStorage.getItem("token");
       if (!token) {
         setUser(null);
         setFullUser(null);
+        setCartCount(0);
         return;
       }
       try {
@@ -97,6 +128,7 @@ const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" }) => {
         localStorage.removeItem("token");
         setUser(null);
         setFullUser(null);
+        setCartCount(0);
       }
     };
     fetchUser();
@@ -104,23 +136,13 @@ const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" }) => {
     return () => window.removeEventListener("authChange", fetchUser);
   }, [pathname]);
 
-  useEffect(() => {
-    const update = () =>
-      setCartCount(JSON.parse(localStorage.getItem("cart") || "[]").length);
-    update();
-    window.addEventListener("storage", update);
-    window.addEventListener("cartUpdate", update);
-    return () => {
-      window.removeEventListener("storage", update);
-      window.removeEventListener("cartUpdate", update);
-    };
-  }, []);
-
   const handleLogout = () => {
     if (!confirm("Log out of ShopNest?")) return;
     ["token", "user", "cart"].forEach((k) => localStorage.removeItem(k));
     setUser(null);
     setFullUser(null);
+    setCartCount(0);
+    setUnreadChatCount(0);
     window.dispatchEvent(new Event("authChange"));
     router.push("/");
   };
@@ -132,7 +154,6 @@ const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" }) => {
     ud?.fullname || ud?.name || ud?.email?.split("@")[0] || "User";
   const firstName = displayName.split(" ")[0];
 
-  // Role‑based chat link
   const chatLink =
     role === "admin"
       ? "/admin/dashboard/chat"
@@ -188,7 +209,6 @@ const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" }) => {
           label: "Products",
         },
         { href: "/seller/orders", icon: "bi-bag-check-fill", label: "Orders" },
-
         { divider: true },
         { href: "/profile", icon: "bi-person-fill", label: "Profile" },
       ],
@@ -230,7 +250,7 @@ const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" }) => {
 
           {/* Right actions */}
           <div className="sn-actions">
-            {/* Cart – buyers & guests only */}
+            {/* Cart — buyers only */}
             {(role === "user" || !isLoggedIn) && (
               <Link href="/cart" className="sn-action-btn" aria-label="Cart">
                 <i className="bi bi-bag-fill" />
@@ -242,7 +262,7 @@ const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" }) => {
               </Link>
             )}
 
-            {/* Messages with red dot for unread */}
+            {/* Messages */}
             {isLoggedIn && (
               <Link
                 href={chatLink}

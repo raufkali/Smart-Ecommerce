@@ -4,6 +4,8 @@ import Sidebar from "@/app/components/Sidebar";
 import "bootstrap/dist/css/bootstrap.min.css";
 import SellerAuthGuard from "./sellerAuthGuard";
 import "bootstrap-icons/font/bootstrap-icons.css";
+import { cormorantGaramond, dmSans } from "@/app/fontloader";
+
 import { useState } from "react";
 import { NotificationProvider } from "@/app/context/NotificationContext";
 const navbarItems = [];
@@ -41,7 +43,7 @@ export default function SellerLayout({ children }) {
 
   return (
     <html lang="en">
-      <body>
+      <body className={`${cormorantGaramond.variable} ${dmSans.variable}`}>
         <SellerAuthGuard>
           <NotificationProvider>
             <Navbar

@@ -7,9 +7,8 @@ import "./ChatPage.css";
 
 const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
-// ----------------------------------------------------------------------
-// Helper: full image URL for profile pictures
-// ----------------------------------------------------------------------
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
 const getFullImageUrl = (url) => {
   if (!url) return null;
   if (url.startsWith("http")) return url;
@@ -17,34 +16,45 @@ const getFullImageUrl = (url) => {
   return `${API_URL}/uploads/profiles/${url}`;
 };
 
-// Helper: get display name from participant (works for admin too)
-const getParticipantDisplayName = (participant, fallbackTitle = "Chat") => {
-  if (!participant) return fallbackTitle;
-  // 1. Denormalized name from participant
-  if (participant.name) return participant.name;
-  // 2. Populated user object
-  if (participant.userId) {
-    if (participant.userId.fullname) return participant.userId.fullname;
-    if (participant.userId.name) return participant.userId.name;
-    if (participant.userId.email) return participant.userId.email.split("@")[0];
-  }
-  return fallbackTitle;
+const normaliseId = (val) => {
+  if (!val) return null;
+  if (typeof val === "string") return val;
+  if (typeof val === "object")
+    return val._id?.toString() || val.id?.toString() || null;
+  return String(val);
 };
 
-// ----------------------------------------------------------------------
-// Toast notification (auto-dismiss)
-// ----------------------------------------------------------------------
+const getParticipantDisplayName = (participant, fallback = "Chat") => {
+  if (!participant) return fallback;
+  if (participant.name) return participant.name;
+  if (participant.userId) {
+    const u = participant.userId;
+    return u.fullname || u.name || (u.email ? u.email.split("@")[0] : fallback);
+  }
+  return fallback;
+};
+
+const getOtherParticipants = (participants = [], currentUserId) =>
+  participants.filter((p) => normaliseId(p.userId) !== currentUserId);
+
+// ─── Toast ──────────────────────────────────────────────────────────────────
+
 const Toast = ({ message, type, onClose }) => {
   useEffect(() => {
-    const timer = setTimeout(onClose, 3000);
-    return () => clearTimeout(timer);
+    const t = setTimeout(onClose, 3000);
+    return () => clearTimeout(t);
   }, [onClose]);
+
+  const icon =
+    type === "success"
+      ? "bi-check-circle-fill"
+      : type === "error"
+        ? "bi-exclamation-circle-fill"
+        : "bi-info-circle-fill";
 
   return (
     <div className={`chat-toast ${type}`}>
-      <i
-        className={`bi bi-${type === "success" ? "check-circle-fill" : type === "error" ? "exclamation-circle-fill" : "info-circle-fill"}`}
-      />
+      <i className={`bi ${icon}`} />
       <span>{message}</span>
       <button onClick={onClose}>
         <i className="bi bi-x-lg" />
@@ -53,18 +63,15 @@ const Toast = ({ message, type, onClose }) => {
   );
 };
 
-// ----------------------------------------------------------------------
-// Avatar component (handles fallback initials & badge)
-// ----------------------------------------------------------------------
-const Avatar = ({ src, name, size = 40, badge = 0 }) => {
-  const imageUrl = getFullImageUrl(src);
-  const initial = name ? name.charAt(0).toUpperCase() : "?";
+// ─── Avatar ─────────────────────────────────────────────────────────────────
 
+const Avatar = ({ src, name, size = 40 }) => {
+  const url = getFullImageUrl(src);
   return (
     <div className="chat-avatar" style={{ width: size, height: size }}>
-      {imageUrl ? (
+      {url ? (
         <img
-          src={imageUrl}
+          src={url}
           alt={name}
           className="chat-avatar-img"
           style={{ width: size, height: size }}
@@ -74,66 +81,136 @@ const Avatar = ({ src, name, size = 40, badge = 0 }) => {
           className="chat-avatar-placeholder"
           style={{ width: size, height: size }}
         >
-          <i className="bi bi-person-circle"></i>
+          <i className="bi bi-person-circle" />
         </div>
-      )}
-      {badge > 0 && (
-        <span className="unread-badge">{badge > 99 ? "99+" : badge}</span>
       )}
     </div>
   );
 };
 
-// ----------------------------------------------------------------------
-// Chat list item (sidebar)
-// ----------------------------------------------------------------------
-const ChatListItem = ({ chat, isActive, onClick, currentUser }) => {
-  const currentUserId =
-    currentUser?._id?.toString() || currentUser?.id?.toString();
+// ─── Dual Avatar (shows both buyer + seller for admin view) ─────────────────
 
-  // Find the other participant (not the current user)
-  const other = chat.participants?.find((p) => {
-    const pid = p.userId?._id?.toString() || p.userId?.toString();
-    return pid !== currentUserId;
-  });
+const DualAvatar = ({ participants = [], currentUserId, size = 40 }) => {
+  const others = getOtherParticipants(participants, currentUserId);
 
-  // Use helper to get display name
-  const displayName = getParticipantDisplayName(other, chat.title || "Chat");
+  if (others.length < 2) {
+    const p = others[0];
+    return (
+      <Avatar
+        src={p?.profilePicture || p?.userId?.profilePicture || null}
+        name={getParticipantDisplayName(p, "Chat")}
+        size={size}
+      />
+    );
+  }
+
+  const small = Math.round(size * 0.7);
+  const overlap = Math.round(size * 0.4);
+  const containerWidth = size + overlap;
+
+  const getSrc = (p) => p?.profilePicture || p?.userId?.profilePicture || null;
+
+  return (
+    <div
+      className="dual-avatar"
+      style={{
+        position: "relative",
+        width: containerWidth,
+        height: size,
+        flexShrink: 0,
+      }}
+    >
+      {/* Back avatar (second participant) — bottom-right */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 0,
+          right: 0,
+          zIndex: 1,
+          borderRadius: "50%",
+          boxShadow: "0 0 0 2px var(--color-background-primary)",
+        }}
+      >
+        <Avatar
+          src={getSrc(others[1])}
+          name={getParticipantDisplayName(others[1], "User 2")}
+          size={small}
+        />
+      </div>
+      {/* Front avatar (first participant) — top-left */}
+      <div style={{ position: "absolute", top: 0, left: 0, zIndex: 2 }}>
+        <Avatar
+          src={getSrc(others[0])}
+          name={getParticipantDisplayName(others[0], "User 1")}
+          size={size}
+        />
+      </div>
+    </div>
+  );
+};
+
+// ─── Chat list item ──────────────────────────────────────────────────────────
+
+const ChatListItem = ({ chat, isActive, onClick, currentUserId }) => {
+  const others = getOtherParticipants(chat.participants, currentUserId);
+  const displayName =
+    others.length === 1
+      ? getParticipantDisplayName(others[0], chat.title || "Chat")
+      : others.map((p) => getParticipantDisplayName(p)).join(" & ") ||
+        chat.title ||
+        "Chat";
+
   const preview = chat.lastMessage?.content || "No messages yet";
   const unread = chat.unreadCount || 0;
   const time = chat.lastMessage?.sentAt || chat.updatedAt;
-  const avatarSrc = other?.profilePicture || null;
 
   const formatTime = (date) => {
     if (!date) return "";
     const d = new Date(date);
     const now = new Date();
-    const diff = Math.floor((now - d) / 86400000);
-    if (diff === 0)
+    const diffDays = Math.floor((now - d) / 86400000);
+    if (diffDays === 0)
       return d.toLocaleTimeString("en-US", {
         hour: "2-digit",
         minute: "2-digit",
       });
-    if (diff === 1) return "Yesterday";
-    if (diff < 7) return d.toLocaleDateString("en-US", { weekday: "short" });
+    if (diffDays === 1) return "Yesterday";
+    if (diffDays < 7)
+      return d.toLocaleDateString("en-US", { weekday: "short" });
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   };
+
+  const typeIcon =
+    chat.type === "order"
+      ? "bi-bag-check"
+      : chat.type === "dispute"
+        ? "bi-exclamation-triangle"
+        : "bi-chat-dots";
 
   return (
     <button
       className={`chat-list-item ${isActive ? "active" : ""}`}
       onClick={onClick}
     >
-      <Avatar src={avatarSrc} name={displayName} size={48} badge={unread} />
+      <div style={{ position: "relative", flexShrink: 0 }}>
+        <DualAvatar
+          participants={chat.participants}
+          currentUserId={currentUserId}
+          size={48}
+        />
+        {unread > 0 && (
+          <span className="unread-badge">{unread > 99 ? "99+" : unread}</span>
+        )}
+      </div>
+
       <div className="chat-info">
         <div className="chat-name">{displayName}</div>
         <div className="chat-preview">
-          <i
-            className={`bi ${chat.type === "order" ? "bi-bag-check" : chat.type === "dispute" ? "bi-exclamation-triangle" : "bi-chat-dots"}`}
-          />
+          <i className={`bi ${typeIcon}`} />
           <span>{preview.slice(0, 50)}</span>
         </div>
       </div>
+
       <div className="chat-meta">
         <div className="chat-time">{formatTime(time)}</div>
       </div>
@@ -141,9 +218,8 @@ const ChatListItem = ({ chat, isActive, onClick, currentUser }) => {
   );
 };
 
-// ----------------------------------------------------------------------
-// Message bubble (single message)
-// ----------------------------------------------------------------------
+// ─── Message bubble ──────────────────────────────────────────────────────────
+
 const MessageBubble = ({ message, isSent, senderName, isAdmin }) => {
   const formatTime = (date) =>
     new Date(date).toLocaleTimeString("en-US", {
@@ -154,8 +230,6 @@ const MessageBubble = ({ message, isSent, senderName, isAdmin }) => {
   return (
     <div className={`message-row ${isSent ? "sent" : "received"}`}>
       <div className="message-bubble-wrapper">
-        {" "}
-        {/* ← add this wrapper */}
         {senderName && (
           <div className={`message-sender-name ${isAdmin ? "admin" : ""}`}>
             {isAdmin && <span className="admin-badge">Admin</span>}
@@ -169,42 +243,48 @@ const MessageBubble = ({ message, isSent, senderName, isAdmin }) => {
             {isSent && <i className="bi bi-check-all" />}
           </div>
         </div>
-      </div>{" "}
-      {/* ← close wrapper */}
+      </div>
     </div>
   );
 };
 
-// ----------------------------------------------------------------------
-// Chat window (main area)
-// ----------------------------------------------------------------------
-const ChatWindow = ({ chat, currentUser, onMessageSent, apiUrl, socket }) => {
+// ─── Chat window ─────────────────────────────────────────────────────────────
+
+const ChatWindow = ({
+  chat,
+  currentUserId,
+  currentUser,
+  onMessageSent,
+  apiUrl,
+  socket,
+}) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [typing, setTyping] = useState(false);
-  const messagesEndRef = useRef(null);
+  const [typingName, setTypingName] = useState(null);
+  const messagesAreaRef = useRef(null);
   const inputRef = useRef(null);
+  const typingTimerRef = useRef(null);
 
-  const other = chat?.participants?.find(
-    (p) => p.userId?._id !== currentUser?._id,
-  );
-  const chatDisplayName = getParticipantDisplayName(
-    other,
-    chat?.title || "Chat",
-  );
-  const chatAvatar = other?.profilePicture;
+  const others = getOtherParticipants(chat?.participants || [], currentUserId);
+  const chatDisplayName =
+    others.length === 1
+      ? getParticipantDisplayName(others[0], chat?.title || "Chat")
+      : others.map((p) => getParticipantDisplayName(p)).join(" & ") ||
+        chat?.title ||
+        "Chat";
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const scrollToBottom = useCallback((behavior = "smooth") => {
+    const el = messagesAreaRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, []);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    scrollToBottom("auto");
+  }, [messages, scrollToBottom]);
 
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     if (!chat) return;
     setLoading(true);
     try {
@@ -215,21 +295,23 @@ const ChatWindow = ({ chat, currentUser, onMessageSent, apiUrl, socket }) => {
       if (res.ok) {
         const data = await res.json();
         setMessages(data.messages || []);
-        await fetch(`${apiUrl}/chat/${chat._id}/read`, {
+        fetch(`${apiUrl}/chat/${chat._id}/read`, {
           method: "PUT",
           headers: { Authorization: `Bearer ${token}` },
-        });
+        }).catch(() => {});
       }
     } catch (err) {
-      console.error("fetchMessages error", err);
+      console.error("fetchMessages:", err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [chat, apiUrl]);
 
   useEffect(() => {
     if (!chat || !socket) return;
+    setMessages([]);
     fetchMessages();
+
     socket.emit("joinChat", chat._id);
 
     const handleNewMessage = ({ chatId, message }) => {
@@ -241,14 +323,17 @@ const ChatWindow = ({ chat, currentUser, onMessageSent, apiUrl, socket }) => {
       onMessageSent();
     };
 
-    const handleTyping = ({ chatId, userId }) => {
-      if (
-        chatId === chat._id &&
-        userId !== (currentUser?._id || currentUser?.id)
-      ) {
-        setTyping(true);
-        setTimeout(() => setTyping(false), 2000);
-      }
+    const handleTyping = ({ chatId, userId, name }) => {
+      if (chatId !== chat._id) return;
+      if (normaliseId(userId) === currentUserId) return;
+      const typerParticipant = chat.participants?.find(
+        (p) => normaliseId(p.userId) === normaliseId(userId),
+      );
+      const displayName =
+        name || getParticipantDisplayName(typerParticipant, "Someone");
+      setTypingName(displayName);
+      clearTimeout(typingTimerRef.current);
+      typingTimerRef.current = setTimeout(() => setTypingName(null), 2500);
     };
 
     socket.on("new_message", handleNewMessage);
@@ -257,15 +342,19 @@ const ChatWindow = ({ chat, currentUser, onMessageSent, apiUrl, socket }) => {
     return () => {
       socket.off("new_message", handleNewMessage);
       socket.off("user_typing", handleTyping);
+      clearTimeout(typingTimerRef.current);
     };
-  }, [chat?._id, socket]);
+  }, [chat?._id, socket, currentUserId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sendMessage = async () => {
     const content = input.trim();
     if (!content || sending) return;
 
     setInput("");
-    if (inputRef.current) inputRef.current.style.height = "auto";
+    if (inputRef.current) {
+      inputRef.current.style.height = "auto";
+      inputRef.current.focus();
+    }
     setSending(true);
 
     try {
@@ -285,10 +374,10 @@ const ChatWindow = ({ chat, currentUser, onMessageSent, apiUrl, socket }) => {
           return [...prev, data.message];
         });
         onMessageSent();
-        scrollToBottom();
+        setTimeout(() => scrollToBottom("smooth"), 50);
       }
     } catch (err) {
-      console.error("sendMessage error", err);
+      console.error("sendMessage:", err);
     } finally {
       setSending(false);
     }
@@ -301,23 +390,47 @@ const ChatWindow = ({ chat, currentUser, onMessageSent, apiUrl, socket }) => {
     }
   };
 
-  const handleTypingEvent = () => {
-    if (socket && chat) {
-      socket.emit("typing", {
-        chatId: chat._id,
-        userId: currentUser?._id || currentUser?.id,
-      });
+  const emitTyping = () => {
+    if (!socket || !chat) return;
+    socket.emit("typing", {
+      chatId: chat._id,
+      userId: currentUserId,
+      name: currentUser?.fullname || currentUser?.name || "Someone",
+    });
+  };
+
+  const handleInputChange = (e) => {
+    setInput(e.target.value);
+    emitTyping();
+    const el = inputRef.current;
+    if (el) {
+      el.style.height = "auto";
+      el.style.height = Math.min(el.scrollHeight, 100) + "px";
     }
   };
 
   const groupByDate = () => {
     const groups = {};
     messages.forEach((msg) => {
-      const date = new Date(msg.createdAt).toDateString();
-      if (!groups[date]) groups[date] = [];
-      groups[date].push(msg);
+      const key = new Date(msg.createdAt).toDateString();
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(msg);
     });
     return groups;
+  };
+
+  const formatDateHeader = (dateStr) => {
+    const d = new Date(dateStr);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (d.toDateString() === today.toDateString()) return "Today";
+    if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
+    return d.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
   };
 
   if (!chat) {
@@ -336,57 +449,53 @@ const ChatWindow = ({ chat, currentUser, onMessageSent, apiUrl, socket }) => {
     return (
       <div className="loading-state">
         <div className="spinner" />
-        <p>Loading messages...</p>
+        <p>Loading messages…</p>
       </div>
     );
   }
 
   const grouped = groupByDate();
-  const formatDateHeader = (dateStr) => {
-    const date = new Date(dateStr);
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    if (date.toDateString() === today.toDateString()) return "Today";
-    if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
-    return date.toLocaleDateString("en-US", {
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    });
-  };
+  const typeIcon =
+    chat.type === "order"
+      ? "bi-bag-check"
+      : chat.type === "dispute"
+        ? "bi-exclamation-triangle"
+        : "bi-headset";
 
   return (
-    <div className="chat-window">
+    <div className="chat-window-inner">
+      {/* Header */}
       <div className="chat-header">
         <div className="chat-header-info">
-          <Avatar src={chatAvatar} name={chatDisplayName} size={44} />
+          <DualAvatar
+            participants={chat.participants || []}
+            currentUserId={currentUserId}
+            size={44}
+          />
           <div className="chat-header-details">
             <h3>{chatDisplayName}</h3>
             <span className="chat-type-badge">
-              <i
-                className={`bi ${chat.type === "order" ? "bi-bag-check" : chat.type === "dispute" ? "bi-exclamation-triangle" : "bi-headset"}`}
-              />
+              <i className={`bi ${typeIcon}`} />
               {chat.type.charAt(0).toUpperCase() + chat.type.slice(1)} Chat
             </span>
           </div>
         </div>
       </div>
 
-      <div className="messages-area">
+      {/* Messages */}
+      <div className="messages-area" ref={messagesAreaRef}>
         {Object.entries(grouped).map(([date, msgs]) => (
           <div key={date}>
             <div className="message-date">
               <span>{formatDateHeader(date)}</span>
             </div>
             {msgs.map((msg) => {
-              const isSent =
-                msg.sender?.userId === (currentUser?._id || currentUser?.id);
+              const senderId = normaliseId(msg.sender?.userId);
+              const isSent = senderId === currentUserId;
               const isAdmin = msg.sender?.role === "admin";
-              const senderName =
-                msg.sender?.fullname ||
-                msg.sender?.name ||
-                (isSent ? currentUser?.fullname || currentUser?.name : null);
+              const senderName = isAdmin
+                ? msg.sender?.name || msg.sender?.fullname || "Admin"
+                : null;
 
               return (
                 <MessageBubble
@@ -400,9 +509,10 @@ const ChatWindow = ({ chat, currentUser, onMessageSent, apiUrl, socket }) => {
             })}
           </div>
         ))}
-        {typing && (
+
+        {typingName && (
           <div className="typing-indicator">
-            <span>{chatDisplayName} is typing</span>
+            <span>{typingName} is typing</span>
             <div className="typing-dots">
               <span />
               <span />
@@ -410,21 +520,18 @@ const ChatWindow = ({ chat, currentUser, onMessageSent, apiUrl, socket }) => {
             </div>
           </div>
         )}
-        <div ref={messagesEndRef} />
       </div>
 
+      {/* Input */}
       <div className="message-input-area">
         <div className="input-wrapper">
           <textarea
             ref={inputRef}
             className="message-input"
-            rows="1"
-            placeholder="Type a message..."
+            rows={1}
+            placeholder="Type a message…"
             value={input}
-            onChange={(e) => {
-              setInput(e.target.value);
-              handleTypingEvent();
-            }}
+            onChange={handleInputChange}
             onKeyPress={handleKeyPress}
           />
           <button
@@ -444,9 +551,8 @@ const ChatWindow = ({ chat, currentUser, onMessageSent, apiUrl, socket }) => {
   );
 };
 
-// ----------------------------------------------------------------------
-// New Chat Modal (admin only)
-// ----------------------------------------------------------------------
+// ─── New chat modal ──────────────────────────────────────────────────────────
+
 const NewChatModal = ({
   show,
   onClose,
@@ -469,24 +575,22 @@ const NewChatModal = ({
   }, [show]);
 
   useEffect(() => {
-    if (currentUser?.role !== "admin" || search.length < 2) return;
+    if (currentUser?.role !== "admin" || search.length < 2) {
+      setUsers([]);
+      return;
+    }
     const timer = setTimeout(async () => {
       setLoading(true);
       try {
         const token = localStorage.getItem("token");
         const res = await fetch(
           `${apiUrl}/admin/users?search=${encodeURIComponent(search)}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          },
+          { headers: { Authorization: `Bearer ${token}` } },
         );
         if (res.ok) {
           const data = await res.json();
-          setUsers(
-            (data.users || []).filter(
-              (u) => u._id !== (currentUser?._id || currentUser?.id),
-            ),
-          );
+          const meId = normaliseId(currentUser);
+          setUsers((data.users || []).filter((u) => normaliseId(u) !== meId));
         }
       } catch (err) {
         console.error(err);
@@ -495,7 +599,7 @@ const NewChatModal = ({
       }
     }, 400);
     return () => clearTimeout(timer);
-  }, [search, currentUser]);
+  }, [search, currentUser, apiUrl]);
 
   const createChat = async () => {
     if (!selected) return;
@@ -532,7 +636,7 @@ const NewChatModal = ({
             <h3>
               <i className="bi bi-plus-circle" /> New Chat
             </h3>
-            <button className="btn-secondary" onClick={onClose}>
+            <button className="btn-secondary icon-only" onClick={onClose}>
               <i className="bi bi-x-lg" />
             </button>
           </div>
@@ -562,7 +666,7 @@ const NewChatModal = ({
           <h3>
             <i className="bi bi-plus-circle" /> New Conversation
           </h3>
-          <button className="btn-secondary" onClick={onClose}>
+          <button className="btn-secondary icon-only" onClick={onClose}>
             <i className="bi bi-x-lg" />
           </button>
         </div>
@@ -571,14 +675,14 @@ const NewChatModal = ({
             <i className="bi bi-search" />
             <input
               type="text"
-              placeholder="Search by name or email..."
+              placeholder="Search by name or email…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
           <div className="user-list">
             {loading ? (
-              <div className="loading-state">
+              <div className="loading-state" style={{ height: 120 }}>
                 <div className="spinner" />
               </div>
             ) : users.length > 0 ? (
@@ -597,15 +701,21 @@ const NewChatModal = ({
                     <div className="user-name">{user.fullname}</div>
                     <div className="user-email">{user.email}</div>
                   </div>
+                  {selected?._id === user._id && (
+                    <i
+                      className="bi bi-check-circle-fill"
+                      style={{ color: "var(--cp-gold)" }}
+                    />
+                  )}
                 </div>
               ))
             ) : search.length >= 2 ? (
-              <div className="empty-state">
+              <div className="empty-state" style={{ padding: "40px 20px" }}>
                 <i className="bi bi-inbox" />
                 <p>No users found</p>
               </div>
             ) : (
-              <div className="empty-state">
+              <div className="empty-state" style={{ padding: "40px 20px" }}>
                 <i className="bi bi-search" />
                 <p>Type at least 2 characters to search</p>
               </div>
@@ -635,9 +745,8 @@ const NewChatModal = ({
   );
 };
 
-// ----------------------------------------------------------------------
-// Main Chat Page
-// ----------------------------------------------------------------------
+// ─── Main page ───────────────────────────────────────────────────────────────
+
 const ChatPage = ({ userRole, currentUser: propUser }) => {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState(propUser || null);
@@ -651,16 +760,15 @@ const ChatPage = ({ userRole, currentUser: propUser }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const socketRef = useRef(null);
 
-  const showToast = (message, type = "success") => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  };
+  const currentUserId = currentUser ? normaliseId(currentUser) : null;
+
+  const showToast = (message, type = "success") => setToast({ message, type });
 
   useEffect(() => {
-    setSidebarOpen(window.innerWidth > 768);
-    const handleResize = () => setSidebarOpen(window.innerWidth > 768);
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    const update = () => setSidebarOpen(window.innerWidth > 768);
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
   }, []);
 
   useEffect(() => {
@@ -686,14 +794,13 @@ const ChatPage = ({ userRole, currentUser: propUser }) => {
     const token = localStorage.getItem("token");
     const socket = io(API_URL, { auth: { token }, transports: ["websocket"] });
     socketRef.current = socket;
-    socket.emit("joinRoom", {
-      userId: currentUser._id || currentUser.id,
-      role: currentUser.role,
-    });
-    socket.on("chat_notification", () => fetchChats());
-    socket.on("new_message", () => fetchChats());
+
+    socket.emit("joinRoom", { userId: currentUserId, role: currentUser.role });
+    socket.on("chat_notification", fetchChats);
+    socket.on("new_message", fetchChats);
+
     return () => socket.disconnect();
-  }, [currentUser]);
+  }, [currentUser]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchChats = useCallback(async () => {
     if (!currentUser) return;
@@ -711,7 +818,7 @@ const ChatPage = ({ userRole, currentUser: propUser }) => {
         setChats(data.chats || []);
       }
     } catch (err) {
-      console.error("fetchChats error", err);
+      console.error("fetchChats:", err);
     } finally {
       setLoading(false);
     }
@@ -724,20 +831,16 @@ const ChatPage = ({ userRole, currentUser: propUser }) => {
   const filteredChats = chats.filter((chat) => {
     if (filter !== "all" && chat.type !== filter) return false;
     if (search) {
-      const other = chat.participants?.find(
-        (p) => p.userId?._id !== currentUser?._id,
-      );
-      const otherName = getParticipantDisplayName(other, chat.title);
-      return otherName.toLowerCase().includes(search.toLowerCase());
+      const others = getOtherParticipants(chat.participants, currentUserId);
+      const name = others.map((p) => getParticipantDisplayName(p)).join(" ");
+      return name.toLowerCase().includes(search.toLowerCase());
     }
     return true;
   });
 
   const handleSelectChat = (chat) => {
-    const scrollY = window.scrollY;
     setSelectedChat(chat);
-    setSidebarOpen(false);
-    setTimeout(() => window.scrollTo(0, scrollY), 0);
+    if (window.innerWidth <= 768) setSidebarOpen(false);
   };
 
   const FILTERS = [
@@ -751,7 +854,7 @@ const ChatPage = ({ userRole, currentUser: propUser }) => {
     return (
       <div className="loading-state" style={{ height: "calc(100vh - 60px)" }}>
         <div className="spinner" />
-        <p>Loading conversations...</p>
+        <p>Loading conversations…</p>
       </div>
     );
   }
@@ -760,12 +863,24 @@ const ChatPage = ({ userRole, currentUser: propUser }) => {
     <div className="chat-container">
       {toast && <Toast {...toast} onClose={() => setToast(null)} />}
 
+      {sidebarOpen && window.innerWidth <= 768 && (
+        <div
+          className="sidebar-overlay"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
       <div className={`chat-sidebar ${sidebarOpen ? "open" : ""}`}>
         <div className="chat-sidebar-header">
           <h2>
             <i className="bi bi-chat-dots-fill" /> Messages
           </h2>
-          <button className="new-chat-btn" onClick={() => setShowModal(true)}>
+          <button
+            className="new-chat-btn"
+            onClick={() => setShowModal(true)}
+            title="New conversation"
+          >
             <i className="bi bi-plus-lg" />
           </button>
         </div>
@@ -775,15 +890,14 @@ const ChatPage = ({ userRole, currentUser: propUser }) => {
             <i className="bi bi-search" />
             <input
               type="text"
-              placeholder="Search conversations..."
+              placeholder="Search conversations…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
             {search && (
               <button
-                className="btn-secondary"
+                className="clear-search-btn"
                 onClick={() => setSearch("")}
-                style={{ padding: 0, width: 24, height: 24 }}
               >
                 <i className="bi bi-x-lg" />
               </button>
@@ -824,27 +938,27 @@ const ChatPage = ({ userRole, currentUser: propUser }) => {
                 chat={chat}
                 isActive={selectedChat?._id === chat._id}
                 onClick={() => handleSelectChat(chat)}
-                currentUser={currentUser}
+                currentUserId={currentUserId}
               />
             ))
           )}
         </div>
       </div>
 
-      {typeof window !== "undefined" && window.innerWidth <= 768 && (
-        <button
-          className="mobile-toggle"
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-        >
-          <i
-            className={`bi ${sidebarOpen ? "bi-x-lg" : "bi-chat-dots-fill"}`}
-          />
-        </button>
-      )}
+      {/* Mobile toggle */}
+      <button
+        className="mobile-toggle"
+        onClick={() => setSidebarOpen((v) => !v)}
+        aria-label="Toggle conversations"
+      >
+        <i className={`bi ${sidebarOpen ? "bi-x-lg" : "bi-chat-dots-fill"}`} />
+      </button>
 
+      {/* Main chat area */}
       <div className="chat-window">
         <ChatWindow
           chat={selectedChat}
+          currentUserId={currentUserId}
           currentUser={currentUser}
           onMessageSent={fetchChats}
           apiUrl={API_URL}

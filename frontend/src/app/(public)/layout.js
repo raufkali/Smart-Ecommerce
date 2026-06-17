@@ -6,6 +6,7 @@ import "bootstrap-icons/font/bootstrap-icons.css";
 import { useState, useEffect } from "react";
 import Footer from "../components/Footer";
 import { NotificationProvider } from "../context/NotificationContext";
+import { cormorantGaramond, dmSans } from "../fontloader";
 
 export default function RootLayout({ children }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -119,7 +120,9 @@ export default function RootLayout({ children }) {
 
   return (
     <html lang="en">
-      <body className="light-theme">
+      <body
+        className={`${cormorantGaramond.variable} ${dmSans.variable} light-theme`}
+      >
         <div className="app-wrapper">
           <NotificationProvider>
             <Navbar

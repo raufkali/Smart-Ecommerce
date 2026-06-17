@@ -4,52 +4,52 @@ import localFont from "next/font/local";
 export const cormorantGaramond = localFont({
   src: [
     {
-      path: "./fonts/cormorant/CormorantGaramond-Light.ttf",
+      path: "./fonts/CormorantGaramond-Light.ttf",
       weight: "300",
       style: "normal",
     },
     {
-      path: "./fonts/cormorant/CormorantGaramond-LightItalic.ttf",
+      path: "./fonts/CormorantGaramond-LightItalic.ttf",
       weight: "300",
       style: "italic",
     },
     {
-      path: "./fonts/cormorant/CormorantGaramond-Regular.ttf",
+      path: "./fonts/CormorantGaramond-Light.ttf",
       weight: "400",
       style: "normal",
     },
     {
-      path: "./fonts/cormorant/CormorantGaramond-Italic.ttf",
+      path: "./fonts/CormorantGaramond-LightItalic.ttf",
       weight: "400",
       style: "italic",
     },
     {
-      path: "./fonts/cormorant/CormorantGaramond-Medium.ttf",
+      path: "./fonts/CormorantGaramond-Light.ttf",
       weight: "500",
       style: "normal",
     },
     {
-      path: "./fonts/cormorant/CormorantGaramond-MediumItalic.ttf",
+      path: "./fonts/CormorantGaramond-LightItalic.ttf",
       weight: "500",
       style: "italic",
     },
     {
-      path: "./fonts/cormorant/CormorantGaramond-SemiBold.ttf",
+      path: "./fonts/CormorantGaramond-Light.ttf",
       weight: "600",
       style: "normal",
     },
     {
-      path: "./fonts/cormorant/CormorantGaramond-SemiBoldItalic.ttf",
+      path: "./fonts/CormorantGaramond-LightItalic.ttf",
       weight: "600",
       style: "italic",
     },
     {
-      path: "./fonts/cormorant/CormorantGaramond-Bold.ttf",
+      path: "./fonts/CormorantGaramond-Light.ttf",
       weight: "700",
       style: "normal",
     },
     {
-      path: "./fonts/cormorant/CormorantGaramond-BoldItalic.ttf",
+      path: "./fonts/CormorantGaramond-LightItalic.ttf",
       weight: "700",
       style: "italic",
     },
@@ -61,92 +61,92 @@ export const cormorantGaramond = localFont({
 export const dmSans = localFont({
   src: [
     {
-      path: "./fonts/dm-sans/DMSans-Thin.ttf",
+      path: "./fonts/DMSans-Thin.ttf",
       weight: "100",
       style: "normal",
     },
     {
-      path: "./fonts/dm-sans/DMSans-ThinItalic.ttf",
+      path: "./fonts/DMSans-ThinItalic.ttf",
       weight: "100",
       style: "italic",
     },
     {
-      path: "./fonts/dm-sans/DMSans-ExtraLight.ttf",
+      path: "./fonts/DMSans-Thin.ttf",
       weight: "200",
       style: "normal",
     },
     {
-      path: "./fonts/dm-sans/DMSans-ExtraLightItalic.ttf",
+      path: "./fonts/DMSans-ThinItalic.ttf",
       weight: "200",
       style: "italic",
     },
     {
-      path: "./fonts/dm-sans/DMSans-Light.ttf",
+      path: "./fonts/DMSans-Thin.ttf",
       weight: "300",
       style: "normal",
     },
     {
-      path: "./fonts/dm-sans/DMSans-LightItalic.ttf",
+      path: "./fonts/DMSans-ThinItalic.ttf",
       weight: "300",
       style: "italic",
     },
     {
-      path: "./fonts/dm-sans/DMSans-Regular.ttf",
+      path: "./fonts/DMSans-Thin.ttf",
       weight: "400",
       style: "normal",
     },
     {
-      path: "./fonts/dm-sans/DMSans-Italic.ttf",
+      path: "./fonts/DMSans-ThinItalic.ttf",
       weight: "400",
       style: "italic",
     },
     {
-      path: "./fonts/dm-sans/DMSans-Medium.ttf",
+      path: "./fonts/DMSans-Thin.ttf",
       weight: "500",
       style: "normal",
     },
     {
-      path: "./fonts/dm-sans/DMSans-MediumItalic.ttf",
+      path: "./fonts/DMSans-ThinItalic.ttf",
       weight: "500",
       style: "italic",
     },
     {
-      path: "./fonts/dm-sans/DMSans-SemiBold.ttf",
+      path: "./fonts/DMSans-Thin.ttf",
       weight: "600",
       style: "normal",
     },
     {
-      path: "./fonts/dm-sans/DMSans-SemiBoldItalic.ttf",
+      path: "./fonts/DMSans-ThinItalic.ttf",
       weight: "600",
       style: "italic",
     },
     {
-      path: "./fonts/dm-sans/DMSans-Bold.ttf",
+      path: "./fonts/DMSans-Thin.ttf",
       weight: "700",
       style: "normal",
     },
     {
-      path: "./fonts/dm-sans/DMSans-BoldItalic.ttf",
+      path: "./fonts/DMSans-ThinItalic.ttf",
       weight: "700",
       style: "italic",
     },
     {
-      path: "./fonts/dm-sans/DMSans-ExtraBold.ttf",
+      path: "./fonts/DMSans-Thin.ttf",
       weight: "800",
       style: "normal",
     },
     {
-      path: "./fonts/dm-sans/DMSans-ExtraBoldItalic.ttf",
+      path: "./fonts/DMSans-ThinItalic.ttf",
       weight: "800",
       style: "italic",
     },
     {
-      path: "./fonts/dm-sans/DMSans-Black.ttf",
+      path: "./fonts/DMSans-Thin.ttf",
       weight: "900",
       style: "normal",
     },
     {
-      path: "./fonts/dm-sans/DMSans-BlackItalic.ttf",
+      path: "./fonts/DMSans-ThinItalic.ttf",
       weight: "900",
       style: "italic",
     },

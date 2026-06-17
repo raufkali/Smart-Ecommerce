@@ -45,7 +45,7 @@
     border: none;
     border-radius: 50%;
     font-size: 1.25rem;
-    color: var(--nb-ink);
+    color: white;
     cursor: pointer;
     transition: background var(--nb-speed) var(--nb-ease),
         color var(--nb-speed) var(--nb-ease),
@@ -395,7 +395,8 @@
     height: 9px;
     margin-top: 18px;
     border-radius: 50%;
-    background: var(--nb-red);
+    background: #ef4444;
+
     box-shadow: 0 0 0 2.5px var(--nb-red-glow);
     animation: nb-blink 2.2s ease-in-out infinite;
 }

@@ -6,6 +6,7 @@ import "bootstrap-icons/font/bootstrap-icons.css";
 import AdminAuthGuard from "./adminAuthGuard";
 import { useState, useEffect } from "react";
 import "./admin-layout.css"; // Import the CSS file
+import { cormorantGaramond, dmSans } from "@/app/fontloader";
 
 const header = "Admin Panel";
 const sidebarItems = [
@@ -56,7 +57,7 @@ export default function RootLayout({ children }) {
 
   return (
     <html lang="en">
-      <body>
+      <body className={`${cormorantGaramond.variable} ${dmSans.variable}`}>
         <AdminAuthGuard>
           <div className="admin-layout">
             <Sidebar

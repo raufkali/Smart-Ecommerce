@@ -202,10 +202,14 @@ const HeroBanner = ({ banners, currentSlide, onSlideChange }) => {
           transition={{ duration: 0.8 }}
           className="hero-slide"
         >
-          <img
+          <Image
             src={banners[currentSlide].img}
             alt={banners[currentSlide].title}
+            fill
+            priority
+            sizes="100vw"
             className="hero-image"
+            style={{ objectFit: "cover" }}
           />
           {/* Glassmorphism overlay */}
           <div className="hero-glass-overlay" />
@@ -355,12 +359,14 @@ const FeaturedProductSpotlight = ({
           >
             {/* Fixed image container */}
             <div className="spotlight-image-container">
-              <BackendImage
+              <Image
                 src={`${process.env.NEXT_PUBLIC_BACKEND_URL}${product.images?.[0] || "/placeholder.jpg"}`}
                 alt={product.name}
-                fill
+                width={600}
+                height={600}
                 className="spotlight-img"
                 sizes="(max-width: 768px) 100vw, 50vw"
+                priority
               />
               {discount > 0 && (
                 <span className="spotlight-discount">-{discount}% OFF</span>

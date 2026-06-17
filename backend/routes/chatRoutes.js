@@ -22,14 +22,32 @@ const {
 // Get total unread messages count for the authenticated user
 router.get("/unread-count", authMiddleware, async (req, res, next) => {
   try {
-    const userId = req.user.id;
     const Chat = require("../models/Chat");
+    const mongoose = require("mongoose");
+
+    // Cast to ObjectId — req.user.id is a string, but the schema uses ObjectId
+    const userId = new mongoose.Types.ObjectId(req.user.id);
 
     const result = await Chat.aggregate([
-      { $match: { "participants.userId": userId, status: "active" } },
+      {
+        $match: {
+          "participants.userId": userId,
+          status: "active",
+        },
+      },
       { $unwind: "$unreadCounts" },
-      { $match: { "unreadCounts.userId": userId } },
-      { $group: { _id: null, totalUnread: { $sum: "$unreadCounts.count" } } },
+      {
+        $match: {
+          "unreadCounts.userId": userId,
+          "unreadCounts.count": { $gt: 0 },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalUnread: { $sum: "$unreadCounts.count" },
+        },
+      },
     ]);
 
     const count = result.length ? result[0].totalUnread : 0;
