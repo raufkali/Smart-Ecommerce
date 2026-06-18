@@ -30,6 +30,11 @@ const sidebarItems = [
     link: "/admin/dashboard/categories",
     icon: "categories",
   },
+  {
+    name: "Settings",
+    link: "/admin/dashboard/settings",
+    icon: "settings",
+  },
 ];
 
 const navItems = [];

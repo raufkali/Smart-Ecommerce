@@ -352,7 +352,11 @@ const CategoriesPage = () => {
                       {product.images?.length > 0 ? (
                         <div className="cat-product-img">
                           <Image
-                            src={`${process.env.NEXT_PUBLIC_BACKEND_URL}${product.images[0]}`}
+                            src={
+                              product.images?.[0]?.startsWith("http")
+                                ? product.images[0]
+                                : `${process.env.NEXT_PUBLIC_BACKEND_URL}${product.images?.[0] || "/placeholder.jpg"}`
+                            }
                             alt={product.name}
                             fill
                             style={{ objectFit: "cover", cursor: "pointer" }}

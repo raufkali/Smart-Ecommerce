@@ -210,7 +210,7 @@ const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" }) => {
         },
         { href: "/seller/orders", icon: "bi-bag-check-fill", label: "Orders" },
         { divider: true },
-        { href: "/profile", icon: "bi-person-fill", label: "Profile" },
+        { href: "/seller/profile", icon: "bi-person-fill", label: "Profile" },
       ],
     },
     user: {
