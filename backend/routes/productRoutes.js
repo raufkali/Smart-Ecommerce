@@ -28,6 +28,11 @@ router
   .route("/:id")
   .delete(authMiddleware, verifyRole("admin", "seller"), deleteProduct)
   .get(getOneProduct)
-  .put(authMiddleware, verifyRole("admin", "seller"), updateProduct);
+  .put(
+    authMiddleware,
+    verifyRole("admin", "seller"),
+    uploadMultipleProducts,
+    updateProduct,
+  );
 
 module.exports = router;

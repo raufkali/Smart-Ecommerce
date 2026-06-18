@@ -2,6 +2,7 @@
 const nextConfig = {
   images: {
     remotePatterns: [
+      // existing – local backend (old files)
       {
         protocol: "http",
         hostname: "localhost",
@@ -19,6 +20,12 @@ const nextConfig = {
         hostname: "192.168.10.20",
         port: "8080",
         pathname: "/uploads/**",
+      },
+      // new – Cloudinary
+      {
+        protocol: "https",
+        hostname: "res.cloudinary.com",
+        pathname: "/**",
       },
     ],
   },

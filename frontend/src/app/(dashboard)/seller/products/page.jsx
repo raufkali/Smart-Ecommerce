@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import "./SellerProducts.css";
 
 // Toast Component
@@ -44,15 +43,11 @@ const StockModal = ({ show, onClose, product, onUpdate }) => {
       setError("Please enter a valid quantity");
       return;
     }
-
     setLoading(true);
     setError("");
-
     try {
       const token = localStorage.getItem("token");
-      const currentStock = product.stock || 0;
-      const newStock = currentStock + parseInt(stockToAdd);
-
+      const newStock = (product.stock || 0) + parseInt(stockToAdd);
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/products/${product._id}`,
         {
@@ -67,16 +62,13 @@ const StockModal = ({ show, onClose, product, onUpdate }) => {
           }),
         },
       );
-
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to update stock");
+        const err = await response.json();
+        throw new Error(err.message || "Failed to update stock");
       }
-
       onUpdate();
       onClose();
     } catch (error) {
-      console.error("Error updating stock:", error);
       setError(error.message);
     } finally {
       setLoading(false);
@@ -88,8 +80,7 @@ const StockModal = ({ show, onClose, product, onUpdate }) => {
       <div className="modal-container" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h5 className="modal-title">
-            <i className="bi bi-plus-circle"></i>
-            Add Stock
+            <i className="bi bi-plus-circle"></i> Add Stock
           </h5>
           <button className="modal-close" onClick={onClose}>
             <i className="bi bi-x-lg"></i>
@@ -109,7 +100,6 @@ const StockModal = ({ show, onClose, product, onUpdate }) => {
                 </strong>
               </div>
             </div>
-
             <div className="form-group">
               <label>
                 Quantity to Add <span className="required">*</span>
@@ -123,14 +113,11 @@ const StockModal = ({ show, onClose, product, onUpdate }) => {
                 placeholder="Enter quantity"
               />
             </div>
-
             {error && (
               <div className="error-message">
-                <i className="bi bi-exclamation-triangle-fill"></i>
-                {error}
+                <i className="bi bi-exclamation-triangle-fill"></i> {error}
               </div>
             )}
-
             <div className="info-alert info">
               <i className="bi bi-info-circle-fill"></i>
               <div>
@@ -164,8 +151,11 @@ const ProductModal = ({ show, onClose, product, onSave, categories }) => {
     stock: "",
     isActive: true,
   });
-  const [imageFiles, setImageFiles] = useState([]);
+  // existingImages: array of Cloudinary URLs already saved on the product
   const [existingImages, setExistingImages] = useState([]);
+  // imageFiles: only NEW File objects the user picks from disk
+  const [imageFiles, setImageFiles] = useState([]);
+  // imagePreviews: display URLs for both existing and new images
   const [imagePreviews, setImagePreviews] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -181,12 +171,25 @@ const ProductModal = ({ show, onClose, product, onSave, categories }) => {
         stock: product.stock || "",
         isActive: product.isActive !== undefined ? product.isActive : true,
       });
-      setExistingImages(product.images || []);
-      // Load existing images as previews
-      const existingPreviews = (product.images || []).map(
-        (img) => `${process.env.NEXT_PUBLIC_BACKEND_URL}${img}`,
+
+      // ✅ Only keep Cloudinary URLs as existing images — drop old local paths
+      const cloudinaryImages = (product.images || []).filter(
+        (img) =>
+          typeof img === "string" &&
+          img.startsWith("https://res.cloudinary.com"),
       );
-      setImagePreviews(existingPreviews);
+      setExistingImages(cloudinaryImages);
+
+      // ✅ Previews: Cloudinary URLs are used directly; old local paths get backend prefix
+      const previews = (product.images || []).map((img) =>
+        img.startsWith("http")
+          ? img
+          : `${process.env.NEXT_PUBLIC_BACKEND_URL}${img}`,
+      );
+      setImagePreviews(previews);
+
+      // ✅ Always reset new file uploads when opening edit modal
+      setImageFiles([]);
     } else {
       resetForm();
     }
@@ -202,8 +205,8 @@ const ProductModal = ({ show, onClose, product, onSave, categories }) => {
       stock: "",
       isActive: true,
     });
-    setImageFiles([]);
     setExistingImages([]);
+    setImageFiles([]);
     setImagePreviews([]);
     setError("");
   };
@@ -218,13 +221,12 @@ const ProductModal = ({ show, onClose, product, onSave, categories }) => {
 
   const handleImageChange = (e) => {
     const files = Array.from(e.target.files);
-
-    // Validate file sizes (max 5MB each)
     const validFiles = files.filter((file) => file.size <= 5 * 1024 * 1024);
     if (validFiles.length !== files.length) {
-      setError("Some files exceed 5MB limit");
+      setError("Some files exceed the 5MB limit and were skipped");
     }
 
+    // ✅ Only add actual File objects
     setImageFiles((prev) => [...prev, ...validFiles]);
 
     validFiles.forEach((file) => {
@@ -237,13 +239,16 @@ const ProductModal = ({ show, onClose, product, onSave, categories }) => {
   };
 
   const removeImage = (index) => {
-    const isExisting = index < existingImages.length;
+    const totalExisting = existingImages.length;
+    const isExisting = index < totalExisting;
 
     if (isExisting) {
+      // Remove from existingImages and previews
       setExistingImages((prev) => prev.filter((_, i) => i !== index));
       setImagePreviews((prev) => prev.filter((_, i) => i !== index));
     } else {
-      const fileIndex = index - existingImages.length;
+      // Remove from new imageFiles and previews
+      const fileIndex = index - totalExisting;
       setImageFiles((prev) => prev.filter((_, i) => i !== fileIndex));
       setImagePreviews((prev) => prev.filter((_, i) => i !== index));
     }
@@ -257,41 +262,40 @@ const ProductModal = ({ show, onClose, product, onSave, categories }) => {
     try {
       const formDataToSend = new FormData();
 
-      // Append text fields
+      // Text fields
       formDataToSend.append("name", formData.name);
       formDataToSend.append("description", formData.description);
       formDataToSend.append("price", formData.price);
-
       if (formData.category) {
         formDataToSend.append("category", formData.category);
       }
-
       formDataToSend.append("discount", formData.discount || "0");
       formDataToSend.append("stock", formData.stock);
       formDataToSend.append("isActive", formData.isActive);
 
-      // Append existing images URLs to keep
+      // ✅ Only send Cloudinary URLs as existingImages — never local paths
       existingImages.forEach((img) => {
-        formDataToSend.append("existingImages", img);
+        if (img.startsWith("https://res.cloudinary.com")) {
+          formDataToSend.append("existingImages", img);
+        }
       });
 
-      // Append new images
+      // ✅ Only append actual File objects — never strings
       imageFiles.forEach((file) => {
-        formDataToSend.append("images", file);
+        if (file instanceof File) {
+          formDataToSend.append("images", file);
+        }
       });
 
       const token = localStorage.getItem("token");
       const url = product
         ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/products/${product._id}`
         : `${process.env.NEXT_PUBLIC_BACKEND_URL}/products/create`;
-
       const method = product ? "PUT" : "POST";
 
       const response = await fetch(url, {
         method,
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
         body: formDataToSend,
       });
 
@@ -322,7 +326,7 @@ const ProductModal = ({ show, onClose, product, onSave, categories }) => {
       >
         <div className="modal-header">
           <h5 className="modal-title">
-            <i className="bi bi-box-seam"></i>
+            <i className="bi bi-box-seam"></i>{" "}
             {product ? "Edit Product" : "Add New Product"}
           </h5>
           <button className="modal-close" onClick={onClose}>
@@ -474,8 +478,7 @@ const ProductModal = ({ show, onClose, product, onSave, categories }) => {
 
             {error && (
               <div className="error-message">
-                <i className="bi bi-exclamation-triangle-fill"></i>
-                {error}
+                <i className="bi bi-exclamation-triangle-fill"></i> {error}
               </div>
             )}
           </div>
@@ -496,14 +499,12 @@ const ProductModal = ({ show, onClose, product, onSave, categories }) => {
 // Delete Confirmation Modal
 const DeleteModal = ({ show, onClose, onConfirm, productName }) => {
   if (!show) return null;
-
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-container" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header modal-header-danger">
           <h5 className="modal-title">
-            <i className="bi bi-trash-fill"></i>
-            Confirm Delete
+            <i className="bi bi-trash-fill"></i> Confirm Delete
           </h5>
           <button className="modal-close" onClick={onClose}>
             <i className="bi bi-x-lg"></i>
@@ -561,19 +562,14 @@ const SellerProducts = () => {
         router.push("/login");
         return;
       }
-
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/products/my-products`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
+        { headers: { Authorization: `Bearer ${token}` } },
       );
-
       if (!response.ok) throw new Error("Failed to fetch products");
       const data = await response.json();
       setProducts(data.products || []);
     } catch (error) {
-      console.error("Error fetching products:", error);
       showToast("Failed to load products", "error");
     } finally {
       setLoading(false);
@@ -587,12 +583,9 @@ const SellerProducts = () => {
       );
       if (response.ok) {
         const data = await response.json();
-        const allCategories = data.categories || [];
-        // ✅ Only show active categories
-        const activeCategories = allCategories.filter(
-          (cat) => cat.isActive === true,
+        setCategories(
+          (data.categories || []).filter((cat) => cat.isActive === true),
         );
-        setCategories(activeCategories);
       }
     } catch (error) {
       console.error("Error fetching categories:", error);
@@ -609,14 +602,11 @@ const SellerProducts = () => {
           headers: { Authorization: `Bearer ${token}` },
         },
       );
-
       if (!response.ok) throw new Error("Failed to delete product");
-
       showToast("Product deleted successfully", "success");
       fetchProducts();
       setShowDeleteModal(false);
     } catch (error) {
-      console.error("Error deleting product:", error);
       showToast("Failed to delete product", "error");
     }
   };
@@ -638,16 +628,13 @@ const SellerProducts = () => {
           }),
         },
       );
-
       if (!response.ok) throw new Error("Failed to update status");
-
       showToast(
         `Product ${product.isActive ? "deactivated" : "activated"}`,
         "success",
       );
       fetchProducts();
     } catch (error) {
-      console.error("Error updating status:", error);
       showToast("Failed to update status", "error");
     }
   };
@@ -657,11 +644,17 @@ const SellerProducts = () => {
     fetchCategories();
   }, []);
 
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat("en-US", {
+  const formatPrice = (price) =>
+    new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
     }).format(price);
+
+  // ✅ Helper to get correct image src regardless of old local path or Cloudinary URL
+  const getImageSrc = (imgPath) => {
+    if (!imgPath) return null;
+    if (imgPath.startsWith("http")) return imgPath;
+    return `${process.env.NEXT_PUBLIC_BACKEND_URL}${imgPath}`;
   };
 
   const filteredProducts = products.filter((product) => {
@@ -749,8 +742,7 @@ const SellerProducts = () => {
             className="btn-primary-gold"
             onClick={() => setShowModal(true)}
           >
-            <i className="bi bi-plus-circle"></i>
-            Add New Product
+            <i className="bi bi-plus-circle"></i> Add New Product
           </button>
         </div>
 
@@ -767,7 +759,6 @@ const SellerProducts = () => {
               <p className="stats-title">Total Products</p>
             </div>
           </div>
-
           <div className="stats-card-premium stats-success">
             <div className="stats-icon-wrapper">
               <div className="stats-icon">
@@ -779,7 +770,6 @@ const SellerProducts = () => {
               <p className="stats-title">Active Products</p>
             </div>
           </div>
-
           <div className="stats-card-premium stats-warning">
             <div className="stats-icon-wrapper">
               <div className="stats-icon">
@@ -791,7 +781,6 @@ const SellerProducts = () => {
               <p className="stats-title">Low Stock</p>
             </div>
           </div>
-
           <div className="stats-card-premium stats-danger">
             <div className="stats-icon-wrapper">
               <div className="stats-icon">
@@ -834,8 +823,7 @@ const SellerProducts = () => {
               setFilterStatus("all");
             }}
           >
-            <i className="bi bi-arrow-counterclockwise"></i>
-            Reset
+            <i className="bi bi-arrow-counterclockwise"></i> Reset
           </button>
         </div>
 
@@ -859,8 +847,7 @@ const SellerProducts = () => {
                 className="btn-primary-gold"
                 onClick={() => setShowModal(true)}
               >
-                <i className="bi bi-plus-circle"></i>
-                Add Your First Product
+                <i className="bi bi-plus-circle"></i> Add Your First Product
               </button>
             )}
           </div>
@@ -885,7 +872,7 @@ const SellerProducts = () => {
                       <td>
                         {product.images && product.images.length > 0 ? (
                           <img
-                            src={`${process.env.NEXT_PUBLIC_BACKEND_URL}${product.images[0]}`}
+                            src={getImageSrc(product.images[0])}
                             alt={product.name}
                             className="product-thumb"
                           />
@@ -935,7 +922,9 @@ const SellerProducts = () => {
                       </td>
                       <td>
                         <span
-                          className={`status-badge ${product.isActive ? "active" : "inactive"}`}
+                          className={`status-badge ${
+                            product.isActive ? "active" : "inactive"
+                          }`}
                         >
                           {product.isActive ? "Active" : "Inactive"}
                         </span>
@@ -964,48 +953,47 @@ const SellerProducts = () => {
                           </button>
                           <button
                             className="action-btn stock-quick"
-                            onClick={() => {
-                              const productToUpdate = product;
-                              const updateStock = async () => {
-                                try {
-                                  const token = localStorage.getItem("token");
-                                  const newStock =
-                                    (productToUpdate.stock || 0) + 10;
-                                  await fetch(
-                                    `${process.env.NEXT_PUBLIC_BACKEND_URL}/products/${productToUpdate._id}`,
-                                    {
-                                      method: "PUT",
-                                      headers: {
-                                        "Content-Type": "application/json",
-                                        Authorization: `Bearer ${token}`,
-                                      },
-                                      body: JSON.stringify({
-                                        stock: newStock,
-                                        category:
-                                          productToUpdate.category?._id ||
-                                          productToUpdate.category,
-                                      }),
+                            onClick={async () => {
+                              try {
+                                const token = localStorage.getItem("token");
+                                const newStock = (product.stock || 0) + 10;
+                                await fetch(
+                                  `${process.env.NEXT_PUBLIC_BACKEND_URL}/products/${product._id}`,
+                                  {
+                                    method: "PUT",
+                                    headers: {
+                                      "Content-Type": "application/json",
+                                      Authorization: `Bearer ${token}`,
                                     },
-                                  );
-                                  fetchProducts();
-                                  showToast("Added 10 stock", "success");
-                                } catch (error) {
-                                  showToast("Failed to add stock", "error");
-                                }
-                              };
-                              updateStock();
+                                    body: JSON.stringify({
+                                      stock: newStock,
+                                      category:
+                                        product.category?._id ||
+                                        product.category,
+                                    }),
+                                  },
+                                );
+                                fetchProducts();
+                                showToast("Added 10 stock", "success");
+                              } catch {
+                                showToast("Failed to add stock", "error");
+                              }
                             }}
                             title="Add 10 Stock"
                           >
                             <i className="bi bi-plus-lg"></i>10
                           </button>
                           <button
-                            className={`action-btn ${product.isActive ? "deactivate" : "activate"}`}
+                            className={`action-btn ${
+                              product.isActive ? "deactivate" : "activate"
+                            }`}
                             onClick={() => toggleStatus(product)}
                             title={product.isActive ? "Deactivate" : "Activate"}
                           >
                             <i
-                              className={`bi bi-${product.isActive ? "eye-slash" : "eye"}`}
+                              className={`bi bi-${
+                                product.isActive ? "eye-slash" : "eye"
+                              }`}
                             ></i>
                           </button>
                           <button

@@ -1,6 +1,8 @@
 const express = require("express");
 const path = require("path");
 const dotenv = require("dotenv");
+dotenv.config();
+
 const http = require("http");
 const { Server } = require("socket.io");
 
@@ -15,7 +17,6 @@ const {
   uploadSingleProfile,
 } = require("./middlewares/uploadMiddleware");
 
-dotenv.config();
 connectDB();
 
 // ── Start cron jobs AFTER env + db are ready ──────────────────────────────

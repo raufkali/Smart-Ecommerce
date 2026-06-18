@@ -108,7 +108,11 @@ const ProductCard = React.memo(
         <div className="product-image-container">
           <Link href={`/products/${product._id}`} className="product-link">
             <Image
-              src={`${process.env.NEXT_PUBLIC_BACKEND_URL}${product.images?.[0] || "/placeholder.jpg"}`}
+              src={
+                product.images?.[0]?.startsWith("http")
+                  ? product.images[0]
+                  : `${process.env.NEXT_PUBLIC_BACKEND_URL}${product.images?.[0] || "/placeholder.jpg"}`
+              }
               alt={product.name}
               fill
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 33vw, 25vw"
@@ -360,7 +364,11 @@ const FeaturedProductSpotlight = ({
             {/* Fixed image container */}
             <div className="spotlight-image-container">
               <Image
-                src={`${process.env.NEXT_PUBLIC_BACKEND_URL}${product.images?.[0] || "/placeholder.jpg"}`}
+                src={
+                  product.images?.[0]?.startsWith("http")
+                    ? product.images[0]
+                    : `${process.env.NEXT_PUBLIC_BACKEND_URL}${product.images?.[0] || "/placeholder.jpg"}`
+                }
                 alt={product.name}
                 width={600}
                 height={600}
