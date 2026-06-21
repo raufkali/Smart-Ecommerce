@@ -4,8 +4,6 @@ const Order = require("../models/Order");
 const User = require("../models/User");
 const asyncHandler = require("express-async-handler");
 
-// Add these functions to your existing chatControllers.js file
-
 // @desc    Get or create chat with seller (for buyers)
 // @route   POST /api/chat/create-seller-chat
 // @access  Private
@@ -54,14 +52,14 @@ const getOrCreateSellerChat = asyncHandler(async (req, res) => {
           role: "buyer",
           name: buyer.fullname,
           email: buyer.email,
-          profilePicture: buyer.profilePicture,
+          profilePicture: buyer.profilePicture, // already Cloudinary if updated
         },
         {
           userId: sellerId,
           role: "seller",
           name: seller.fullname,
           email: seller.email,
-          profilePicture: seller.profilePicture,
+          profilePicture: seller.profilePicture, // already Cloudinary if updated
         },
       ],
     });
@@ -86,11 +84,21 @@ const getChatBySeller = asyncHandler(async (req, res) => {
     status: "active",
   }).populate("participants.userId", "fullname email profilePicture");
 
+  // ----- FIX: overwrite stored picture with the latest from the user document -----
+  if (chat) {
+    chat.participants.forEach((p) => {
+      if (p.userId && p.userId.profilePicture) {
+        p.profilePicture = p.userId.profilePicture;
+      }
+    });
+  }
+
   res.json({
     success: true,
     chat: chat || null,
   });
 });
+
 // @desc    Create a new chat (order chat)
 // @route   POST /api/chat/create
 // @access  Private
@@ -145,7 +153,7 @@ const createOrderChat = asyncHandler(async (req, res) => {
     role: "buyer",
     name: buyer.fullname,
     email: buyer.email,
-    profilePicture: buyer.profilePicture,
+    profilePicture: buyer.profilePicture, // latest picture
   });
 
   // Add seller
@@ -155,7 +163,7 @@ const createOrderChat = asyncHandler(async (req, res) => {
       role: "seller",
       name: seller.fullname,
       email: seller.email,
-      profilePicture: seller.profilePicture,
+      profilePicture: seller.profilePicture, // latest picture
     });
   }
 
@@ -281,8 +289,18 @@ const getUserChats = asyncHandler(async (req, res) => {
     .sort({ updatedAt: -1 })
     .populate("participants.userId", "fullname email profilePicture role");
 
-  // Get unread counts for each chat - handle missing unreadCounts
-  const chatsWithUnread = chats.map((chat) => {
+  // ----- FIX: overwrite stored picture with the latest from the user document -----
+  const updatedChats = chats.map((chat) => {
+    chat.participants.forEach((p) => {
+      if (p.userId && p.userId.profilePicture) {
+        p.profilePicture = p.userId.profilePicture;
+      }
+    });
+    return chat;
+  });
+
+  // Get unread counts for each chat
+  const chatsWithUnread = updatedChats.map((chat) => {
     let unreadCount = 0;
     if (chat.unreadCounts && Array.isArray(chat.unreadCounts)) {
       const unreadEntry = chat.unreadCounts.find(
@@ -321,6 +339,15 @@ const getAdminChats = asyncHandler(async (req, res) => {
   const chats = await Chat.find(query)
     .sort({ updatedAt: -1 })
     .populate("participants.userId", "fullname email profilePicture role");
+
+  // ----- FIX: overwrite stored picture with the latest from the user document -----
+  chats.forEach((chat) => {
+    chat.participants.forEach((p) => {
+      if (p.userId && p.userId.profilePicture) {
+        p.profilePicture = p.userId.profilePicture;
+      }
+    });
+  });
 
   // Filter by search term
   let filteredChats = chats;
@@ -381,8 +408,7 @@ const getChatMessages = asyncHandler(async (req, res) => {
 
   const skip = (parseInt(page) - 1) * parseInt(limit);
 
-  // FIX: Sort by createdAt in ASCENDING order (oldest first)
-  // Do NOT chain multiple .sort() calls
+  // Sort by createdAt in ASCENDING order (oldest first)
   const messages = await Message.find({ chatId, isHidden: false })
     .sort({ createdAt: 1 })
     .skip(skip)
@@ -449,7 +475,7 @@ const sendMessage = asyncHandler(async (req, res) => {
     sender: {
       userId,
       role: participant?.role || "admin",
-      name: senderName, // Make sure this is always a string
+      name: senderName,
       email: req.user.email || participant?.email || "",
       profilePicture:
         req.user.profilePicture || participant?.profilePicture || null,

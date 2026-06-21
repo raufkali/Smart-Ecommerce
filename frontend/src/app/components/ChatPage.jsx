@@ -120,7 +120,6 @@ const DualAvatar = ({ participants = [], currentUserId, size = 40 }) => {
         flexShrink: 0,
       }}
     >
-      {/* Back avatar (second participant) — bottom-right */}
       <div
         style={{
           position: "absolute",
@@ -137,7 +136,6 @@ const DualAvatar = ({ participants = [], currentUserId, size = 40 }) => {
           size={small}
         />
       </div>
-      {/* Front avatar (first participant) — top-left */}
       <div style={{ position: "absolute", top: 0, left: 0, zIndex: 2 }}>
         <Avatar
           src={getSrc(others[0])}
@@ -267,6 +265,16 @@ const ChatWindow = ({
   const inputRef = useRef(null);
   const typingTimerRef = useRef(null);
 
+  // Don't render until we have a valid user id
+  if (!currentUserId) {
+    return (
+      <div className="loading-state">
+        <div className="spinner" />
+        <p>Loading user…</p>
+      </div>
+    );
+  }
+
   const others = getOtherParticipants(chat?.participants || [], currentUserId);
   const chatDisplayName =
     others.length === 1
@@ -307,12 +315,20 @@ const ChatWindow = ({
     }
   }, [chat, apiUrl]);
 
+  // Socket event listeners
   useEffect(() => {
     if (!chat || !socket) return;
     setMessages([]);
     fetchMessages();
 
+    // Join the specific chat room
     socket.emit("joinChat", chat._id);
+
+    // Re-join on socket reconnection
+    const handleReconnect = () => {
+      if (chat?._id) socket.emit("joinChat", chat._id);
+    };
+    socket.on("connect", handleReconnect);
 
     const handleNewMessage = ({ chatId, message }) => {
       if (chatId !== chat._id) return;
@@ -325,12 +341,18 @@ const ChatWindow = ({
 
     const handleTyping = ({ chatId, userId, name }) => {
       if (chatId !== chat._id) return;
-      if (normaliseId(userId) === currentUserId) return;
+
+      // Strict string comparison – ignore self
+      const uid = String(userId || "");
+      const myId = String(currentUserId || "");
+      if (!uid || !myId || uid === myId) return;
+
       const typerParticipant = chat.participants?.find(
-        (p) => normaliseId(p.userId) === normaliseId(userId),
+        (p) => String(p.userId?._id || p.userId) === uid,
       );
       const displayName =
         name || getParticipantDisplayName(typerParticipant, "Someone");
+
       setTypingName(displayName);
       clearTimeout(typingTimerRef.current);
       typingTimerRef.current = setTimeout(() => setTypingName(null), 2500);
@@ -340,11 +362,12 @@ const ChatWindow = ({
     socket.on("user_typing", handleTyping);
 
     return () => {
+      socket.off("connect", handleReconnect);
       socket.off("new_message", handleNewMessage);
       socket.off("user_typing", handleTyping);
       clearTimeout(typingTimerRef.current);
     };
-  }, [chat?._id, socket, currentUserId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [chat?._id, socket, currentUserId, fetchMessages, onMessageSent]);
 
   const sendMessage = async () => {
     const content = input.trim();
@@ -512,7 +535,7 @@ const ChatWindow = ({
 
         {typingName && (
           <div className="typing-indicator">
-            <span>{typingName} is typing</span>
+            <span>Typing</span>
             <div className="typing-dots">
               <span />
               <span />
@@ -850,11 +873,12 @@ const ChatPage = ({ userRole, currentUser: propUser }) => {
     { key: "support", label: "Support", icon: "bi-headset" },
   ];
 
-  if (loading) {
+  // Guard: don't render until user is loaded
+  if (!currentUser) {
     return (
       <div className="loading-state" style={{ height: "calc(100vh - 60px)" }}>
         <div className="spinner" />
-        <p>Loading conversations…</p>
+        <p>Loading user…</p>
       </div>
     );
   }
