@@ -333,7 +333,7 @@ const AutoReleaseCountdown = ({ autoReleaseAt }) => {
 };
 
 // Dispute badge component
-const DisputeBadge = ({ item, onRespond }) => {
+const DisputeBadge = ({ item, onRespond, orderId }) => {
   if (!item.disputeStatus || item.disputeStatus === "none") return null;
 
   const configs = {
@@ -350,10 +350,11 @@ const DisputeBadge = ({ item, onRespond }) => {
       canAct: false,
     },
     rejected: {
-      label: "Dispute Escalated",
+      label: "Escalated to Admin",
       color: "danger",
       icon: "bi-shield-exclamation",
       canAct: false,
+      hasChat: true,
     },
     resolved_refund: {
       label: "Admin Refunded",
@@ -387,6 +388,18 @@ const DisputeBadge = ({ item, onRespond }) => {
           <i className="bi bi-reply-fill"></i>
           Respond
         </button>
+      )}
+      {/* NEW: Show chat link when escalated */}
+      {cfg.hasChat && item.disputeChatId && (
+        <a
+          href={`/chat?chatId=${item.disputeChatId}`}
+          className="dispute-chat-btn"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <i className="bi bi-chat-dots-fill"></i>
+          View Dispute Chat
+        </a>
       )}
       {item.disputeStatus === "open" && item.disputeExpiresAt && (
         <small className="dispute-expiry">

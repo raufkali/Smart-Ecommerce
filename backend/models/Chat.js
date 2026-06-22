@@ -17,9 +17,8 @@ const chatSchema = new mongoose.Schema(
     disputeId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Dispute",
-      required: function () {
-        return this.type === "dispute";
-      },
+      // Remove the required function or set default to null
+      default: null,
     },
     title: {
       type: String,

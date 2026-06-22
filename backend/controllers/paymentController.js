@@ -4,6 +4,8 @@ const Order = require("../models/Order");
 const Wallet = require("../models/Wallet");
 const User = require("../models/User");
 const Notification = require("../models/Notification");
+const Chat = require("../models/Chat");
+const Message = require("../models/Message");
 
 // ─────────────────────────────────────────────
 // HELPER: create a notification
@@ -435,10 +437,10 @@ const refundProduct = expressAsyncHandler(async (req, res) => {
 // @route PUT /api/payment/resolve-dispute/:orderId/:productId
 // @access Private (Seller)
 // ─────────────────────────────────────────────
+
 const resolveDispute = expressAsyncHandler(async (req, res) => {
   const { orderId, productId } = req.params;
   const { action, sellerNotes } = req.body;
-  // action: "approve" = seller agrees to refund | "reject" = seller rejects, funds stay in escrow
 
   if (!["approve", "reject"].includes(action)) {
     res.status(400);
@@ -454,15 +456,18 @@ const resolveDispute = expressAsyncHandler(async (req, res) => {
     throw new Error("Order not found");
   }
 
-  const item = order.orderItems.find((i) => i.product.toString() === productId);
+  // FIX: Use safe lookup for product
+  const item = order.orderItems.find((i) => {
+    const pid = i.product?._id ?? i.product;
+    return pid?.toString() === productId;
+  });
 
   if (!item) {
     res.status(404);
     throw new Error("Product not found in this order");
   }
 
-  // Verify this seller owns this item
-  const sellerId = (item.seller._id || item.seller).toString();
+  const sellerId = (item.seller?._id ?? item.seller)?.toString();
   if (sellerId !== req.user.id) {
     res.status(403);
     throw new Error("Not authorized to resolve this dispute");
@@ -494,48 +499,150 @@ const resolveDispute = expressAsyncHandler(async (req, res) => {
       type: "info",
       link: "/seller/orders",
     });
+
+    return res.json({
+      success: true,
+      message: `Refund approved for "${item.name}". The buyer will receive their money back.`,
+    });
   } else {
-    // ── Seller rejects refund — escalate to admin ───────────────────────
-    // Funds remain in escrow; admin will arbitrate
+    // ── Seller rejects — escalate to admin and CREATE DISPUTE CHAT ─────
     item.orderStatus = "disputed";
     await order.save();
 
-    // Notify admin (find first admin user)
-    const adminUser = await User.findOne({ role: "admin" });
-    if (adminUser) {
-      await notify(adminUser._id.toString(), {
-        title: "Dispute escalated",
-        message: `Seller rejected refund for "${item.name}" in order #${order._id.toString().slice(-8)}. Admin review required.`,
+    // ── Build the 3-way dispute chat ────────────────────────────────────
+    let disputeChat = null;
+    try {
+      // Check for existing dispute chat
+      const existingChat = await Chat.findOne({
+        orderId: order._id,
+        type: "dispute",
+        status: "active",
+      });
+
+      if (!existingChat) {
+        // Get all admins
+        const admins = await User.find({ role: "admin" });
+
+        const buyerId = order.user._id;
+        const sellerId = item.seller?._id ?? item.seller;
+
+        const participants = [
+          {
+            userId: buyerId,
+            role: "buyer",
+            name: order.user.fullname || order.user.name || "Buyer",
+            email: order.user.email || "",
+            profilePicture: order.user.profilePicture || null,
+          },
+          {
+            userId: sellerId,
+            role: "seller",
+            name: item.seller?.fullname || item.seller?.name || "Seller",
+            email: item.seller?.email || "",
+            profilePicture: item.seller?.profilePicture || null,
+          },
+        ];
+
+        // Add all admins to the chat
+        for (const admin of admins) {
+          participants.push({
+            userId: admin._id,
+            role: "admin",
+            name: admin.fullname || admin.name || "Admin",
+            email: admin.email || "",
+            profilePicture: admin.profilePicture || null,
+          });
+        }
+
+        disputeChat = await Chat.create({
+          type: "dispute",
+          orderId: order._id,
+          title: `Dispute — Order #${order._id.toString().slice(-8).toUpperCase()} — ${item.name}`,
+          participants,
+          metadata: {
+            orderTotal: order.totalPrice,
+            productName: item.name,
+            urgencyLevel: "high",
+            disputeReason: item.disputeReason,
+            sellerNotes: sellerNotes || "",
+          },
+        });
+
+        // Save chatId on the order item
+        item.disputeChatId = disputeChat._id;
+        await order.save();
+
+        // Post opening system message
+        await Message.create({
+          chatId: disputeChat._id,
+          sender: {
+            userId: admins[0]?._id || order.user._id,
+            role: "system",
+            name: "System",
+            email: "",
+            profilePicture: null,
+          },
+          content:
+            `🔴 Dispute opened for "${item.name}" (Order #${order._id.toString().slice(-8).toUpperCase()}).\n\n` +
+            `Buyer's reason: ${item.disputeReason || "No reason given"}\n` +
+            `Seller's response: ${sellerNotes || "No notes provided"}\n\n` +
+            `An admin will review this case and make a final decision. Both parties may share evidence here.`,
+        });
+
+        // Emit socket events to notify all participants
+        const io = req.app.get("io");
+        if (io) {
+          // Notify all participants
+          for (const participant of participants) {
+            io.to(participant.userId.toString()).emit("chat_notification", {
+              chatId: disputeChat._id,
+              message: `New dispute chat for Order #${order._id.toString().slice(-8).toUpperCase()}`,
+              chatTitle: disputeChat.title,
+            });
+          }
+        }
+      } else {
+        disputeChat = existingChat;
+        item.disputeChatId = existingChat._id;
+        await order.save();
+      }
+    } catch (chatErr) {
+      console.error("Dispute chat creation error:", chatErr.message);
+      // Non-fatal — dispute still escalates even if chat fails
+    }
+
+    // ── Notify all parties ──────────────────────────────────────────────
+    const adminUsers = await User.find({ role: "admin" });
+    for (const admin of adminUsers) {
+      await notify(admin._id.toString(), {
+        title: "⚠️ Dispute escalated — action required",
+        message: `Seller rejected refund for "${item.name}" in order #${order._id.toString().slice(-8)}. A 3-way dispute chat has been created.`,
         type: "danger",
-        link: `/admin/orders/${orderId}`,
+        link: `/admin/disputes`,
       });
     }
 
     await notify(order.user._id.toString(), {
-      title: "Refund rejected by seller",
-      message: `The seller rejected your refund for "${item.name}". The dispute has been escalated to our admin team.`,
+      title: "Refund rejected — dispute opened",
+      message: `The seller rejected your refund for "${item.name}". An admin will now review your case. You can discuss the issue in the dispute chat.`,
       type: "warning",
-      link: "/orders",
+      link: `/chat?chatId=${disputeChat?._id || ""}`,
     });
 
     await notify(sellerId, {
-      title: "Dispute escalated",
-      message: `You rejected the refund for "${item.name}". An admin will review the case.`,
+      title: "Dispute escalated to admin",
+      message: `You rejected the refund for "${item.name}". An admin will review and make the final decision. A dispute chat has been created.`,
       type: "info",
-      link: "/seller/orders",
+      link: `/seller/orders`,
     });
 
     return res.json({
       success: true,
       message:
-        "Refund rejected. The dispute has been escalated to the admin team for review.",
+        "Refund rejected. The dispute has been escalated to admin with a 3-way chat created.",
+      disputeChatId: disputeChat?._id || null,
     });
   }
-
-  res.json({
-    success: true,
-    message: `Refund approved for "${item.name}". The buyer will receive their money back.`,
-  });
 });
 
 // ─────────────────────────────────────────────

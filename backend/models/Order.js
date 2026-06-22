@@ -36,7 +36,11 @@ const orderItemSchema = new mongoose.Schema(
       enum: ["held", "released", "refunded"],
       default: "held",
     },
-
+    disputeChatId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Chat",
+      default: null,
+    },
     // Auto-release: set when seller marks item as "shipped"
     // 10 days after shipping → auto-release if buyer hasn't acted
     autoReleaseAt: { type: Date, default: null },

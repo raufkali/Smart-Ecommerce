@@ -35,6 +35,11 @@ const sidebarItems = [
     link: "/admin/dashboard/settings",
     icon: "settings",
   },
+  {
+    name: "Disputes",
+    link: "/admin/dashboard/disputes",
+    icon: "analytics",
+  },
 ];
 
 const navItems = [];

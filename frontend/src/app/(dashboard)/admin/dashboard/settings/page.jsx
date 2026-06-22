@@ -118,7 +118,7 @@ const AdminSettingsPage = () => {
     if (previews[idx]) return previews[idx];
     if (banner.img) {
       if (banner.img.startsWith("http")) return banner.img;
-      return `${process.env.NEXT_PUBLIC_BACKEND_URL}${banner.img}`;
+      return `${banner.img}`;
     }
     return "/placeholder.jpg";
   };

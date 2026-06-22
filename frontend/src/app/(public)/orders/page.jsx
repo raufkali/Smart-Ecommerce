@@ -128,6 +128,17 @@ const StatusBadge = ({ status }) => {
         icon: "bi-x-circle",
         label: "Rejected",
       },
+      // Admin resolution statuses
+      resolved_refund: {
+        class: "badge-status resolved-refund",
+        icon: "bi-gavel",
+        label: "Admin Refunded",
+      },
+      resolved_release: {
+        class: "badge-status resolved-release",
+        icon: "bi-gavel",
+        label: "Admin Released",
+      },
     };
     return (
       configs[status] || {
@@ -254,12 +265,33 @@ const getItemActions = (item, orderPaymentStatus) => {
     };
   }
 
-  if (disputeStatus === "open" || disputeStatus === "approved") {
+  // Check if dispute is being handled by admin
+  if (
+    disputeStatus === "open" ||
+    disputeStatus === "approved" ||
+    disputeStatus === "rejected"
+  ) {
     return {
       canConfirm: false,
       canCancel: false,
       canDispute: false,
       label: "Dispute Pending",
+    };
+  }
+
+  // Admin resolved cases - don't allow reviews or further actions
+  if (
+    disputeStatus === "resolved_refund" ||
+    disputeStatus === "resolved_release"
+  ) {
+    return {
+      canConfirm: false,
+      canCancel: false,
+      canDispute: false,
+      label:
+        disputeStatus === "resolved_refund"
+          ? "Admin Refunded"
+          : "Admin Released",
     };
   }
 
@@ -270,31 +302,34 @@ const getItemActions = (item, orderPaymentStatus) => {
 
   const canConfirm =
     ["shipped", "out_for_delivery"].includes(status) && fundsInEscrow;
+
   const canCancel =
     ["pending", "confirmed", "accepted", "processing"].includes(status) &&
     fundsInEscrow;
+
+  // Allow dispute for shipped items too
   const canDispute =
     !canConfirm &&
     !canCancel &&
     status !== "delivered" &&
-    status !== "shipped" &&
-    status !== "out_for_delivery" &&
     disputeStatus !== "rejected";
 
   if (canConfirm)
     return {
       canConfirm: true,
       canCancel: false,
-      canDispute: false,
+      canDispute: true,
       label: "Ready to Confirm",
     };
+
   if (canCancel)
     return {
       canConfirm: false,
       canCancel: true,
-      canDispute: false,
+      canDispute: true,
       label: "Can Cancel",
     };
+
   if (status === "delivered")
     return {
       canConfirm: false,
@@ -309,6 +344,19 @@ const getItemActions = (item, orderPaymentStatus) => {
     canDispute,
     label: "In Progress",
   };
+};
+
+// Check if item can be reviewed (only normal delivered items, not admin-resolved)
+const canReviewItem = (item) => {
+  const isDelivered =
+    item.orderStatus === "delivered" && item.escrowStatus === "released";
+
+  // Don't allow review if admin handled the dispute
+  const isAdminResolved =
+    item.disputeStatus === "resolved_refund" ||
+    item.disputeStatus === "resolved_release";
+
+  return isDelivered && !isAdminResolved;
 };
 
 // ─────────────────────────────────────────────
@@ -996,9 +1044,11 @@ const OrderDetailsModal = ({
                   const totalAmount =
                     item.price * item.quantity + (item.shippingFee || 0);
                   const actions = getItemActions(item, order.paymentStatus);
-                  const isDelivered =
-                    item.orderStatus === "delivered" &&
-                    item.escrowStatus === "released";
+                  const isReviewable = canReviewItem(item);
+                  const isDisputeRejected = item.disputeStatus === "rejected";
+                  const isAdminResolved =
+                    item.disputeStatus === "resolved_refund" ||
+                    item.disputeStatus === "resolved_release";
 
                   return (
                     <tr key={idx}>
@@ -1027,6 +1077,37 @@ const OrderDetailsModal = ({
                       </td>
                       <td>
                         <div className="action-buttons">
+                          {/* Show dispute chat link for rejected (escalated) disputes */}
+                          {isDisputeRejected && item.disputeChatId && (
+                            <a
+                              href={`/chat?chatId=${item.disputeChatId}`}
+                              className="btn-action btn-dispute-chat"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <i className="bi bi-chat-dots-fill me-1"></i>
+                              Chat with Admin
+                            </a>
+                          )}
+
+                          {/* Show admin resolution status */}
+                          {isAdminResolved && (
+                            <div className="admin-resolution-info">
+                              <StatusBadge status={item.disputeStatus} />
+                              {item.disputeChatId && (
+                                <a
+                                  href={`/chat?chatId=${item.disputeChatId}`}
+                                  className="btn-action btn-dispute-chat mt-1"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  <i className="bi bi-chat-dots me-1"></i>
+                                  View Chat History
+                                </a>
+                              )}
+                            </div>
+                          )}
+
                           {actions.canConfirm && (
                             <button
                               className="btn-action btn-confirm"
@@ -1052,8 +1133,9 @@ const OrderDetailsModal = ({
                               Refund
                             </button>
                           )}
-                          {/* Review button — shown for delivered items */}
-                          {isDelivered && (
+
+                          {/* Review button - only for items that weren't admin-resolved */}
+                          {isReviewable && (
                             <button
                               className="btn-action btn-review"
                               onClick={() => onReviewItem(order, item)}
@@ -1061,10 +1143,13 @@ const OrderDetailsModal = ({
                               <i className="bi bi-star me-1"></i>Review
                             </button>
                           )}
+
                           {!actions.canConfirm &&
                             !actions.canCancel &&
                             !actions.canDispute &&
-                            !isDelivered && (
+                            !isReviewable &&
+                            !isDisputeRejected &&
+                            !isAdminResolved && (
                               <span className="badge-inactive">
                                 {actions.label}
                               </span>
@@ -1129,14 +1214,13 @@ const OrderCard = ({
     }).length || 0;
 
   const disputeItems =
-    order.orderItems?.filter((item) => item.disputeStatus === "open").length ||
-    0;
-
-  const reviewableItems =
     order.orderItems?.filter(
       (item) =>
-        item.orderStatus === "delivered" && item.escrowStatus === "released",
+        item.disputeStatus === "open" || item.disputeStatus === "rejected",
     ).length || 0;
+
+  const reviewableItems =
+    order.orderItems?.filter((item) => canReviewItem(item)).length || 0;
 
   return (
     <div className="order-card">
@@ -1185,7 +1269,22 @@ const OrderCard = ({
           {disputeItems > 0 && (
             <div className="alert-dispute">
               <i className="bi bi-exclamation-triangle-fill me-1"></i>
-              {disputeItems} item(s) have open disputes
+              {disputeItems} item(s) in dispute —{" "}
+              {order.orderItems?.some(
+                (item) => item.disputeStatus === "rejected",
+              ) && (
+                <a
+                  href={`/chat?chatId=${
+                    order.orderItems.find((i) => i.disputeStatus === "rejected")
+                      ?.disputeChatId
+                  }`}
+                  className="dispute-chat-link"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Chat with Admin
+                </a>
+              )}
             </div>
           )}
           {actionableItems > 0 && (
@@ -1200,6 +1299,28 @@ const OrderCard = ({
               {reviewableItems} item(s) ready for review
             </div>
           )}
+        </div>
+      )}
+
+      {/* Show admin chat link for escalated disputes */}
+      {order.orderItems?.some(
+        (item) => item.disputeStatus === "rejected" && item.disputeChatId,
+      ) && (
+        <div className="alert-escalated">
+          <i className="bi bi-shield-exclamation me-1"></i>
+          Dispute escalated — Admin reviewing.{" "}
+          <a
+            href={`/chat?chatId=${
+              order.orderItems.find(
+                (i) => i.disputeStatus === "rejected" && i.disputeChatId,
+              )?.disputeChatId
+            }`}
+            className="dispute-chat-link"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Open dispute chat
+          </a>
         </div>
       )}
 
@@ -1222,7 +1343,6 @@ const OrderCard = ({
     </div>
   );
 };
-
 // ─────────────────────────────────────────────
 // Stats Card Component
 // ─────────────────────────────────────────────
@@ -1330,8 +1450,14 @@ const ClientOrders = () => {
       );
       closeAllModals();
       await fetchOrders();
-      // Auto-open review modal after confirming delivery
-      setTimeout(() => openReview(order, item), 600);
+      // Check if review is allowed before auto-opening
+      const updatedOrder = orders.find((o) => o._id === order._id);
+      const updatedItem = updatedOrder?.orderItems?.find(
+        (i) => (i.product?._id || i.product)?.toString() === productId,
+      );
+      if (updatedItem && canReviewItem(updatedItem)) {
+        setTimeout(() => openReview(order, updatedItem), 600);
+      }
     } catch (error) {
       showToast(error.message, "error");
     }
@@ -1415,6 +1541,7 @@ const ClientOrders = () => {
     return matchSearch && matchStatus && matchPayment;
   });
 
+  // Updated stats calculation to include admin-resolved cases
   const stats = {
     total: orders.length,
     inEscrow: orders.filter((o) => o.paymentStatus === "requires_capture")
@@ -1426,7 +1553,10 @@ const ClientOrders = () => {
       }),
     ).length,
     disputes: orders.filter((o) =>
-      o.orderItems?.some((item) => item.disputeStatus === "open"),
+      o.orderItems?.some(
+        (item) =>
+          item.disputeStatus === "open" || item.disputeStatus === "rejected",
+      ),
     ).length,
     delivered: orders.filter((o) => o.orderStatus === "delivered").length,
     totalSpent: orders.reduce((sum, o) => sum + (o.totalPrice || 0), 0),
@@ -1575,6 +1705,7 @@ const ClientOrders = () => {
           <option value="all">All Statuses</option>
           <option value="pending">Pending</option>
           <option value="processing">Processing</option>
+          <option value="shipped">Shipped</option>
           <option value="delivered">Delivered</option>
           <option value="cancelled">Cancelled</option>
           <option value="disputed">Disputed</option>

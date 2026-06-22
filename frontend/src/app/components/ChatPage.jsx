@@ -1,7 +1,5 @@
-"use client";
-
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import io from "socket.io-client";
 import "./ChatPage.css";
 
@@ -516,9 +514,8 @@ const ChatWindow = ({
               const senderId = normaliseId(msg.sender?.userId);
               const isSent = senderId === currentUserId;
               const isAdmin = msg.sender?.role === "admin";
-              const senderName = isAdmin
-                ? msg.sender?.name || msg.sender?.fullname || "Admin"
-                : null;
+              const senderName =
+                msg.sender?.name || msg.sender?.fullname || "Admin";
 
               return (
                 <MessageBubble
@@ -769,9 +766,11 @@ const NewChatModal = ({
 };
 
 // ─── Main page ───────────────────────────────────────────────────────────────
-
 const ChatPage = ({ userRole, currentUser: propUser }) => {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const directChatId = searchParams.get("chatId"); // Get chatId from URL
+
   const [currentUser, setCurrentUser] = useState(propUser || null);
   const [chats, setChats] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
@@ -839,17 +838,39 @@ const ChatPage = ({ userRole, currentUser: propUser }) => {
       if (res.ok) {
         const data = await res.json();
         setChats(data.chats || []);
+
+        // If there's a direct chatId from URL, select that chat
+        if (directChatId) {
+          const targetChat = data.chats?.find(
+            (chat) => chat._id === directChatId,
+          );
+          if (targetChat) {
+            setSelectedChat(targetChat);
+            if (window.innerWidth <= 768) setSidebarOpen(false);
+          }
+        }
       }
     } catch (err) {
       console.error("fetchChats:", err);
     } finally {
       setLoading(false);
     }
-  }, [currentUser, filter]);
+  }, [currentUser, filter, directChatId]);
 
   useEffect(() => {
     if (currentUser) fetchChats();
   }, [currentUser, fetchChats]);
+
+  // Additional effect to handle direct chat navigation
+  useEffect(() => {
+    if (directChatId && chats.length > 0) {
+      const targetChat = chats.find((chat) => chat._id === directChatId);
+      if (targetChat) {
+        setSelectedChat(targetChat);
+        if (window.innerWidth <= 768) setSidebarOpen(false);
+      }
+    }
+  }, [directChatId, chats]);
 
   const filteredChats = chats.filter((chat) => {
     if (filter !== "all" && chat.type !== filter) return false;
