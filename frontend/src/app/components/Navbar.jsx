@@ -229,7 +229,7 @@ const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" }) => {
       <nav className={`sn-navbar ${scrolled ? "sn-navbar--scrolled" : ""}`}>
         <div className="sn-navbar__inner">
           {/* Brand */}
-          <Link href={brandLink} className="sn-brand">
+          <Link href={brandLink} className="sn-brand me-auto">
             {brandName}
           </Link>
 

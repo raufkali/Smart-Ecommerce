@@ -350,6 +350,11 @@ const confirmDelivery = expressAsyncHandler(async (req, res) => {
 // @route PUT /api/payment/refund-product/:orderId/:productId
 // @access Private (User / buyer)
 // ─────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// @desc  Buyer requests refund for an item (opens dispute)
+// @route PUT /api/payment/refund-product/:orderId/:productId
+// @access Private (User / buyer)
+// ─────────────────────────────────────────────
 const refundProduct = expressAsyncHandler(async (req, res) => {
   const { orderId, productId } = req.params;
   const { reason } = req.body;
@@ -406,6 +411,10 @@ const refundProduct = expressAsyncHandler(async (req, res) => {
   // Give seller 48 hours to respond
   item.disputeExpiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
+  // 🔥 FIX: REMOVE AUTO-RELEASE WHEN DISPUTE IS OPENED
+  // This prevents funds from auto-releasing while dispute is pending
+  item.autoReleaseAt = null;
+
   await order.save();
 
   const sellerId = (item.seller._id || item.seller).toString();
@@ -456,7 +465,6 @@ const resolveDispute = expressAsyncHandler(async (req, res) => {
     throw new Error("Order not found");
   }
 
-  // FIX: Use safe lookup for product
   const item = order.orderItems.find((i) => {
     const pid = i.product?._id ?? i.product;
     return pid?.toString() === productId;
@@ -481,6 +489,9 @@ const resolveDispute = expressAsyncHandler(async (req, res) => {
   item.disputeStatus = action === "approve" ? "approved" : "rejected";
   item.sellerDisputeNotes = sellerNotes || "";
   item.disputeResolvedAt = new Date();
+
+  // 🔥 FIX: Ensure auto-release is null when dispute is resolved
+  item.autoReleaseAt = null;
 
   if (action === "approve") {
     // ── Seller approves refund ──────────────────────────────────────────
@@ -524,7 +535,7 @@ const resolveDispute = expressAsyncHandler(async (req, res) => {
         const admins = await User.find({ role: "admin" });
 
         const buyerId = order.user._id;
-        const sellerId = item.seller?._id ?? item.seller;
+        const sellerId2 = item.seller?._id ?? item.seller;
 
         const participants = [
           {
@@ -535,7 +546,7 @@ const resolveDispute = expressAsyncHandler(async (req, res) => {
             profilePicture: order.user.profilePicture || null,
           },
           {
-            userId: sellerId,
+            userId: sellerId2,
             role: "seller",
             name: item.seller?.fullname || item.seller?.name || "Seller",
             email: item.seller?.email || "",
@@ -592,7 +603,6 @@ const resolveDispute = expressAsyncHandler(async (req, res) => {
         // Emit socket events to notify all participants
         const io = req.app.get("io");
         if (io) {
-          // Notify all participants
           for (const participant of participants) {
             io.to(participant.userId.toString()).emit("chat_notification", {
               chatId: disputeChat._id,
@@ -1099,6 +1109,9 @@ const adminArbitrateDispute = expressAsyncHandler(async (req, res) => {
   item.adminNotes = notes || "";
   item.disputeResolvedAt = new Date();
 
+  // 🔥 FIX: Clear auto-release when dispute is arbitrated
+  item.autoReleaseAt = null;
+
   if (ruling === "refund_buyer") {
     item.disputeStatus = "resolved_refund";
     await _processRefundForItem(order, item);
@@ -1116,6 +1129,7 @@ const adminArbitrateDispute = expressAsyncHandler(async (req, res) => {
       link: "/seller/orders",
     });
   } else {
+    // ruling === "release_seller"
     item.disputeStatus = "resolved_release";
     item.orderStatus = "delivered";
     item.escrowStatus = "released";
@@ -1216,23 +1230,28 @@ const adminArbitrateDispute = expressAsyncHandler(async (req, res) => {
 // @desc  Auto-release cron job (called by scheduler)
 // Releases funds for items where autoReleaseAt has passed
 // ─────────────────────────────────────────────
+// ─────────────────────────────────────────────
+
 const processAutoReleases = async () => {
   const now = new Date();
 
   const orders = await Order.find({
     "orderItems.autoReleaseAt": { $lte: now },
     "orderItems.escrowStatus": "held",
+    "orderItems.disputeStatus": "none", // Skip items with any dispute
   }).populate("orderItems.seller user");
 
   let released = 0;
 
   for (const order of orders) {
     for (const item of order.orderItems) {
+      // 🔥 FIX: Multiple checks to ensure dispute items are skipped
       if (
         item.escrowStatus !== "held" ||
         !item.autoReleaseAt ||
         item.autoReleaseAt > now ||
-        item.disputeStatus === "open"
+        item.disputeStatus !== "none" || // Skip any dispute
+        item.orderStatus === "disputed" // Skip disputed items
       ) {
         continue;
       }

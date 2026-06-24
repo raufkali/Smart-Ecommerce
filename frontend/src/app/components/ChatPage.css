@@ -1104,3 +1104,326 @@
     display: inline-block;
     flex-shrink: 0;
 }
+
+.image-upload-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted, #9a9080);
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.image-upload-btn:hover:not(:disabled) {
+    background: rgba(184, 145, 42, 0.1);
+    color: var(--gold, #b8912a);
+}
+
+.image-upload-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.image-upload-btn i {
+    font-size: 22px;
+}
+
+/* ── Input Wrapper ── */
+.input-wrapper {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid var(--border-gold, rgba(184, 145, 42, 0.3));
+    border-radius: 16px;
+    padding: 4px 8px;
+    transition: all 0.2s ease;
+}
+
+.input-wrapper:focus-within {
+    border-color: var(--gold, #b8912a);
+    box-shadow: 0 0 0 4px rgba(184, 145, 42, 0.15);
+}
+
+.message-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    padding: 8px 4px;
+    font-size: 14px;
+    resize: none;
+    background: transparent;
+    max-height: 100px;
+    min-height: 40px;
+    color: var(--text-primary, #1a1712);
+    font-family: inherit;
+}
+
+.message-input:disabled {
+    opacity: 0.7;
+}
+
+.message-input::placeholder {
+    color: var(--text-muted, #9a9080);
+}
+
+.send-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-muted, #9a9080);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.send-btn.active {
+    background: var(--gold, #b8912a);
+    color: white;
+}
+
+.send-btn.active:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 16px rgba(184, 145, 42, 0.3);
+}
+
+.send-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ── Uploading Indicator ── */
+.uploading-indicator {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    background: rgba(184, 145, 42, 0.1);
+    border-radius: 8px;
+    font-size: 12px;
+    color: var(--text-secondary, #5a5448);
+    margin-top: 8px;
+    animation: fadeInUp 0.3s ease;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ── Spinner Small ── */
+.spinner-small {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(184, 145, 42, 0.2);
+    border-top-color: var(--gold, #b8912a);
+    border-radius: 50%;
+    display: inline-block;
+    animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ── Message Images ── */
+.message-images {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.message-image-wrapper {
+    max-width: 200px;
+    max-height: 200px;
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 2px solid rgba(184, 145, 42, 0.15);
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.message-image-wrapper:hover {
+    border-color: var(--gold, #b8912a);
+    transform: scale(1.02);
+}
+
+.message-image-wrapper::after {
+    content: "🔍";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 24px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 50%;
+    padding: 8px;
+    backdrop-filter: blur(4px);
+}
+
+.message-image-wrapper:hover::after {
+    opacity: 1;
+}
+
+.message-image-thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    max-width: 200px;
+    max-height: 200px;
+    display: block;
+}
+
+/* ── Image Modal ── */
+.image-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 20px;
+    animation: fadeIn 0.2s ease;
+}
+
+.image-modal-content {
+    position: relative;
+    max-width: 90vw;
+    max-height: 90vh;
+}
+
+.image-modal-content img {
+    max-width: 90vw;
+    max-height: 90vh;
+    object-fit: contain;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.image-modal-close {
+    position: absolute;
+    top: -12px;
+    right: -12px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.image-modal-close:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: rotate(90deg);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+    .message-image-wrapper {
+        max-width: 150px;
+        max-height: 150px;
+    }
+
+    .message-image-thumb {
+        max-width: 150px;
+        max-height: 150px;
+    }
+
+    .image-upload-btn {
+        width: 36px;
+        height: 36px;
+    }
+
+    .image-upload-btn i {
+        font-size: 18px;
+    }
+
+    .send-btn {
+        width: 36px;
+        height: 36px;
+    }
+
+    .image-modal-content img {
+        max-width: 95vw;
+        max-height: 85vh;
+    }
+}
+
+/* ── Dark Mode ── */
+@media (prefers-color-scheme: dark) {
+    .input-wrapper {
+        background: rgba(36, 32, 26, 0.9);
+        border-color: rgba(184, 145, 42, 0.2);
+    }
+
+    .message-input {
+        color: #f0ece2;
+    }
+
+    .message-input::placeholder {
+        color: #5a5448;
+    }
+
+    .image-upload-btn {
+        color: #9a9080;
+    }
+
+    .image-upload-btn:hover:not(:disabled) {
+        background: rgba(184, 145, 42, 0.15);
+    }
+
+    .message-image-wrapper {
+        border-color: rgba(184, 145, 42, 0.15);
+    }
+
+    .uploading-indicator {
+        background: rgba(184, 145, 42, 0.08);
+        color: #c9c3b4;
+    }
+}

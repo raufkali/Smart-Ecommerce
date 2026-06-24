@@ -3,6 +3,131 @@ const Message = require("../models/Message");
 const Order = require("../models/Order");
 const User = require("../models/User");
 const asyncHandler = require("express-async-handler");
+const cloudinary = require("../config/cloudinary");
+
+// controllers/chatControllers.js - Fix uploadChatImage function
+
+// @desc    Upload chat image
+// @route   POST /api/chat/:chatId/upload
+// @access  Private
+const uploadChatImage = asyncHandler(async (req, res) => {
+  const { chatId } = req.params;
+  const userId = req.user.id;
+
+  // Check if file exists
+  if (!req.file) {
+    res.status(400);
+    throw new Error("No image file provided");
+  }
+
+  // Check if chat exists
+  const chat = await Chat.findById(chatId);
+  if (!chat) {
+    res.status(404);
+    throw new Error("Chat not found");
+  }
+
+  // Check if user is participant
+  const participant = chat.participants.find(
+    (p) => p.userId.toString() === userId,
+  );
+
+  if (!participant && req.user.role !== "admin") {
+    res.status(403);
+    throw new Error("Not authorized to upload in this chat");
+  }
+
+  // Get sender name
+  let senderName = req.user.fullname || req.user.name;
+  if (!senderName && participant) {
+    senderName = participant.name;
+  }
+  if (!senderName) {
+    senderName = req.user.email ? req.user.email.split("@")[0] : "User";
+  }
+
+  // File is already uploaded to Cloudinary via multer
+  // The file object contains the Cloudinary URL and public_id
+  const file = req.file;
+
+  // Create the attachment object
+  const attachment = {
+    url: file.path || file.secure_url, // Cloudinary URL
+    publicId: file.filename || file.public_id, // Cloudinary public ID
+    type: file.mimetype?.startsWith("image/") ? "image" : "file",
+    name: file.originalname || "image.jpg",
+    size: file.size || 0,
+    mimeType: file.mimetype || "image/jpeg",
+    width: file.width || null,
+    height: file.height || null,
+    uploadedAt: new Date(),
+    deleteAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
+  };
+
+  // Create message with image
+  const message = await Message.create({
+    chatId,
+    sender: {
+      userId,
+      role: participant?.role || "admin",
+      name: senderName,
+      email: req.user.email || participant?.email || "",
+      profilePicture:
+        req.user.profilePicture || participant?.profilePicture || null,
+    },
+    content: `Image shared`,
+    attachments: [attachment],
+  });
+
+  // Update chat's last message
+  chat.lastMessage = {
+    content: `Image shared`,
+    senderName: senderName,
+    senderRole: participant?.role || "admin",
+    sentAt: new Date(),
+  };
+  chat.updatedAt = new Date();
+
+  // Increment unread count for other participants
+  for (const p of chat.participants) {
+    if (p.userId.toString() !== userId) {
+      const unreadEntry = chat.unreadCounts.find(
+        (u) => u.userId?.toString() === p.userId.toString(),
+      );
+      if (unreadEntry) {
+        unreadEntry.count += 1;
+      } else {
+        chat.unreadCounts.push({ userId: p.userId, count: 1 });
+      }
+    }
+  }
+
+  await chat.save();
+
+  // Emit socket event
+  const io = req.app.get("io");
+  if (io) {
+    io.to(`chat_${chatId}`).emit("new_message", {
+      chatId,
+      message,
+    });
+    // Notify other participants
+    for (const p of chat.participants) {
+      if (p.userId.toString() !== userId) {
+        io.to(p.userId.toString()).emit("chat_notification", {
+          chatId,
+          message: `New image from ${senderName}`,
+          chatTitle: chat.title,
+        });
+      }
+    }
+  }
+
+  res.status(201).json({
+    success: true,
+    message,
+  });
+});
 
 // @desc    Get or create chat with seller (for buyers)
 // @route   POST /api/chat/create-seller-chat
@@ -432,7 +557,7 @@ const getChatMessages = asyncHandler(async (req, res) => {
 // @access  Private
 const sendMessage = asyncHandler(async (req, res) => {
   const { chatId } = req.params;
-  const { content } = req.body;
+  const { content, attachment } = req.body;
   const userId = req.user.id;
 
   if (!content || !content.trim()) {
@@ -456,21 +581,17 @@ const sendMessage = asyncHandler(async (req, res) => {
     throw new Error("Not authorized to send message in this chat");
   }
 
-  // Get sender name from participant or user
+  // Get sender name
   let senderName = req.user.fullname || req.user.name;
-
-  // If still no name, get from participant
   if (!senderName && participant) {
     senderName = participant.name;
   }
-
-  // Final fallback
   if (!senderName) {
     senderName = req.user.email ? req.user.email.split("@")[0] : "User";
   }
 
-  // Create message with all required fields
-  const message = await Message.create({
+  // Prepare message data
+  const messageData = {
     chatId,
     sender: {
       userId,
@@ -481,11 +602,33 @@ const sendMessage = asyncHandler(async (req, res) => {
         req.user.profilePicture || participant?.profilePicture || null,
     },
     content: content.trim(),
-  });
+  };
+
+  // Add attachment if provided
+  if (attachment) {
+    messageData.attachments = [
+      {
+        url: attachment.url,
+        publicId: attachment.publicId,
+        type: attachment.type || "image",
+        name: attachment.name || "image.jpg",
+        size: attachment.size || 0,
+        mimeType: attachment.mimeType || "image/jpeg",
+        uploadedAt: new Date(),
+        deleteAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+      },
+    ];
+  }
+
+  // Create message
+  const message = await Message.create(messageData);
 
   // Update chat's last message
+  const displayContent = attachment
+    ? `📷 Image attached: ${content.trim().substring(0, 80)}`
+    : content.trim().substring(0, 100);
   chat.lastMessage = {
-    content: content.trim().substring(0, 100),
+    content: displayContent,
     senderName: senderName,
     senderRole: participant?.role || "admin",
     sentAt: new Date(),
@@ -516,7 +659,6 @@ const sendMessage = asyncHandler(async (req, res) => {
       message,
     });
 
-    // Notify other participants
     for (const p of chat.participants) {
       if (p.userId.toString() !== userId) {
         io.to(p.userId.toString()).emit("chat_notification", {
@@ -533,6 +675,100 @@ const sendMessage = asyncHandler(async (req, res) => {
     message,
   });
 });
+const deleteChatImage = asyncHandler(async (req, res) => {
+  const { chatId, messageId, attachmentIndex } = req.params;
+  const userId = req.user.id;
+  const userRole = req.user.role;
+
+  const message = await Message.findById(messageId);
+  if (!message) {
+    res.status(404);
+    throw new Error("Message not found");
+  }
+
+  const chat = await Chat.findById(chatId);
+  if (!chat) {
+    res.status(404);
+    throw new Error("Chat not found");
+  }
+
+  const index = parseInt(attachmentIndex);
+  if (index >= message.attachments.length) {
+    res.status(400);
+    throw new Error("Attachment not found");
+  }
+
+  const attachment = message.attachments[index];
+
+  // Check permission
+  const isSender = message.sender.userId.toString() === userId;
+  const isAdmin = userRole === "admin";
+
+  if (!isSender && !isAdmin) {
+    res.status(403);
+    throw new Error("Not authorized to delete this image");
+  }
+
+  // Delete from Cloudinary
+  if (attachment.publicId) {
+    try {
+      await cloudinary.uploader.destroy(attachment.publicId);
+    } catch (err) {
+      console.error("Failed to delete from Cloudinary:", err);
+      // Continue even if Cloudinary delete fails
+    }
+  }
+
+  // Remove attachment from message
+  message.attachments.splice(index, 1);
+
+  // If no attachments left and message is just an image, delete the message
+  if (
+    message.attachments.length === 0 &&
+    message.content === "📷 Image shared"
+  ) {
+    await message.deleteOne();
+  } else {
+    await message.save();
+  }
+
+  res.json({
+    success: true,
+    message: "Image deleted successfully",
+  });
+});
+const cleanupExpiredImages = async () => {
+  try {
+    // Find messages with expired attachments
+    const messages = await Message.find({
+      "attachments.deleteAt": { $lt: new Date() },
+      "attachments.isDeleted": false,
+    });
+
+    for (const message of messages) {
+      let updated = false;
+      for (const attachment of message.attachments) {
+        if (attachment.deleteAt < new Date() && !attachment.isDeleted) {
+          // Delete from Cloudinary
+          if (attachment.publicId) {
+            try {
+              await cloudinary.uploader.destroy(attachment.publicId);
+            } catch (err) {
+              console.error("Failed to delete from Cloudinary:", err);
+            }
+          }
+          attachment.isDeleted = true;
+          updated = true;
+        }
+      }
+      if (updated) {
+        await message.save();
+      }
+    }
+  } catch (err) {
+    console.error("Cleanup expired images error:", err);
+  }
+};
 
 // @desc    Mark messages as read
 // @route   PUT /api/chat/:chatId/read
@@ -668,4 +904,7 @@ module.exports = {
   closeChat,
   getOrCreateSellerChat,
   getChatBySeller,
+  uploadChatImage,
+  deleteChatImage,
+  cleanupExpiredImages,
 };

@@ -346,7 +346,10 @@ const CategoriesPage = () => {
                 const outOfStock = product.stock <= 0;
 
                 return (
-                  <div className="col-6 col-md-4 col-lg-3" key={product._id}>
+                  <div
+                    className="col-sm-12 col-md-4 col-lg-3"
+                    key={product._id}
+                  >
                     <div className="cat-product-card h-100">
                       {/* Image */}
                       {product.images?.length > 0 ? (

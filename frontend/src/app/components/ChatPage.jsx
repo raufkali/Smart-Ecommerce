@@ -10,7 +10,7 @@ const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const getFullImageUrl = (url) => {
   if (!url) return null;
   if (url.startsWith("http")) return url;
-  if (url.startsWith("/uploads")) return `${API_URL}${url}`;
+  if (url.startsWith("/uploads")) return `${url}`;
   return `${API_URL}/uploads/profiles/${url}`;
 };
 
@@ -86,7 +86,7 @@ const Avatar = ({ src, name, size = 40 }) => {
   );
 };
 
-// ─── Dual Avatar (shows both buyer + seller for admin view) ─────────────────
+// ─── Dual Avatar ────────────────────────────────────────────────────────────
 
 const DualAvatar = ({ participants = [], currentUserId, size = 40 }) => {
   const others = getOtherParticipants(participants, currentUserId);
@@ -142,6 +142,52 @@ const DualAvatar = ({ participants = [], currentUserId, size = 40 }) => {
         />
       </div>
     </div>
+  );
+};
+
+// ─── Image Upload Button ──────────────────────────────────────────────────
+
+const ImageUploadButton = ({ onUpload, disabled }) => {
+  const fileInputRef = useRef(null);
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      alert("Please select an image file");
+      return;
+    }
+
+    // Validate file size (10MB max)
+    if (file.size > 10 * 1024 * 1024) {
+      alert("Image too large. Max 10MB.");
+      return;
+    }
+
+    onUpload(file);
+    e.target.value = "";
+  };
+
+  return (
+    <>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: "none" }}
+        onChange={handleFileChange}
+      />
+      <button
+        className="image-upload-btn"
+        onClick={() => fileInputRef.current?.click()}
+        disabled={disabled}
+        title="Upload image"
+      >
+        <i className="bi bi-image"></i>
+      </button>
+    </>
   );
 };
 
@@ -217,11 +263,15 @@ const ChatListItem = ({ chat, isActive, onClick, currentUserId }) => {
 // ─── Message bubble ──────────────────────────────────────────────────────────
 
 const MessageBubble = ({ message, isSent, senderName, isAdmin }) => {
+  const [showFullImage, setShowFullImage] = useState(false);
+
   const formatTime = (date) =>
     new Date(date).toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
     });
+
+  const hasImages = message.attachments?.some((a) => a.type === "image");
 
   return (
     <div className={`message-row ${isSent ? "sent" : "received"}`}>
@@ -234,16 +284,65 @@ const MessageBubble = ({ message, isSent, senderName, isAdmin }) => {
         )}
         <div className={`message-bubble ${isAdmin ? "admin-bubble" : ""}`}>
           <div className="message-text">{message.content}</div>
+
+          {/* Display images */}
+          {hasImages && (
+            <div className="message-images">
+              {message.attachments.map((attachment, idx) => {
+                if (attachment.type === "image") {
+                  return (
+                    <div
+                      key={idx}
+                      className="message-image-wrapper"
+                      onClick={() => setShowFullImage(true)}
+                    >
+                      <img
+                        src={attachment.url}
+                        alt={attachment.name || "Image"}
+                        className="message-image-thumb"
+                        loading="lazy"
+                      />
+                    </div>
+                  );
+                }
+                return null;
+              })}
+            </div>
+          )}
+
           <div className="message-time">
             {formatTime(message.createdAt)}
             {isSent && <i className="bi bi-check-all" />}
           </div>
         </div>
       </div>
+
+      {/* Full image modal */}
+      {showFullImage && hasImages && (
+        <div
+          className="image-modal-overlay"
+          onClick={() => setShowFullImage(false)}
+        >
+          <div
+            className="image-modal-content"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="image-modal-close"
+              onClick={() => setShowFullImage(false)}
+            >
+              <i className="bi bi-x-lg" />
+            </button>
+            <img
+              src={message.attachments.find((a) => a.type === "image")?.url}
+              alt="Full size"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
-
 // ─── Chat window ─────────────────────────────────────────────────────────────
 
 const ChatWindow = ({
@@ -258,10 +357,18 @@ const ChatWindow = ({
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [typingName, setTypingName] = useState(null);
+  const [toast, setToast] = useState(null);
   const messagesAreaRef = useRef(null);
   const inputRef = useRef(null);
   const typingTimerRef = useRef(null);
+  const pendingMessagesRef = useRef(new Set());
+
+  const showToast = (message, type = "success") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   // Don't render until we have a valid user id
   if (!currentUserId) {
@@ -319,10 +426,8 @@ const ChatWindow = ({
     setMessages([]);
     fetchMessages();
 
-    // Join the specific chat room
     socket.emit("joinChat", chat._id);
 
-    // Re-join on socket reconnection
     const handleReconnect = () => {
       if (chat?._id) socket.emit("joinChat", chat._id);
     };
@@ -330,27 +435,26 @@ const ChatWindow = ({
 
     const handleNewMessage = ({ chatId, message }) => {
       if (chatId !== chat._id) return;
+      pendingMessagesRef.current.delete(message._id);
       setMessages((prev) => {
-        if (prev.some((m) => m._id === message._id)) return prev;
+        const exists = prev.some((m) => m._id === message._id);
+        if (exists) return prev;
         return [...prev, message];
       });
       onMessageSent();
+      setTimeout(() => scrollToBottom("smooth"), 100);
     };
 
     const handleTyping = ({ chatId, userId, name }) => {
       if (chatId !== chat._id) return;
-
-      // Strict string comparison – ignore self
       const uid = String(userId || "");
       const myId = String(currentUserId || "");
       if (!uid || !myId || uid === myId) return;
-
       const typerParticipant = chat.participants?.find(
         (p) => String(p.userId?._id || p.userId) === uid,
       );
       const displayName =
         name || getParticipantDisplayName(typerParticipant, "Someone");
-
       setTypingName(displayName);
       clearTimeout(typingTimerRef.current);
       typingTimerRef.current = setTimeout(() => setTypingName(null), 2500);
@@ -365,9 +469,23 @@ const ChatWindow = ({
       socket.off("user_typing", handleTyping);
       clearTimeout(typingTimerRef.current);
     };
-  }, [chat?._id, socket, currentUserId, fetchMessages, onMessageSent]);
+  }, [
+    chat?._id,
+    socket,
+    currentUserId,
+    fetchMessages,
+    onMessageSent,
+    scrollToBottom,
+  ]);
 
-  const sendMessage = async () => {
+  // 🔥 FIX: Prevent default behavior and stop propagation
+  const sendMessage = async (e) => {
+    // Prevent any default form submission or page reload
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
     const content = input.trim();
     if (!content || sending) return;
 
@@ -390,24 +508,76 @@ const ChatWindow = ({
       });
       if (res.ok) {
         const data = await res.json();
+        const newMessage = data.message;
+        pendingMessagesRef.current.add(newMessage._id);
         setMessages((prev) => {
-          if (prev.some((m) => m._id === data.message._id)) return prev;
-          return [...prev, data.message];
+          const exists = prev.some((m) => m._id === newMessage._id);
+          if (exists) return prev;
+          return [...prev, newMessage];
         });
-        onMessageSent();
         setTimeout(() => scrollToBottom("smooth"), 50);
+        setTimeout(() => {
+          pendingMessagesRef.current.delete(newMessage._id);
+        }, 2000);
       }
     } catch (err) {
       console.error("sendMessage:", err);
+      showToast("Failed to send message", "error");
     } finally {
       setSending(false);
     }
   };
 
+  // 🔥 FIX: Prevent default for image upload
+  const handleImageUpload = async (file) => {
+    if (!chat || !currentUserId) return;
+
+    setUploading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const formData = new FormData();
+      formData.append("image", file);
+
+      const res = await fetch(`${apiUrl}/chat/${chat._id}/upload`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const newMessage = data.message;
+        pendingMessagesRef.current.add(newMessage._id);
+        setMessages((prev) => {
+          const exists = prev.some((m) => m._id === newMessage._id);
+          if (exists) return prev;
+          return [...prev, newMessage];
+        });
+        showToast("Image uploaded successfully", "success");
+        setTimeout(() => scrollToBottom("smooth"), 100);
+        setTimeout(() => {
+          pendingMessagesRef.current.delete(newMessage._id);
+        }, 2000);
+      } else {
+        const error = await res.json();
+        showToast(error.message || "Failed to upload image", "error");
+      }
+    } catch (err) {
+      console.error("uploadImage:", err);
+      showToast("Failed to upload image", "error");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // 🔥 FIX: Handle keypress with preventDefault
   const handleKeyPress = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      sendMessage();
+      e.stopPropagation();
+      sendMessage(e);
     }
   };
 
@@ -485,6 +655,8 @@ const ChatWindow = ({
 
   return (
     <div className="chat-window-inner">
+      {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+
       {/* Header */}
       <div className="chat-header">
         <div className="chat-header-info">
@@ -542,9 +714,13 @@ const ChatWindow = ({
         )}
       </div>
 
-      {/* Input */}
+      {/* Input - 🔥 FIX: Removed form element, using div instead */}
       <div className="message-input-area">
         <div className="input-wrapper">
+          <ImageUploadButton
+            onUpload={handleImageUpload}
+            disabled={uploading || !chat}
+          />
           <textarea
             ref={inputRef}
             className="message-input"
@@ -552,12 +728,18 @@ const ChatWindow = ({
             placeholder="Type a message…"
             value={input}
             onChange={handleInputChange}
-            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyPress}
+            disabled={uploading}
           />
           <button
             className={`send-btn ${input.trim() ? "active" : ""}`}
-            onClick={sendMessage}
-            disabled={!input.trim() || sending}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              sendMessage(e);
+            }}
+            disabled={!input.trim() || sending || uploading}
+            type="button"
           >
             {sending ? (
               <span className="spinner-small" />
@@ -566,11 +748,16 @@ const ChatWindow = ({
             )}
           </button>
         </div>
+        {uploading && (
+          <div className="uploading-indicator">
+            <span className="spinner-small" />
+            <span>Uploading image...</span>
+          </div>
+        )}
       </div>
     </div>
   );
 };
-
 // ─── New chat modal ──────────────────────────────────────────────────────────
 
 const NewChatModal = ({
@@ -766,10 +953,11 @@ const NewChatModal = ({
 };
 
 // ─── Main page ───────────────────────────────────────────────────────────────
+
 const ChatPage = ({ userRole, currentUser: propUser }) => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const directChatId = searchParams.get("chatId"); // Get chatId from URL
+  const directChatId = searchParams.get("chatId");
 
   const [currentUser, setCurrentUser] = useState(propUser || null);
   const [chats, setChats] = useState([]);
@@ -839,7 +1027,6 @@ const ChatPage = ({ userRole, currentUser: propUser }) => {
         const data = await res.json();
         setChats(data.chats || []);
 
-        // If there's a direct chatId from URL, select that chat
         if (directChatId) {
           const targetChat = data.chats?.find(
             (chat) => chat._id === directChatId,
@@ -861,7 +1048,6 @@ const ChatPage = ({ userRole, currentUser: propUser }) => {
     if (currentUser) fetchChats();
   }, [currentUser, fetchChats]);
 
-  // Additional effect to handle direct chat navigation
   useEffect(() => {
     if (directChatId && chats.length > 0) {
       const targetChat = chats.find((chat) => chat._id === directChatId);
@@ -894,7 +1080,6 @@ const ChatPage = ({ userRole, currentUser: propUser }) => {
     { key: "support", label: "Support", icon: "bi-headset" },
   ];
 
-  // Guard: don't render until user is loaded
   if (!currentUser) {
     return (
       <div className="loading-state" style={{ height: "calc(100vh - 60px)" }}>

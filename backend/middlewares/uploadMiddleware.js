@@ -1,3 +1,5 @@
+// middlewares/uploadMiddleware.js - Fix chat upload
+
 const multer = require("multer");
 const path = require("path");
 const cloudinary = require("../config/cloudinary");
@@ -5,7 +7,7 @@ const { CloudinaryStorage } = require("multer-storage-cloudinary");
 
 // Product images storage (Cloudinary)
 const productStorage = new CloudinaryStorage({
-  cloudinary,
+  cloudinary: cloudinary,
   params: {
     folder: "ecommerce/products",
     allowed_formats: ["jpg", "jpeg", "png", "gif", "webp"],
@@ -17,12 +19,24 @@ const productStorage = new CloudinaryStorage({
 
 // Profile images storage (Cloudinary)
 const profileStorage = new CloudinaryStorage({
-  cloudinary,
+  cloudinary: cloudinary,
   params: {
     folder: "ecommerce/profiles",
     allowed_formats: ["jpg", "jpeg", "png", "gif", "webp"],
     transformation: [
       { width: 400, height: 400, crop: "limit", quality: "auto" },
+    ],
+  },
+});
+
+// Chat images storage (Cloudinary)
+const chatStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: "ecommerce/chat",
+    allowed_formats: ["jpg", "jpeg", "png", "gif", "webp"],
+    transformation: [
+      { width: 1200, height: 1200, crop: "limit", quality: "auto" },
     ],
   },
 });
@@ -51,9 +65,22 @@ const uploadProfileImage = multer({
   fileFilter,
 });
 
+// Chat image upload
+const uploadChatImage = multer({
+  storage: chatStorage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter,
+});
+
+// Export middleware functions
+const uploadSingleChatImage = uploadChatImage.single("image");
+
+// Export everything
 module.exports = {
   uploadProductImage,
   uploadProfileImage,
+  uploadChatImage,
+  uploadSingleChatImage,
   uploadMultipleProducts: uploadProductImage.array("images", 5),
   uploadSingleProduct: uploadProductImage.single("image"),
   uploadSingleProfile: uploadProfileImage.single("profileImage"),

@@ -1,3 +1,4 @@
+h
 /* ═══════════════════════════════════════════════════════════════
    CART PAGE - Premium Golden Luxury Theme
    ═══════════════════════════════════════════════════════════════ */
@@ -80,6 +81,7 @@
         transform: translateX(120%);
         opacity: 0;
     }
+
     to {
         transform: translateX(0);
         opacity: 1;
@@ -518,8 +520,13 @@
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 .modal-dialog-custom {
@@ -538,6 +545,7 @@
         transform: scale(0.95);
         opacity: 0;
     }
+
     to {
         transform: scale(1);
         opacity: 1;
@@ -755,7 +763,9 @@
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* ── Responsive ─────────────────────────────────────────── */
@@ -764,13 +774,13 @@
         grid-template-columns: 80px 1fr;
         gap: 0.75rem;
     }
-    
+
     .cart-item-price,
     .cart-item-total,
     .quantity-control {
         grid-column: 2;
     }
-    
+
     .remove-item-btn {
         position: absolute;
         top: 1rem;
@@ -783,16 +793,16 @@
         flex-direction: column;
         align-items: flex-start;
     }
-    
+
     .order-summary-card {
         position: static;
         margin-top: 1.5rem;
     }
-    
+
     .form-row {
         grid-template-columns: 1fr;
     }
-    
+
     .modal-dialog-custom {
         width: 95%;
         margin: 1rem;
@@ -804,7 +814,7 @@
         grid-template-columns: 60px 1fr;
         padding: 1rem;
     }
-    
+
     .cart-item-image,
     .cart-item-placeholder {
         width: 60px;

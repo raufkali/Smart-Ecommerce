@@ -1,3 +1,5 @@
+// routes/chatRoutes.js - Fix upload route
+
 const express = require("express");
 const router = express.Router();
 const { authMiddleware, verifyRole } = require("../middlewares/authMiddleware");
@@ -13,19 +15,21 @@ const {
   closeChat,
   getOrCreateSellerChat,
   getChatBySeller,
+  uploadChatImage,
+  deleteChatImage,
 } = require("../controllers/chatControllers");
+const { uploadSingleChatImage } = require("../middlewares/uploadMiddleware");
 
 // ───────────────────────────────────────────────────────────────────────────
 //  Static / named routes (must be before dynamic :chatId)
 // ───────────────────────────────────────────────────────────────────────────
 
-// Get total unread messages count for the authenticated user
+// Get total unread messages count
 router.get("/unread-count", authMiddleware, async (req, res, next) => {
   try {
     const Chat = require("../models/Chat");
     const mongoose = require("mongoose");
 
-    // Cast to ObjectId — req.user.id is a string, but the schema uses ObjectId
     const userId = new mongoose.Types.ObjectId(req.user.id);
 
     const result = await Chat.aggregate([
@@ -74,6 +78,22 @@ router.get("/seller/:sellerId", authMiddleware, getChatBySeller);
 // ───────────────────────────────────────────────────────────────────────────
 router.get("/:chatId/messages", authMiddleware, getChatMessages);
 router.post("/:chatId/messages", authMiddleware, sendMessage);
+
+// Upload image to chat - FIXED: Use uploadSingleChatImage directly
+router.post(
+  "/:chatId/upload",
+  authMiddleware,
+  uploadSingleChatImage, // This is the multer middleware
+  uploadChatImage, // This is the controller
+);
+
+// Delete chat image
+router.delete(
+  "/:chatId/messages/:messageId/image/:attachmentIndex",
+  authMiddleware,
+  deleteChatImage,
+);
+
 router.put("/:chatId/read", authMiddleware, markAsRead);
 router.put("/:chatId/close", authMiddleware, closeChat);
 router.delete("/:chatId/messages/:messageId", authMiddleware, deleteMessage);

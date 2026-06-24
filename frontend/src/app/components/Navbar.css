@@ -9,7 +9,9 @@
     --sn-gold-2: #e6c85c;
     --sn-gold-3: #d4af37;
     --sn-gold-4: #b8960c;
+    --sn-gold-5: #9a7a0a;
     --sn-dark: #0f0f10;
+    --sn-dark-light: #1a1406;
     --sn-glass: rgba(255, 255, 255, 0.08);
     --sn-glass-strong: rgba(255, 255, 255, 0.15);
 }
@@ -21,7 +23,7 @@
     left: 0;
     right: 0;
     z-index: 1030;
-    background: linear-gradient(135deg, #1a1406 0%, #2e2108 35%, #c49a16 75%, #f7e7a3 100%);
+    background: linear-gradient(135deg, #0f0c06 0%, #1a1406 35%, #c49a16 75%, #f7e7a3 100%);
     padding: 0;
     height: 60px;
     display: flex;
@@ -41,6 +43,8 @@
     display: flex;
     align-items: center;
     gap: 1.25rem;
+    position: relative;
+    z-index: 1031;
 }
 
 /* ── Brand ────────────────────────────────────────────────────────────────── */
@@ -49,17 +53,18 @@
     font-size: 1.5rem;
     font-weight: 800;
     letter-spacing: 0.1em;
-    background: linear-gradient(135deg, #ffffff 0%, #f7e7a3 100%);
+    background: linear-gradient(135deg, #ffffff 0%, #f7e7a3 50%, #d4af37 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
     filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.3));
     flex-shrink: 0;
-    transition: filter 0.2s;
+    transition: all 0.3s ease;
 }
 
 .sn-brand:hover {
     filter: drop-shadow(0 2px 8px rgba(247, 231, 163, 0.55));
+    transform: scale(1.02);
 }
 
 /* ── Center nav links ─────────────────────────────────────────────────────── */
@@ -87,6 +92,7 @@
     border: 1px solid transparent;
     transition: all 0.2s ease;
     white-space: nowrap;
+    position: relative;
 }
 
 .sn-nav-link i {
@@ -99,16 +105,19 @@
     background: rgba(255, 255, 255, 0.1);
     border-color: rgba(212, 175, 55, 0.35);
     transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(212, 175, 55, 0.15);
 }
 
 .sn-nav-link--active {
     color: #fff;
     background: linear-gradient(135deg, rgba(212, 175, 55, 0.28), rgba(255, 255, 255, 0.08));
     border-color: rgba(247, 231, 163, 0.45);
+    box-shadow: 0 2px 12px rgba(212, 175, 55, 0.2);
 }
 
 .sn-nav-link--active i {
     opacity: 1;
+    color: var(--sn-gold-2);
 }
 
 /* ── Right action cluster ─────────────────────────────────────────────────── */
@@ -151,12 +160,12 @@
     border-radius: 10px;
 }
 
-/* ── Cart badge (gold number) ─────────────────────────────────────────────── */
+/* ── Cart badge ─────────────────────────────────────────────────────────────── */
 .sn-action-btn__badge {
     position: absolute;
     top: -6px;
     right: -6px;
-    background: #ef4444;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
     color: #ffffff;
     font-size: 0.6rem;
     font-weight: 700;
@@ -167,24 +176,37 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    /* solid dark ring so it sits cleanly on the dark navbar */
     box-shadow: 0 0 0 2px #ffffff;
     line-height: 1;
     z-index: 1;
 }
 
-/* ── Chat unread dot (red) ────────────────────────────────────────────────── */
+/* ── Chat unread dot ────────────────────────────────────────────────────────── */
 .sn-action-btn__dot {
     position: absolute;
     top: -3px;
     right: -3px;
     width: 10px;
     height: 10px;
-    background: #ef4444;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
     border-radius: 50%;
-    /* solid dark ring — matches navbar bg so it pops cleanly */
-    box-shadow: 0 0 0 2px #1a1406;
+    box-shadow: 0 0 0 2px #dc2626;
     z-index: 1;
+    animation: pulse-dot 2s infinite;
+}
+
+@keyframes pulse-dot {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.2);
+    }
+
+    100% {
+        transform: scale(1);
+    }
 }
 
 /* ── Avatar toggle button ─────────────────────────────────────────────────── */
@@ -208,6 +230,7 @@
     background: rgba(255, 255, 255, 0.15);
     border-color: rgba(212, 175, 55, 0.45);
     box-shadow: 0 3px 12px rgba(212, 175, 55, 0.2);
+    transform: translateY(-1px);
 }
 
 .sn-avatar {
@@ -233,6 +256,7 @@
     font-size: 0.8rem;
     font-weight: 700;
     color: #fff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .sn-avatar-name {
@@ -248,7 +272,7 @@
 .sn-chevron {
     font-size: 0.65rem;
     color: rgba(255, 255, 255, 0.7);
-    transition: transform 0.2s;
+    transition: transform 0.2s ease;
 }
 
 /* ── Dropdown ─────────────────────────────────────────────────────────────── */
@@ -257,7 +281,7 @@
     top: calc(100% + 10px);
     right: 0;
     min-width: 230px;
-    background: rgba(255, 255, 255, 0.97);
+    background: rgba(255, 255, 255, 0.98);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     border-radius: 14px;
@@ -283,6 +307,7 @@
     align-items: center;
     gap: 10px;
     padding: 10px 12px 8px;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.1);
 }
 
 .sn-dropdown__avatar-wrap {
@@ -328,7 +353,7 @@
 /* Role badge */
 .sn-role-badge {
     display: inline-block;
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -337,24 +362,27 @@
 }
 
 .sn-role-badge--admin {
-    background: #fff3cd;
+    background: linear-gradient(135deg, #fff3cd, #ffe69c);
     color: #856404;
+    border: 1px solid rgba(133, 100, 4, 0.2);
 }
 
 .sn-role-badge--seller {
-    background: #d1e7dd;
+    background: linear-gradient(135deg, #d1e7dd, #a8d5c2);
     color: #0a5035;
+    border: 1px solid rgba(10, 80, 53, 0.2);
 }
 
 .sn-role-badge--user {
-    background: #cfe2ff;
+    background: linear-gradient(135deg, #cfe2ff, #9ec5fe);
     color: #084298;
+    border: 1px solid rgba(8, 66, 152, 0.2);
 }
 
 .sn-dropdown__divider {
     height: 1px;
-    background: rgba(0, 0, 0, 0.08);
-    margin: 4px 0;
+    background: linear-gradient(to right, transparent, rgba(212, 175, 55, 0.2), transparent);
+    margin: 4px 8px;
 }
 
 .sn-dropdown__item {
@@ -427,6 +455,7 @@
     background: linear-gradient(135deg, rgba(212, 175, 55, 0.45), rgba(247, 231, 163, 0.3));
     box-shadow: 0 0 18px rgba(212, 175, 55, 0.3);
     color: #fff;
+    transform: translateY(-1px);
 }
 
 /* ── Hamburger ────────────────────────────────────────────────────────────── */
@@ -449,51 +478,100 @@
 .sn-hamburger:hover {
     background: var(--sn-glass-strong);
     border-color: rgba(212, 175, 55, 0.4);
+    box-shadow: 0 2px 12px rgba(212, 175, 55, 0.15);
 }
 
 /* ── Mobile drawer ────────────────────────────────────────────────────────── */
 .sn-drawer {
     display: none;
+    position: fixed;
+    top: 60px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1026;
     flex-direction: column;
-    background: linear-gradient(180deg, #1a1406 0%, #2a1f0a 100%);
-    padding: 0.5rem 1rem 1rem;
+    background: linear-gradient(180deg, #0f0c06 0%, #1a1406 50%, #2a1f0a 100%);
+    padding: 0.75rem 1.25rem 2rem;
     gap: 0.25rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: 1px solid rgba(212, 175, 55, 0.15);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    animation: slideDown 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .sn-drawer--open {
-    display: flex;
+    display: flex !important;
 }
 
 .sn-drawer__link {
     display: flex;
     align-items: center;
     gap: 0.7rem;
-    padding: 0.7rem 1rem;
-    border-radius: 10px;
-    font-size: 0.9rem;
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    font-size: 0.95rem;
     font-weight: 500;
     color: rgba(255, 255, 255, 0.82);
     text-decoration: none;
     border: 1px solid rgba(255, 255, 255, 0.06);
-    transition: all 0.18s ease;
+    transition: all 0.2s ease;
 }
 
 .sn-drawer__link i {
-    font-size: 1rem;
+    font-size: 1.1rem;
     color: var(--sn-gold-3);
+    width: 24px;
+    text-align: center;
 }
 
 .sn-drawer__link:hover {
     background: rgba(255, 255, 255, 0.08);
     border-color: rgba(212, 175, 55, 0.3);
     color: #fff;
+    transform: translateX(4px);
 }
 
 .sn-drawer__link--active {
-    background: rgba(212, 175, 55, 0.15);
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(247, 231, 163, 0.08));
     border-color: rgba(247, 231, 163, 0.4);
     color: #fff;
+    box-shadow: 0 2px 12px rgba(212, 175, 55, 0.1);
+}
+
+.sn-drawer__link--active i {
+    color: var(--sn-gold-2);
+}
+
+.sn-drawer__divider {
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(212, 175, 55, 0.2), transparent);
+    margin: 4px 8px;
+}
+
+.sn-drawer__link--danger {
+    color: #ef4444;
+}
+
+.sn-drawer__link--danger i {
+    color: #ef4444 !important;
+}
+
+.sn-drawer__link--danger:hover {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.2);
 }
 
 /* ── Overlay ──────────────────────────────────────────────────────────────── */
@@ -501,9 +579,25 @@
     display: none;
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.45);
-    backdrop-filter: blur(3px);
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     z-index: 1025;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.sn-overlay--visible {
+    display: block !important;
 }
 
 /* ── Spacer (add below <Navbar /> in your layout) ────────────────────────── */
@@ -521,10 +615,6 @@
         display: flex;
     }
 
-    .sn-overlay {
-        display: block;
-    }
-
     .sn-avatar-name {
         display: none;
     }
@@ -532,26 +622,46 @@
     .sn-avatar-toggle {
         padding: 0.28rem;
     }
+
+    .sn-drawer {
+        padding: 0.75rem 1rem 2rem;
+    }
 }
 
 @media (max-width: 540px) {
     .sn-navbar__inner {
-        padding: 0 1rem;
-        gap: 0.75rem;
+        padding: 0 0.75rem;
+        gap: 0.5rem;
     }
 
     .sn-brand {
-        font-size: 1.25rem;
+        font-size: 1.1rem;
+        letter-spacing: 0.05em;
     }
 
     .sn-actions {
-        gap: 0.15rem;
+        gap: 0.1rem;
     }
 
     .sn-action-btn {
         width: 34px;
         height: 34px;
-        font-size: 0.95rem;
+        font-size: 0.9rem;
+    }
+
+    .sn-drawer {
+        padding: 0.5rem 0.75rem 2rem;
+    }
+
+    .sn-drawer__link {
+        padding: 0.7rem 0.85rem;
+        font-size: 0.9rem;
+        border-radius: 10px;
+    }
+
+    .sn-drawer__link i {
+        font-size: 1rem;
+        width: 20px;
     }
 
     /* Dropdown becomes a bottom sheet on mobile */
@@ -568,6 +678,7 @@
         min-width: unset;
         padding: 8px;
         padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+        box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.3);
     }
 
     .sn-dropdown--open {
@@ -576,6 +687,21 @@
 
     .sn-dropdown__head {
         padding: 16px 14px 10px;
+    }
+
+    .sn-dropdown__avatar {
+        width: 36px;
+        height: 36px;
+    }
+
+    .sn-dropdown__avatar-placeholder {
+        width: 36px;
+        height: 36px;
+        font-size: 0.9rem;
+    }
+
+    .sn-dropdown__name {
+        font-size: 0.8rem;
     }
 }
 
@@ -587,4 +713,33 @@
     width: 38px;
     height: 38px;
     color: rgba(255, 255, 255, 0.88);
+}
+
+/* ── Scrollbar styling for drawer ────────────────────────────────────────── */
+.sn-drawer::-webkit-scrollbar {
+    width: 4px;
+}
+
+.sn-drawer::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 2px;
+}
+
+.sn-drawer::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, var(--sn-gold-3), var(--sn-gold-4));
+    border-radius: 2px;
+}
+
+.sn-drawer::-webkit-scrollbar-thumb:hover {
+    background: var(--sn-gold-2);
+}
+
+/* ── Focus states for accessibility ──────────────────────────────────────── */
+.sn-nav-link:focus-visible,
+.sn-action-btn:focus-visible,
+.sn-avatar-toggle:focus-visible,
+.sn-hamburger:focus-visible,
+.sn-drawer__link:focus-visible {
+    outline: 2px solid var(--sn-gold-3);
+    outline-offset: 2px;
 }

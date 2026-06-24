@@ -44,6 +44,10 @@ const messageSchema = new mongoose.Schema(
           type: String,
           required: true,
         },
+        publicId: {
+          type: String, // Cloudinary public ID for deletion
+          required: true,
+        },
         type: {
           type: String,
           enum: ["image", "pdf", "file"],
@@ -52,9 +56,20 @@ const messageSchema = new mongoose.Schema(
         name: String,
         size: Number,
         mimeType: String,
+        width: Number,
+        height: Number,
         uploadedAt: {
           type: Date,
           default: Date.now,
+        },
+        // For auto-delete tracking
+        deleteAt: {
+          type: Date,
+          default: () => new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from upload
+        },
+        isDeleted: {
+          type: Boolean,
+          default: false,
         },
       },
     ],
@@ -116,13 +131,17 @@ const messageSchema = new mongoose.Schema(
     timestamps: true,
   },
 );
-
+messageSchema.index(
+  { createdAt: 1 },
+  { expireAfterSeconds: 5 * 24 * 60 * 60 }, // 5 days in seconds
+);
 // Indexes for faster queries
 messageSchema.index({ chatId: 1, createdAt: -1 });
 messageSchema.index({ "sender.userId": 1 });
 messageSchema.index({ createdAt: -1 });
 messageSchema.index({ isEvidence: 1 });
 messageSchema.index({ isRead: 1 });
+messageSchema.index({ "attachments.deleteAt": 1 });
 
 // Method to mark as read by user
 messageSchema.methods.markAsRead = function (userId) {

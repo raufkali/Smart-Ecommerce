@@ -346,7 +346,7 @@ const getItemActions = (item, orderPaymentStatus) => {
   };
 };
 
-// Check if item can be reviewed (only normal delivered items, not admin-resolved)
+// Check if item can be reviewed (only normal delivered items, not admin-resolved, not already reviewed)
 const canReviewItem = (item) => {
   const isDelivered =
     item.orderStatus === "delivered" && item.escrowStatus === "released";
@@ -356,7 +356,10 @@ const canReviewItem = (item) => {
     item.disputeStatus === "resolved_refund" ||
     item.disputeStatus === "resolved_release";
 
-  return isDelivered && !isAdminResolved;
+  // Don't allow if reviews already submitted
+  const reviewsSubmitted = item.reviewsSubmitted === true;
+
+  return isDelivered && !isAdminResolved && !reviewsSubmitted;
 };
 
 // ─────────────────────────────────────────────
@@ -1134,7 +1137,7 @@ const OrderDetailsModal = ({
                             </button>
                           )}
 
-                          {/* Review button - only for items that weren't admin-resolved */}
+                          {/* Review button - only for items that weren't admin-resolved and not already reviewed */}
                           {isReviewable && (
                             <button
                               className="btn-action btn-review"
@@ -1572,7 +1575,7 @@ const ClientOrders = () => {
   }
 
   return (
-    <div className="orders-page">
+    <div className="orders-page m-0 w-100">
       {toast && (
         <Toast
           message={toast.message}
