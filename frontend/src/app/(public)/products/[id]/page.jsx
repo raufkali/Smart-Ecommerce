@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import "./productDetail.css";
+import ReactMarkDown from "react-markdown";
 
 /* ─── Toast ─────────────────────────────────────────────────── */
 const Toast = ({ message, type, onClose }) => {
@@ -592,7 +593,11 @@ const ProductDetailPage = () => {
               {/* Description */}
               <div className="product-description-section">
                 <h3>Description</h3>
-                <p>{product.description || "No description available."}</p>
+                <div>
+                  <ReactMarkDown>
+                    {product.description || "No description available."}
+                  </ReactMarkDown>
+                </div>
               </div>
 
               {/* Quantity */}

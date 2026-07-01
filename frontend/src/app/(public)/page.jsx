@@ -7,7 +7,7 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import "./homepage.css";
 import BackendImage from "@/app/components/BackendImage";
-
+import ReactMarkDown from "react-markdown";
 // ── Custom Hooks ────────────────────────────────────────────────────────────
 const useToast = () => {
   const [toast, setToast] = useState(null);
@@ -150,11 +150,12 @@ const ProductCard = React.memo(
             </h3>
           </Link>
 
-          <p className="product-description">
-            {product.description?.substring(0, 65) ||
-              "No description available"}
-            …
-          </p>
+          {/* <div className="product-description">
+            <ReactMarkDown>
+              {product.description?.substring(0, 65) ||
+                "No description available"}
+            </ReactMarkDown>
+          </div> */}
 
           <div className="product-price">
             <span className="current-price">
@@ -386,10 +387,12 @@ const FeaturedProductSpotlight = ({
                 {product.category?.name || "Premium Collection"}
               </span>
               <h3 className="spotlight-title">{product.name}</h3>
-              <p className="spotlight-description">
-                {product.description?.substring(0, 120) ||
-                  "Discover excellence with this premium product, crafted for those who appreciate quality and style."}
-              </p>
+              <div className="spotlight-description">
+                <ReactMarkDown>
+                  {product.description?.substring(0, 120) ||
+                    "Discover excellence with this premium product, crafted for those who appreciate quality and style."}
+                </ReactMarkDown>
+              </div>
 
               <div className="spotlight-price">
                 <span className="spotlight-current">
@@ -785,12 +788,15 @@ const HomePage = () => {
                 <div className="category-icon">
                   <i className={`bi bi-${getCategoryIcon(category.name)}`} />
                   {/* <p className="category-name">{category.name}</p> */}
+
                   {category.description && (
-                    <span className="category-description">
-                      {category.description.length > 35
-                        ? `${category.description.substring(0, 35)}...`
-                        : category.description}
-                    </span>
+                    <div className="category-description">
+                      <ReactMarkDown>
+                        {category.description.length > 35
+                          ? `${category.description.substring(0, 35)}...`
+                          : category.description}
+                      </ReactMarkDown>
+                    </div>
                   )}
                 </div>
               </Link>
