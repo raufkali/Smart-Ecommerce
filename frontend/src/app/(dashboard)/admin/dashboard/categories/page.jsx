@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
+import Image from "next/image";
 import "./AdminCategories.css";
 
 const API_URL = `${process.env.NEXT_PUBLIC_BACKEND_URL}/admin`;
@@ -50,16 +51,43 @@ const StatCard = ({ title, value, icon, color }) => {
 };
 
 // Category Row Component
-const CategoryRow = ({ category, index, onEdit, onDelete, onToggleStatus }) => {
-  // Get the correct ID (supports both _id and id)
+const CategoryRow = ({
+  category,
+  index,
+  onEdit,
+  onDelete,
+  onToggleStatus,
+  backendUrl,
+}) => {
   const categoryId = category._id || category.id;
+
+  // Get image URL
+  const getImageUrl = () => {
+    if (!category.image) return null;
+    if (category.image.startsWith("http")) return category.image;
+    return `${category.image}`;
+  };
 
   return (
     <tr className="category-row">
       <td className="index-cell">{index + 1}</td>
       <td className="name-cell">
         <div className="category-info">
-          <i className="bi bi-tag-fill"></i>
+          <div className="category-avatar">
+            {getImageUrl() ? (
+              <Image
+                src={getImageUrl()}
+                alt={category.name}
+                width={40}
+                height={40}
+                className="category-avatar-img"
+              />
+            ) : (
+              <div className="category-avatar-placeholder">
+                <i className="bi bi-tag-fill"></i>
+              </div>
+            )}
+          </div>
           <span className="category-name">{category.name}</span>
         </div>
       </td>
@@ -73,15 +101,15 @@ const CategoryRow = ({ category, index, onEdit, onDelete, onToggleStatus }) => {
           <label className="toggle-switch">
             <input
               type="checkbox"
-              checked={category.isActive}
+              checked={category.isActive === true}
               onChange={() => onToggleStatus(category)}
             />
             <span className="toggle-slider"></span>
           </label>
           <span
-            className={`status-text ${category.isActive ? "active" : "inactive"}`}
+            className={`status-text ${category.isActive === true ? "active" : "inactive"}`}
           >
-            {category.isActive ? "Active" : "Inactive"}
+            {category.isActive === true ? "Active" : "Inactive"}
           </span>
         </div>
       </td>
@@ -104,6 +132,88 @@ const CategoryRow = ({ category, index, onEdit, onDelete, onToggleStatus }) => {
     </tr>
   );
 };
+// Image Upload Component
+const ImageUpload = ({
+  imagePreview,
+  onImageChange,
+  onRemoveImage,
+  loading,
+}) => {
+  const fileInputRef = useRef(null);
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file size (20MB max)
+      if (file.size > 20 * 1024 * 1024) {
+        alert("File is too large. Maximum size is 20MB.");
+        return;
+      }
+      onImageChange(file);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      if (file.size > 20 * 1024 * 1024) {
+        alert("File is too large. Maximum size is 20MB.");
+        return;
+      }
+      onImageChange(file);
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+  };
+
+  return (
+    <div className="image-upload-container">
+      {imagePreview ? (
+        <div className="image-preview-wrapper">
+          <div className="image-preview">
+            <Image
+              src={imagePreview}
+              alt="Category preview"
+              width={200}
+              height={200}
+              className="preview-image"
+            />
+            <button
+              type="button"
+              className="remove-image-btn"
+              onClick={onRemoveImage}
+              disabled={loading}
+            >
+              <i className="bi bi-x-lg"></i>
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div
+          className="image-drop-zone"
+          onClick={() => fileInputRef.current?.click()}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+        >
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileSelect}
+            accept="image/*"
+            style={{ display: "none" }}
+          />
+          <i className="bi bi-cloud-upload"></i>
+          <h4>Upload Category Image</h4>
+          <p>Drag & drop or click to select</p>
+          <span className="file-types">JPG, PNG, GIF, WEBP (Max 20MB)</span>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const AdminCategories = () => {
   const [categories, setCategories] = useState([]);
@@ -117,6 +227,8 @@ const AdminCategories = () => {
   const [modalMode, setModalMode] = useState("create");
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -138,7 +250,10 @@ const AdminCategories = () => {
 
   const fetchCategories = async () => {
     const token = tokenRef.current;
-    if (!token) return;
+    if (!token) {
+      showToast("Please login to manage categories", "error");
+      return;
+    }
 
     setLoading(true);
     setError("");
@@ -146,7 +261,23 @@ const AdminCategories = () => {
       const response = await axios.get(`${backendUrl}/category/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const categoriesData = response.data.categories || response.data || [];
+
+      // Handle different response structures
+      let categoriesData = [];
+      if (response.data && response.data.categories) {
+        categoriesData = response.data.categories;
+      } else if (response.data && Array.isArray(response.data)) {
+        categoriesData = response.data;
+      } else if (response.data && response.data.data) {
+        categoriesData = response.data.data;
+      }
+
+      // Ensure isActive is properly set (default to true if missing)
+      categoriesData = categoriesData.map((cat) => ({
+        ...cat,
+        isActive: cat.isActive !== undefined ? cat.isActive : true,
+      }));
+
       setCategories(categoriesData);
     } catch (err) {
       console.error("Error fetching categories:", err);
@@ -165,6 +296,20 @@ const AdminCategories = () => {
     }));
   };
 
+  const handleImageChange = (file) => {
+    setImageFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+  };
+
   const resetModal = () => {
     setFormData({
       name: "",
@@ -174,6 +319,8 @@ const AdminCategories = () => {
     setSelectedCategory(null);
     setModalMode("create");
     setError("");
+    setImageFile(null);
+    setImagePreview(null);
     setShowModal(false);
   };
 
@@ -181,6 +328,8 @@ const AdminCategories = () => {
     setModalMode("create");
     setFormData({ name: "", description: "", isActive: true });
     setError("");
+    setImageFile(null);
+    setImagePreview(null);
     setShowModal(true);
   };
 
@@ -189,8 +338,19 @@ const AdminCategories = () => {
     setFormData({
       name: category.name,
       description: category.description || "",
-      isActive: category.isActive,
+      isActive: category.isActive !== undefined ? category.isActive : true,
     });
+
+    // Set existing image preview
+    if (category.image) {
+      const imageUrl = category.image.startsWith("http")
+        ? category.image
+        : `${backendUrl}${category.image}`;
+      setImagePreview(imageUrl);
+    } else {
+      setImagePreview(null);
+    }
+    setImageFile(null);
     setModalMode("edit");
     setError("");
     setShowModal(true);
@@ -203,9 +363,22 @@ const AdminCategories = () => {
 
     try {
       const token = tokenRef.current;
-      await axios.post(`${backendUrl}/category/create`, formData, {
-        headers: { Authorization: `Bearer ${token}` },
+      const formDataToSend = new FormData();
+      formDataToSend.append("name", formData.name);
+      formDataToSend.append("description", formData.description);
+      formDataToSend.append("isActive", formData.isActive);
+
+      if (imageFile) {
+        formDataToSend.append("image", imageFile);
+      }
+
+      await axios.post(`${backendUrl}/category/create`, formDataToSend, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
       });
+
       await fetchCategories();
       resetModal();
       showToast("Category created successfully", "success");
@@ -226,20 +399,30 @@ const AdminCategories = () => {
     setActionLoading(true);
     setError("");
 
-    // Get the correct ID (supports both _id and id)
     const categoryId = selectedCategory._id || selectedCategory.id;
 
     try {
       const token = tokenRef.current;
+      const formDataToSend = new FormData();
+      formDataToSend.append("name", formData.name);
+      formDataToSend.append("description", formData.description);
+      formDataToSend.append("isActive", formData.isActive);
+
+      if (imageFile) {
+        formDataToSend.append("image", imageFile);
+      }
+
       await axios.put(
         `${backendUrl}/category/update/${categoryId}`,
+        formDataToSend,
         {
-          name: formData.name,
-          description: formData.description,
-          isActive: formData.isActive,
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
         },
-        { headers: { Authorization: `Bearer ${token}` } },
       );
+
       await fetchCategories();
       resetModal();
       showToast("Category updated successfully", "success");
@@ -260,7 +443,6 @@ const AdminCategories = () => {
       return;
     }
 
-    // Get the correct ID (supports both _id and id)
     const categoryId = category._id || category.id;
 
     try {
@@ -280,23 +462,30 @@ const AdminCategories = () => {
   };
 
   const handleToggleActive = async (category) => {
-    // Get the correct ID (supports both _id and id)
     const categoryId = category._id || category.id;
+    const newStatus = !category.isActive;
 
     try {
       const token = tokenRef.current;
+      const formDataToSend = new FormData();
+      formDataToSend.append("name", category.name);
+      formDataToSend.append("description", category.description || "");
+      formDataToSend.append("isActive", newStatus);
+
       await axios.put(
         `${backendUrl}/category/update/${categoryId}`,
+        formDataToSend,
         {
-          name: category.name,
-          description: category.description,
-          isActive: !category.isActive,
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
         },
-        { headers: { Authorization: `Bearer ${token}` } },
       );
+
       await fetchCategories();
       showToast(
-        `Category ${category.isActive ? "deactivated" : "activated"} successfully`,
+        `Category ${newStatus ? "activated" : "deactivated"} successfully`,
         "success",
       );
     } catch (err) {
@@ -317,16 +506,16 @@ const AdminCategories = () => {
 
     const matchesStatus =
       statusFilter === "all" ||
-      (statusFilter === "active" && category.isActive) ||
-      (statusFilter === "inactive" && !category.isActive);
+      (statusFilter === "active" && category.isActive === true) ||
+      (statusFilter === "inactive" && category.isActive === false);
 
     return matchesSearch && matchesStatus;
   });
 
   const stats = {
     total: categories.length,
-    active: categories.filter((c) => c.isActive).length,
-    inactive: categories.filter((c) => !c.isActive).length,
+    active: categories.filter((c) => c.isActive === true).length,
+    inactive: categories.filter((c) => c.isActive === false).length,
   };
 
   if (loading) {
@@ -442,7 +631,7 @@ const AdminCategories = () => {
                 <thead>
                   <tr>
                     <th style={{ width: "60px" }}>#</th>
-                    <th>Category Name</th>
+                    <th>Category</th>
                     <th>Description</th>
                     <th>Status</th>
                     <th style={{ width: "100px" }}>Actions</th>
@@ -452,12 +641,13 @@ const AdminCategories = () => {
                   {filteredCategories.length > 0 ? (
                     filteredCategories.map((category, index) => (
                       <CategoryRow
-                        key={category._id || category.id}
+                        key={category._id || category.id || index}
                         category={category}
                         index={index}
                         onEdit={handleOpenEdit}
                         onDelete={handleDelete}
                         onToggleStatus={handleToggleActive}
+                        backendUrl={backendUrl}
                       />
                     ))
                   ) : (
@@ -466,7 +656,9 @@ const AdminCategories = () => {
                         <i className="bi bi-inbox"></i>
                         <h5>No categories found</h5>
                         <p>
-                          Click "Create Category" to add your first category
+                          {searchTerm || statusFilter !== "all"
+                            ? "Try adjusting your filters"
+                            : 'Click "Create Category" to add your first category'}
                         </p>
                       </td>
                     </tr>
@@ -525,6 +717,16 @@ const AdminCategories = () => {
                     placeholder="Enter category description (optional)"
                     value={formData.description}
                     onChange={handleChange}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Category Image</label>
+                  <ImageUpload
+                    imagePreview={imagePreview}
+                    onImageChange={handleImageChange}
+                    onRemoveImage={handleRemoveImage}
+                    loading={actionLoading}
                   />
                 </div>
 

@@ -53,9 +53,9 @@ const SellerDashboard = () => {
           `${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/me`,
           { headers: { Authorization: `Bearer ${token}` } },
         );
-
         if (response.ok) {
           const data = await response.json();
+          console.log(data);
           setUser(data.user);
           setStats((prev) => ({
             ...prev,
@@ -129,9 +129,6 @@ const SellerDashboard = () => {
       const data = await response.json();
       const orders = data.orders || [];
 
-      console.log("Raw orders data:", orders); // Debug: See order structure
-      console.log("Current sellerId:", sellerId); // Debug: See seller ID
-
       const todayMidnight = new Date().setHours(0, 0, 0, 0);
       let totalRevenue = 0;
       let todayRevenue = 0;
@@ -142,9 +139,6 @@ const SellerDashboard = () => {
       const activities = [];
 
       orders.forEach((order) => {
-        // Debug: Check order items structure
-        console.log("Order items:", order.orderItems);
-
         // Filter seller items - try multiple possible field names
         const sellerItems =
           order.orderItems?.filter((item) => {
@@ -153,16 +147,9 @@ const SellerDashboard = () => {
               item.seller?._id?.toString() ||
               item.seller?.toString() ||
               item.sellerId?.toString();
-            console.log(
-              "Item seller ID:",
-              itemSellerId,
-              "Current seller ID:",
-              sellerId,
-            );
+
             return itemSellerId === sellerId;
           }) || [];
-
-        console.log("Filtered seller items count:", sellerItems.length);
 
         sellerItems.forEach((item) => {
           const itemRevenue = (item.price || 0) * (item.quantity || 0);
@@ -475,12 +462,9 @@ const SellerDashboard = () => {
               <i className="bi bi-shop"></i>
               <span>Seller Dashboard</span>
             </div>
-            <h1 className="dashboard-title">
-              Welcome back,{" "}
-              <span className="gold-text">
-                {user?.fullname?.split(" ")[0] || "Seller"}
-              </span>
-            </h1>
+            <h2 className="dashboard-title">
+              Welcome back, <span className="gold-text">{user?.fullname}</span>
+            </h2>
             <p className="dashboard-subtitle">
               Here's what's happening with your store today.
             </p>
@@ -753,9 +737,7 @@ const SellerDashboard = () => {
                           <tr key={product._id}>
                             <td className="product-name">{product.name}</td>
                             <td>{product.sales || 0}</td>
-                            <td className="gold-text">
-                              {formatCurrency(product.revenue || 0)}
-                            </td>
+                            <td className="gold-text">{product.rating || 0}</td>
                             <td>
                               <span
                                 className={`stock-badge ${

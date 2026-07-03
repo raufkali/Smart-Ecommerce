@@ -1,15 +1,12 @@
 const express = require("express");
 const router = express.Router();
 const { authMiddleware } = require("../middlewares/authMiddleware");
+const User = require("../models/User");
+router.get("/me", authMiddleware, async (req, res) => {
+  const user = await User.findById(req.user.id).select("-password");
 
-router.get("/me", authMiddleware, (req, res) => {
   res.status(200).json({
-    user: {
-      id: req.user.id,
-      role: req.user.role,
-      email: req.user.email,
-    },
-    exp: req.user.exp,
+    user,
   });
 });
 

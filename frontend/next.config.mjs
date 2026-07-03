@@ -17,11 +17,10 @@ const nextConfig = {
       },
       {
         protocol: "http",
-        hostname: "192.168.10.8",
+        hostname: "192.168.1.19",
         port: "8080",
-        pathname: "/uploads/**",
+        pathname: "/**",
       },
-      // new – static images (banners etc.)
       {
         protocol: "http",
         hostname: "localhost",

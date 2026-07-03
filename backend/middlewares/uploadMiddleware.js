@@ -1,4 +1,4 @@
-// middlewares/uploadMiddleware.js - Fix chat upload
+// middlewares/uploadMiddleware.js - Add category storage
 
 const multer = require("multer");
 const path = require("path");
@@ -41,6 +41,18 @@ const chatStorage = new CloudinaryStorage({
   },
 });
 
+// ✨ NEW: Category images storage (Cloudinary)
+const categoryStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: "ecommerce/categories",
+    allowed_formats: ["jpg", "jpeg", "png", "gif", "webp"],
+    transformation: [
+      { width: 600, height: 600, crop: "limit", quality: "auto" },
+    ],
+  },
+});
+
 // File filter — only real image files
 const fileFilter = (req, file, cb) => {
   const allowedTypes = /jpeg|jpg|png|gif|webp/;
@@ -72,15 +84,24 @@ const uploadChatImage = multer({
   fileFilter,
 });
 
+const uploadCategoryImage = multer({
+  storage: categoryStorage,
+  limits: { fileSize: 20 * 1024 * 1024 }, // 10MB
+  fileFilter,
+});
+
 // Export middleware functions
 const uploadSingleChatImage = uploadChatImage.single("image");
+const uploadSingleCategoryImage = uploadCategoryImage.single("image");
 
 // Export everything
 module.exports = {
   uploadProductImage,
   uploadProfileImage,
   uploadChatImage,
+  uploadCategoryImage,
   uploadSingleChatImage,
+  uploadSingleCategoryImage,
   uploadMultipleProducts: uploadProductImage.array("images", 5),
   uploadSingleProduct: uploadProductImage.single("image"),
   uploadSingleProfile: uploadProfileImage.single("profileImage"),

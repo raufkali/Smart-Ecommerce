@@ -168,7 +168,6 @@
 
 .dashboard-title {
     font-family: 'Cormorant Garamond', Georgia, serif;
-    font-size: clamp(1.8rem, 4vw, 2.5rem);
     font-weight: 400;
     color: #1a1712;
     margin-bottom: 8px;

@@ -44,16 +44,28 @@ const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" }) => {
       setCartCount(0);
       return;
     }
+    //get user role
+    const userRes = await fetch(
+      `${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/me`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    const { user: basicUser } = await userRes.json();
+    setUser(basicUser);
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/cart/count`,
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      if (res.ok) {
-        const data = await res.json();
-        setCartCount(data.count || 0);
-      } else {
+      if (basicUser?.role === "seller" || basicUser?.role === "admin") {
         setCartCount(0);
+        return;
+      } else {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/cart/count`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setCartCount(data.count || 0);
+        } else {
+          setCartCount(0);
+        }
       }
     } catch {
       setCartCount(0);

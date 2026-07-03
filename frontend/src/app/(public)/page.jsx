@@ -73,7 +73,81 @@ const Toast = ({ message, type, onClose }) => {
     </motion.div>
   );
 };
+// ── Categories Section with Images ─────────────────────────────────────────
+const CategoriesSection = ({ categories, loading }) => {
+  const [hoveredCategory, setHoveredCategory] = useState(null);
 
+  if (loading) {
+    return (
+      <div className="categories-section">
+        <div className="container">
+          <div className="categories-loading">
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="category-skeleton" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!categories.length) return null;
+
+  return (
+    <section className="categories-section">
+      <div className="container">
+        <div className="categories-header">
+          <h2 className="categories-title">Shop by Category</h2>
+          <p className="categories-subtitle">Explore our curated collections</p>
+        </div>
+
+        <div className="categories-grid">
+          {categories.map((category) => (
+            <motion.div
+              key={category._id}
+              className="category-item"
+              onHoverStart={() => setHoveredCategory(category._id)}
+              onHoverEnd={() => setHoveredCategory(null)}
+              whileHover={{ y: -8 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+            >
+              <Link
+                href={`/products?category=${category._id}`}
+                className="category-link"
+              >
+                <div className="category-image-wrapper">
+                  <Image
+                    src={category.image}
+                    alt={category.name}
+                    fill
+                    sizes="(max-width: 768px) 50vw, (max-width: 1200px) 25vw, 16.6vw"
+                    className="category-image"
+                    priority={categories.indexOf(category) < 4}
+                  />
+                  <div className="category-overlay">
+                    <div className="category-content">
+                      <span className="category-name">{category.name}</span>
+                      {category.description && (
+                        <span className="category-description">
+                          {category.description.length > 30
+                            ? `${category.description.substring(0, 30)}...`
+                            : category.description}
+                        </span>
+                      )}
+                      <span className="category-shop-btn">
+                        Shop Now <i className="bi bi-arrow-right" />
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
 // ── Product Card (Professional, not too wide) ───────────────────────────────
 const ProductCard = React.memo(
   ({
@@ -151,11 +225,11 @@ const ProductCard = React.memo(
           </Link>
 
           {/* <div className="product-description">
-            <ReactMarkDown>
-              {product.description?.substring(0, 65) ||
-                "No description available"}
-            </ReactMarkDown>
-          </div> */}
+              <ReactMarkDown>
+                {product.description?.substring(0, 65) ||
+                  "No description available"}
+              </ReactMarkDown>
+            </div> */}
 
           <div className="product-price">
             <span className="current-price">
@@ -650,7 +724,7 @@ const HomePage = () => {
           fetch(
             `${process.env.NEXT_PUBLIC_BACKEND_URL}/products/?isActive=true`,
           ),
-          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/category/`),
+          fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/category/active`),
         ]);
 
         const products = productsRes.ok
@@ -774,36 +848,7 @@ const HomePage = () => {
       />
 
       {/* Categories */}
-      <section className="categories-section container-fluid py-4">
-        <div className="row g-3 d-flex align-items-stretch justify-content-center">
-          {data.categories.map((category) => (
-            <div
-              key={category._id}
-              className="col-xl-1 col-lg-1 col-md-2 col-5"
-            >
-              <Link
-                href={`/products?category=${category._id}`}
-                className="category-card"
-              >
-                <div className="category-icon">
-                  <i className={`bi bi-${getCategoryIcon(category.name)}`} />
-                  {/* <p className="category-name">{category.name}</p> */}
-
-                  {category.description && (
-                    <div className="category-description">
-                      <ReactMarkDown>
-                        {category.description.length > 35
-                          ? `${category.description.substring(0, 35)}...`
-                          : category.description}
-                      </ReactMarkDown>
-                    </div>
-                  )}
-                </div>
-              </Link>
-            </div>
-          ))}
-        </div>
-      </section>
+      <CategoriesSection categories={data.categories} loading={loading} />
 
       {/* Best Deals */}
       {data.discountedProducts.length > 0 && (
