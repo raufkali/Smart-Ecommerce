@@ -38,6 +38,7 @@ const notificationRoutes = require("./routes/notificationRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
 const chatRoutes = require("./routes/chatRoutes");
 const settingsRoutes = require("./routes/settingsRoutes");
+const sellerDashboardRoutes = require("./routes/sellerDashboardRoutes");
 
 const app = express();
 const server = http.createServer(app);
@@ -132,6 +133,7 @@ app.use("/notifications", notificationRoutes);
 app.use("/reviews", reviewRoutes);
 app.use("/chat", chatRoutes);
 app.use("/settings", settingsRoutes);
+app.use("/seller/dashboard", sellerDashboardRoutes);
 
 // Error handling middleware (must be last)
 app.use(errorHandler);

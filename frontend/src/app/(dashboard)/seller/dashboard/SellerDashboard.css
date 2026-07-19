@@ -7,6 +7,48 @@
     position: relative;
 }
 
+/* Fix for revenue display in top products table */
+.dashboard-table .gold-text {
+    color: #b8912a;
+    font-weight: 600;
+}
+
+/* Ensure empty states are properly centered */
+.empty-table,
+.empty-reviews,
+.empty-chart,
+.empty-activity {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+    text-align: center;
+    min-height: 200px;
+}
+
+.empty-table i,
+.empty-reviews i,
+.empty-chart i,
+.empty-activity i {
+    font-size: 48px;
+    color: #c9c3b4;
+    margin-bottom: 16px;
+}
+
+/* Fix stock badge for out of stock */
+.stock-badge.out {
+    background: rgba(239, 68, 68, 0.12);
+    color: #ef4444;
+}
+
+/* Rating value alignment */
+.rating-value {
+    margin-left: 8px;
+    font-weight: 600;
+    color: #b8912a;
+}
+
 .seller-dashboard::before {
     content: '';
     position: fixed;

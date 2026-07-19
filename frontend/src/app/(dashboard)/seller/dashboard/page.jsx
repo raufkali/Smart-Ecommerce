@@ -28,15 +28,20 @@ const SellerDashboard = () => {
   const [topProducts, setTopProducts] = useState([]);
   const [recentReviews, setRecentReviews] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
-  const [salesData, setSalesData] = useState({
-    labels: DAY_LABELS,
-    values: [0, 0, 0, 0, 0, 0, 0],
-  });
+  const [weeklySales, setWeeklySales] = useState([]);
 
   const showToast = (message, type = "success") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   };
+
+  // ─── Helper Functions ──────────────────────────────────────────────────────
+
+  const formatCurrency = (amount) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+    }).format(amount || 0);
 
   // ─── Auth ──────────────────────────────────────────────────────────────────
 
@@ -55,13 +60,7 @@ const SellerDashboard = () => {
         );
         if (response.ok) {
           const data = await response.json();
-          console.log(data);
           setUser(data.user);
-          setStats((prev) => ({
-            ...prev,
-            averageRating: data.user.averageRating ?? 0,
-            totalReviews: data.user.numReviews ?? 0,
-          }));
         } else {
           localStorage.removeItem("token");
           router.push("/login");
@@ -75,313 +74,57 @@ const SellerDashboard = () => {
     fetchUser();
   }, [router]);
 
-  // ─── Products ──────────────────────────────────────────────────────────────
+  // ─── Fetch Dashboard Data ─────────────────────────────────────────────────
 
-  const fetchSellerProducts = useCallback(async (token) => {
+  const fetchDashboardData = useCallback(async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    setLoading(true);
+
     try {
+      // Fetch all dashboard stats in one request
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/products/my-products`,
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-
-      if (!response.ok) return;
-
-      const data = await response.json();
-      const products = data.products || [];
-
-      setStats((prev) => ({
-        ...prev,
-        totalProducts: products.length,
-        lowStockProducts: products.filter((p) => p.stock > 0 && p.stock < 5)
-          .length,
-      }));
-
-      const sorted = [...products].sort((a, b) => b.stock - a.stock);
-      setTopProducts(
-        sorted.slice(0, 5).map((p) => ({
-          _id: p._id,
-          name: p.name,
-          stock: p.stock,
-          price: p.finalPrice ?? p.price,
-          sales: 0,
-          revenue: 0,
-        })),
-      );
-    } catch (error) {
-      console.error("Error fetching products:", error);
-    }
-  }, []);
-
-  // ─── Orders ────────────────────────────────────────────────────────────────
-
-  const fetchSellerOrders = useCallback(async (token, sellerId) => {
-    try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/orders/seller`,
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/seller/dashboard/stats`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
 
       if (!response.ok) {
-        console.log("No orders found, using demo data");
-        return;
+        throw new Error("Failed to fetch dashboard data");
       }
 
-      const data = await response.json();
-      const orders = data.orders || [];
+      const result = await response.json();
 
-      const todayMidnight = new Date().setHours(0, 0, 0, 0);
-      let totalRevenue = 0;
-      let todayRevenue = 0;
-      let pendingOrdersCount = 0;
+      if (result.success) {
+        const { data } = result;
 
-      const productSalesMap = {};
-      const weekSales = [0, 0, 0, 0, 0, 0, 0];
-      const activities = [];
+        setStats(data.stats);
+        setRecentOrders(data.recentOrders);
+        setTopProducts(data.topProducts);
+        setRecentReviews(data.recentReviews);
+        setRecentActivities(data.recentActivities);
 
-      orders.forEach((order) => {
-        // Filter seller items - try multiple possible field names
-        const sellerItems =
-          order.orderItems?.filter((item) => {
-            // Check for seller ID in different possible locations
-            const itemSellerId =
-              item.seller?._id?.toString() ||
-              item.seller?.toString() ||
-              item.sellerId?.toString();
-
-            return itemSellerId === sellerId;
-          }) || [];
-
-        sellerItems.forEach((item) => {
-          const itemRevenue = (item.price || 0) * (item.quantity || 0);
-          totalRevenue += itemRevenue;
-
-          if (
-            new Date(order.createdAt).setHours(0, 0, 0, 0) === todayMidnight
-          ) {
-            todayRevenue += itemRevenue;
-          }
-
-          const dayIdx = new Date(order.createdAt).getDay();
-          weekSales[dayIdx] += itemRevenue;
-
-          const pid = item.product?._id?.toString() || item.product?.toString();
-          if (pid) {
-            if (!productSalesMap[pid]) {
-              productSalesMap[pid] = { sales: 0, revenue: 0 };
-            }
-            productSalesMap[pid].sales += item.quantity || 0;
-            productSalesMap[pid].revenue += itemRevenue;
-          }
-        });
-
-        // Count pending orders for this seller
-        if (sellerItems.length > 0) {
-          const hasPending = sellerItems.some(
-            (item) =>
-              item.orderStatus === "pending" || item.status === "pending",
-          );
-          if (hasPending) pendingOrdersCount++;
-
-          // Add activity for order
-          const orderStatus =
-            sellerItems[0]?.orderStatus || sellerItems[0]?.status || "pending";
-          activities.push({
-            type: "order",
-            description: `Order #${order._id.slice(-6).toUpperCase()} - ${orderStatus}`,
-            time: timeAgo(order.createdAt),
-            status:
-              orderStatus === "delivered"
-                ? "success"
-                : orderStatus === "cancelled"
-                  ? "danger"
-                  : "pending",
-          });
-        }
-      });
-
-      setStats((prev) => ({
-        ...prev,
-        totalOrders: orders.length,
-        pendingOrders: pendingOrdersCount,
-        totalRevenue,
-        todayRevenue,
-      }));
-
-      setSalesData({ labels: DAY_LABELS, values: weekSales });
-
-      // Enrich top products with real sales data
-      setTopProducts((prev) =>
-        prev.map((p) => {
-          const pid = p._id?.toString();
-          const agg = productSalesMap[pid];
-          return agg ? { ...p, sales: agg.sales, revenue: agg.revenue } : p;
-        }),
-      );
-
-      // Recent orders (last 5) - IMPROVED VERSION
-      const filteredOrders = orders.filter((order) => {
-        // Only include orders that have items belonging to this seller
-        const hasSellerItems = order.orderItems?.some((item) => {
-          const itemSellerId =
-            item.seller?._id?.toString() ||
-            item.seller?.toString() ||
-            item.sellerId?.toString();
-          return itemSellerId === sellerId;
-        });
-        return hasSellerItems;
-      });
-
-      setRecentOrders(
-        filteredOrders.slice(0, 5).map((order) => {
-          // Get only seller's items from this order
-          const sellerItems =
-            order.orderItems?.filter((item) => {
-              const itemSellerId =
-                item.seller?._id?.toString() ||
-                item.seller?.toString() ||
-                item.sellerId?.toString();
-              return itemSellerId === sellerId;
-            }) || [];
-
-          // Calculate total for seller's items only
-          const orderTotal = sellerItems.reduce(
-            (sum, item) => sum + (item.price || 0) * (item.quantity || 0),
-            0,
-          );
-
-          // Get status from first seller item
-          const orderStatus =
-            sellerItems[0]?.orderStatus || sellerItems[0]?.status || "pending";
-
-          // Get customer name from multiple possible fields
-          const customerName =
-            order.user?.fullname ||
-            order.user?.name ||
-            order.customerName ||
-            "Customer";
-
-          return {
-            id: order._id,
-            orderNumber: order.orderNumber || order._id.slice(-8).toUpperCase(),
-            customer: customerName,
-            items: sellerItems.reduce(
-              (sum, item) => sum + (item.quantity || 0),
-              0,
-            ),
-            total: orderTotal,
-            status: orderStatus,
-            date: new Date(order.createdAt).toLocaleDateString(),
-          };
-        }),
-      );
-
-      setRecentActivities(activities.slice(0, 8));
+        // Convert weekly sales to chart format
+        const chartData = data.weeklySales.map((item) => item.value);
+        setWeeklySales(chartData);
+      }
     } catch (error) {
-      console.error("Error fetching orders:", error);
-      setSalesData({ labels: DAY_LABELS, values: [0, 0, 0, 0, 0, 0, 0] });
-      setRecentActivities([]);
+      console.error("Error fetching dashboard data:", error);
+      showToast("Failed to load dashboard data", "error");
+    } finally {
+      setLoading(false);
     }
   }, []);
 
-  // ─── Reviews ───────────────────────────────────────────────────────────────
-
-  const fetchSellerReviews = useCallback(async (token, sellerId) => {
-    try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/reviews/User/${sellerId}`,
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-
-      if (!response.ok) return;
-
-      const data = await response.json();
-      const reviews = data.reviews || [];
-
-      const avgRating =
-        reviews.length > 0
-          ? reviews.reduce((sum, r) => sum + (r.rating || 0), 0) /
-            reviews.length
-          : 0;
-
-      setStats((prev) => ({
-        ...prev,
-        totalReviews: reviews.length,
-        averageRating: avgRating,
-      }));
-
-      setRecentReviews(
-        reviews.slice(0, 5).map((review) => ({
-          id: review._id,
-          product: review.product?.name || "Seller review",
-          customer: review.reviewerId?.fullname || "Customer",
-          rating: review.rating || 0,
-          comment: review.comment || "No comment provided",
-          date: new Date(review.createdAt).toLocaleDateString(),
-          createdAt: review.createdAt,
-        })),
-      );
-
-      // Add review activities
-      const reviewActivities = reviews.slice(0, 5).map((r) => ({
-        type: "review",
-        description: `${r.reviewerId?.fullname || "Someone"} left a ${r.rating}★ review`,
-        time: timeAgo(r.createdAt),
-        status:
-          r.rating >= 4 ? "success" : r.rating >= 3 ? "pending" : "danger",
-      }));
-
-      setRecentActivities((prev) => {
-        const combined = [...reviewActivities, ...prev]
-          .sort((a, b) => {
-            // Sort by time (assuming timeAgo strings might not sort well)
-            // Keep original order as fallback
-            return 0;
-          })
-          .slice(0, 8);
-        return combined;
-      });
-    } catch (error) {
-      console.error("Error fetching reviews:", error);
-    }
-  }, []);
-
-  // ─── Orchestrate all fetches once user is ready ────────────────────────────
+  // ─── Trigger data fetch when user is available ──────────────────────────
 
   useEffect(() => {
-    if (!user) return;
+    if (user) {
+      fetchDashboardData();
+    }
+  }, [user, fetchDashboardData]);
 
-    const loadData = async () => {
-      setLoading(true);
-      const token = localStorage.getItem("token");
-      await Promise.all([
-        fetchSellerProducts(token),
-        fetchSellerOrders(token, user.id),
-        fetchSellerReviews(token, user.id),
-      ]);
-      setLoading(false);
-    };
-
-    loadData();
-  }, [user, fetchSellerProducts, fetchSellerOrders, fetchSellerReviews]);
-
-  // ─── Helpers ───────────────────────────────────────────────────────────────
-
-  const timeAgo = (dateString) => {
-    if (!dateString) return "just now";
-    const seconds = Math.floor((Date.now() - new Date(dateString)) / 1000);
-    if (seconds < 60) return "just now";
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
-    return `${Math.floor(hours / 24)}d ago`;
-  };
-
-  const formatCurrency = (amount) =>
-    new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(amount || 0);
+  // ─── Render Stars ────────────────────────────────────────────────────────
 
   const renderStars = (rating) => {
     const clamped = Math.max(0, Math.min(5, rating || 0));
@@ -423,7 +166,7 @@ const SellerDashboard = () => {
     return "pending";
   };
 
-  // ─── Loading state ─────────────────────────────────────────────────────────
+  // ─── Loading State ──────────────────────────────────────────────────────
 
   if (loading) {
     return (
@@ -434,7 +177,7 @@ const SellerDashboard = () => {
     );
   }
 
-  // ─── Render ────────────────────────────────────────────────────────────────
+  // ─── Render ──────────────────────────────────────────────────────────────
 
   return (
     <div className="seller-dashboard">
@@ -462,15 +205,16 @@ const SellerDashboard = () => {
               <i className="bi bi-shop"></i>
               <span>Seller Dashboard</span>
             </div>
-            <h2 className="dashboard-title">
-              Welcome back, <span className="gold-text">{user?.fullname}</span>
-            </h2>
+            <h1 className="dashboard-title">
+              Welcome back,{" "}
+              <span className="gold-text">{user?.fullname || "Seller"}</span>
+            </h1>
             <p className="dashboard-subtitle">
               Here's what's happening with your store today.
             </p>
           </div>
           <div className="header-actions">
-            <Link href="/seller/products/add" className="btn-primary-gold">
+            <Link href="/seller/products" className="btn-primary-gold">
               <i className="bi bi-plus-circle"></i>
               <span>Add Product</span>
             </Link>
@@ -564,20 +308,20 @@ const SellerDashboard = () => {
                 <div className="card-header-decoration"></div>
               </div>
               <div className="card-body">
-                {salesData.values.some((v) => v > 0) ? (
+                {weeklySales.some((v) => v > 0) ? (
                   <div className="sales-chart">
-                    {salesData.labels.map((label, index) => {
-                      const maxValue = Math.max(...salesData.values, 1);
-                      const height = (salesData.values[index] / maxValue) * 180;
+                    {DAY_LABELS.map((label, index) => {
+                      const maxValue = Math.max(...weeklySales, 1);
+                      const height = (weeklySales[index] / maxValue) * 180;
                       return (
                         <div key={label} className="chart-bar-container">
                           <div
                             className="chart-bar"
-                            style={{ height: `${height}px` }}
+                            style={{ height: `${Math.max(height, 20)}px` }}
                           >
-                            {salesData.values[index] > 0 && (
+                            {weeklySales[index] > 0 && (
                               <span className="chart-value">
-                                ${salesData.values[index].toFixed(0)}
+                                ${weeklySales[index].toFixed(0)}
                               </span>
                             )}
                           </div>
@@ -737,7 +481,9 @@ const SellerDashboard = () => {
                           <tr key={product._id}>
                             <td className="product-name">{product.name}</td>
                             <td>{product.sales || 0}</td>
-                            <td className="gold-text">{product.rating || 0}</td>
+                            <td className="gold-text">
+                              {formatCurrency(product.revenue || 0)}
+                            </td>
                             <td>
                               <span
                                 className={`stock-badge ${
@@ -802,12 +548,6 @@ const SellerDashboard = () => {
                               <span className="reviewer-name">
                                 {review.customer}
                               </span>
-                              {review.product &&
-                                review.product !== "Seller review" && (
-                                  <span className="review-product">
-                                    on <strong>{review.product}</strong>
-                                  </span>
-                                )}
                             </div>
                             <span className="review-date">{review.date}</span>
                           </div>
