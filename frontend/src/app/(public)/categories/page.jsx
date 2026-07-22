@@ -4,49 +4,8 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { motion } from "framer-motion";
 import "./categories.css";
-
-// ─── Category icon map ────────────────────────────────────────
-// Maps keywords in category name → Bootstrap icon class
-const getCategoryIcon = (name = "") => {
-  const n = name.toLowerCase();
-  if (n.includes("electron") || n.includes("tech") || n.includes("gadget"))
-    return "bi-laptop";
-  if (
-    n.includes("cloth") ||
-    n.includes("fashion") ||
-    n.includes("wear") ||
-    n.includes("apparel")
-  )
-    return "bi-bag";
-  if (n.includes("book") || n.includes("stationer")) return "bi-book";
-  if (n.includes("home") || n.includes("furniture") || n.includes("decor"))
-    return "bi-house-door";
-  if (n.includes("sport") || n.includes("fitness") || n.includes("gym"))
-    return "bi-trophy";
-  if (n.includes("beauty") || n.includes("cosmetic") || n.includes("skin"))
-    return "bi-stars";
-  if (n.includes("food") || n.includes("grocery") || n.includes("kitchen"))
-    return "bi-basket";
-  if (n.includes("toy") || n.includes("kid") || n.includes("child"))
-    return "bi-balloon";
-  if (n.includes("jewel") || n.includes("accessory") || n.includes("watch"))
-    return "bi-gem";
-  if (n.includes("health") || n.includes("medical") || n.includes("pharma"))
-    return "bi-heart-pulse";
-  if (n.includes("auto") || n.includes("car") || n.includes("vehicle"))
-    return "bi-car-front";
-  if (n.includes("pet") || n.includes("animal")) return "bi-heart";
-  if (n.includes("music") || n.includes("instrument"))
-    return "bi-music-note-beamed";
-  if (n.includes("garden") || n.includes("outdoor") || n.includes("plant"))
-    return "bi-tree";
-  if (n.includes("tool") || n.includes("hardware")) return "bi-tools";
-  if (n.includes("art") || n.includes("craft")) return "bi-palette";
-  if (n.includes("travel") || n.includes("luggage") || n.includes("bag"))
-    return "bi-suitcase";
-  return "bi-grid";
-};
 
 // ─── Toast ────────────────────────────────────────────────────
 const Toast = ({ message, type, onClose }) => {
@@ -125,6 +84,7 @@ const CategoriesPage = () => {
   const [user, setUser] = useState(null);
   const [toast, setToast] = useState(null);
   const [addingToCart, setAddingToCart] = useState({});
+  const [hoveredCategory, setHoveredCategory] = useState(null);
 
   const showToast = (msg, type = "success") => setToast({ message: msg, type });
   const closeToast = () => setToast(null);
@@ -149,12 +109,12 @@ const CategoriesPage = () => {
     fetchUser();
   }, []);
 
-  // Fetch categories
+  // Fetch ONLY active categories (matches homepage)
   const fetchCategories = async () => {
     try {
       setLoading((p) => ({ ...p, categories: true }));
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/category/`,
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/category/active`,
       );
       if (!res.ok) throw new Error();
       const data = await res.json();
@@ -239,121 +199,130 @@ const CategoriesPage = () => {
   }, []);
 
   return (
-    <div className="categories-page container-fluid py-5">
+    <div className="categories-page">
       {toast && (
         <Toast message={toast.message} type={toast.type} onClose={closeToast} />
       )}
 
       {/* Header */}
-      <div className="row mb-4 categories-page-header">
-        <div className="col-12">
-          <h1 className="mb-2">Shop by Category</h1>
-          <p className="lead mb-0">
-            Browse our wide range of products by category
-          </p>
+      <div className="categories-page-header">
+        <div className="container">
+          <h1>Shop by Category</h1>
+          <p className="lead">Browse our wide range of products by category</p>
         </div>
       </div>
 
-      {/* ── Category Pills ── */}
-      <div className="mb-5">
-        <span className="section-label">Categories</span>
-        <div className="d-flex align-items-center justify-content-between mb-1">
-          <h2 className="section-title">Browse All</h2>
+      {/* ── Category Grid (Matches Homepage Style) ── */}
+      <section className="categories-grid-section">
+        <div className="container">
+          {loading.categories ? (
+            <div className="categories-loading">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="category-skeleton" />
+              ))}
+            </div>
+          ) : categories.length === 0 ? (
+            <div className="empty-state">
+              <i className="bi bi-folder-x"></i>
+              <p>No categories available yet</p>
+            </div>
+          ) : (
+            <div className="categories-grid">
+              {categories.map((category) => (
+                <motion.div
+                  key={category._id}
+                  className={`category-item ${selectedCategory?._id === category._id ? "active" : ""}`}
+                  onHoverStart={() => setHoveredCategory(category._id)}
+                  onHoverEnd={() => setHoveredCategory(null)}
+                  whileHover={{ y: -8 }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
+                  onClick={() => handleCategoryClick(category)}
+                >
+                  <div className="category-link">
+                    <div className="category-image-wrapper">
+                      {/* Use actual category image like homepage */}
+                      <Image
+                        src={
+                          category.image?.startsWith("http")
+                            ? category.image
+                            : `${process.env.NEXT_PUBLIC_BACKEND_URL}${category.image || "/placeholder-category.jpg"}`
+                        }
+                        alt={category.name}
+                        fill
+                        sizes="(max-width: 768px) 50vw, (max-width: 1200px) 25vw, 16.6vw"
+                        className="category-image"
+                        priority={categories.indexOf(category) < 4}
+                      />
+                      <div className="category-overlay">
+                        <div className="category-content">
+                          <span className="category-name">{category.name}</span>
+                          {category.description && (
+                            <span className="category-description">
+                              {category.description.length > 30
+                                ? `${category.description.substring(0, 30)}...`
+                                : category.description}
+                            </span>
+                          )}
+                          <span className="category-shop-btn">
+                            {selectedCategory?._id === category._id
+                              ? "Selected ✓"
+                              : "Browse"}
+                            <i className="bi bi-arrow-right" />
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </div>
-        <hr className="section-divider" />
+      </section>
 
-        {loading.categories ? (
-          <div className="cat-loading">
-            <div className="spinner-gold"></div>
-          </div>
-        ) : categories.length === 0 ? (
-          <div className="cat-empty">
-            <i className="bi bi-folder-x"></i>
-            No categories available yet
-          </div>
-        ) : (
-          <div className="category-pills-row">
-            {/* "All" pill */}
-            {selectedCategory && (
-              <div
-                className="category-pill category-pill-all"
+      {/* ── Category Products ── */}
+      {selectedCategory && (
+        <section className="category-products-section">
+          <div className="container">
+            <div className="category-products-header">
+              <h2>
+                <span>{selectedCategory.name}</span> Products
+              </h2>
+              <button
+                className="btn-clear-filter"
                 onClick={() => {
                   setSelectedCategory(null);
                   setCategoryProducts([]);
                 }}
               >
-                <div className="category-pill-icon">
-                  <i className="bi bi-x-lg" style={{ fontSize: "0.75rem" }}></i>
-                </div>
-                <span className="category-pill-name">Clear</span>
-              </div>
-            )}
-
-            {categories.map((cat) => (
-              <div
-                key={cat._id}
-                className={`category-pill ${selectedCategory?._id === cat._id ? "active" : ""}`}
-                onClick={() => handleCategoryClick(cat)}
-              >
-                <div className="category-pill-icon">
-                  <i className={`bi ${getCategoryIcon(cat.name)}`}></i>
-                </div>
-                <span className="category-pill-name">{cat.name}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ── Category Products ── */}
-      {selectedCategory && (
-        <div className="mb-5">
-          <div className="category-products-header">
-            <h3 className="category-products-title">
-              <span>{selectedCategory.name}</span> Products
-            </h3>
-            <button
-              className="btn btn-clear-filter"
-              onClick={() => {
-                setSelectedCategory(null);
-                setCategoryProducts([]);
-              }}
-            >
-              <i className="bi bi-x me-1"></i>Clear filter
-            </button>
-          </div>
-
-          {loading.categoryProducts ? (
-            <div className="cat-loading">
-              <div className="spinner-gold"></div>
-              <p style={{ color: "#9a9080", fontSize: "0.875rem" }}>
-                Loading products…
-              </p>
+                <i className="bi bi-x me-1"></i>Clear filter
+              </button>
             </div>
-          ) : categoryProducts.length === 0 ? (
-            <div className="cat-empty">
-              <i className="bi bi-box-seam"></i>
-              No products found in this category
-            </div>
-          ) : (
-            <div className="row g-4">
-              {categoryProducts.map((product) => {
-                const discount = calculateDiscount(
-                  product.price,
-                  product.finalPrice,
-                );
-                const isAdding = addingToCart[product._id];
-                const outOfStock = product.stock <= 0;
 
-                return (
-                  <div
-                    className="col-sm-12 col-md-4 col-lg-3"
-                    key={product._id}
-                  >
-                    <div className="cat-product-card h-100">
-                      {/* Image */}
-                      {product.images?.length > 0 ? (
-                        <div className="cat-product-img">
+            {loading.categoryProducts ? (
+              <div className="loading-container">
+                <div className="loader-spinner" />
+                <p>Loading products…</p>
+              </div>
+            ) : categoryProducts.length === 0 ? (
+              <div className="empty-state">
+                <i className="bi bi-box-seam"></i>
+                <p>No products found in this category</p>
+              </div>
+            ) : (
+              <div className="products-grid">
+                {categoryProducts.map((product) => {
+                  const discount = calculateDiscount(
+                    product.price,
+                    product.finalPrice,
+                  );
+                  const isAdding = addingToCart[product._id];
+                  const outOfStock = product.stock <= 0;
+
+                  return (
+                    <div className="product-card" key={product._id}>
+                      <div className="product-image-container">
+                        <Link href={`/products/${product._id}`}>
                           <Image
                             src={
                               product.images?.[0]?.startsWith("http")
@@ -362,104 +331,82 @@ const CategoriesPage = () => {
                             }
                             alt={product.name}
                             fill
-                            style={{ objectFit: "cover", cursor: "pointer" }}
-                            onClick={() =>
-                              router.push(`/products/${product._id}`)
-                            }
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 33vw, 25vw"
+                            className="product-image"
                           />
-                          {discount > 0 && (
-                            <span className="cat-badge-discount">
-                              {discount}% OFF
-                            </span>
+                          {!product.images?.length && (
+                            <div className="image-placeholder">
+                              <i className="bi bi-image" />
+                            </div>
                           )}
-                          {outOfStock && (
-                            <span className="cat-badge-out">Out of Stock</span>
-                          )}
-                        </div>
-                      ) : (
-                        <div
-                          className="cat-product-img-placeholder"
-                          style={{ cursor: "pointer" }}
-                          onClick={() =>
-                            router.push(`/products/${product._id}`)
-                          }
-                        >
-                          <i className="bi bi-image"></i>
-                          {discount > 0 && (
-                            <span className="cat-badge-discount">
-                              {discount}% OFF
-                            </span>
-                          )}
-                          {outOfStock && (
-                            <span className="cat-badge-out">Out of Stock</span>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Body */}
-                      <div className="cat-product-body">
-                        <Link
-                          href={`/products/${product._id}`}
-                          className="cat-product-name"
-                        >
-                          {product.name.length > 35
-                            ? product.name.substring(0, 35) + "…"
-                            : product.name}
                         </Link>
 
-                        <div className="d-flex align-items-baseline">
-                          <span className="cat-product-price">
+                        {discount > 0 && (
+                          <span className="badge-discount">
+                            {discount}% OFF
+                          </span>
+                        )}
+                        {outOfStock && (
+                          <span className="badge-out-of-stock">Sold Out</span>
+                        )}
+                      </div>
+
+                      <div className="product-body">
+                        <span className="category-badge">
+                          {selectedCategory.name}
+                        </span>
+
+                        <Link
+                          href={`/products/${product._id}`}
+                          className="product-title"
+                        >
+                          <h3>
+                            {product.name.length > 40
+                              ? `${product.name.substring(0, 40)}…`
+                              : product.name}
+                          </h3>
+                        </Link>
+
+                        <div className="product-price">
+                          <span className="current-price">
                             {formatPrice(product.finalPrice || product.price)}
                           </span>
                           {product.finalPrice &&
                             product.finalPrice < product.price && (
-                              <span className="cat-product-price-old">
+                              <span className="original-price">
                                 {formatPrice(product.price)}
                               </span>
                             )}
                         </div>
 
-                        <div className="cat-product-actions">
-                          <button
-                            className="btn-cat-view"
-                            onClick={() =>
-                              router.push(`/products/${product._id}`)
-                            }
-                          >
-                            <i className="bi bi-eye me-1"></i>View
-                          </button>
-                          <button
-                            className={`btn-cat-cart ${!user ? "btn-login-state" : ""}`}
-                            disabled={outOfStock || isAdding}
-                            onClick={() => addToCart(product._id, product.name)}
-                          >
-                            {isAdding ? (
-                              <span
-                                className="spinner-border spinner-border-sm"
-                                role="status"
-                              ></span>
-                            ) : (
-                              <>
-                                <i
-                                  className={`bi ${outOfStock ? "bi-x-circle" : "bi-cart-plus"} me-1`}
-                                ></i>
-                                {outOfStock
-                                  ? "Sold out"
-                                  : !user
-                                    ? "Login"
-                                    : "Add"}
-                              </>
-                            )}
-                          </button>
-                        </div>
+                        <button
+                          className="add-to-cart-btn"
+                          disabled={outOfStock || isAdding}
+                          onClick={() => addToCart(product._id, product.name)}
+                        >
+                          {isAdding ? (
+                            <>
+                              <span className="spinner" /> Adding…
+                            </>
+                          ) : (
+                            <>
+                              <i className="bi bi-cart-plus" />
+                              {outOfStock
+                                ? "Sold Out"
+                                : !user
+                                  ? "Login to Buy"
+                                  : "Add to Cart"}
+                            </>
+                          )}
+                        </button>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </section>
       )}
     </div>
   );

@@ -1,0 +1,94 @@
+/* ═══════════════════════════════════════════════════════════════
+   SHOPNEST — Global CSS Variables (Light & Dark Mode)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Light Mode (default) ── */
+:root {
+    /* Backgrounds – warm off‑white with golden tint */
+    --bg-primary: #faf7f0;
+    --bg-secondary: #f5f0e6;
+    --bg-card: #ffffff;
+    --bg-surface: #ede8dc;
+    --bg-elevated: #e5dfd0;
+    --bg-glow: rgba(201, 160, 48, 0.08);
+
+    /* Gold – luminous and visible on light */
+    --gold: #c9a030;
+    --gold-light: #e0b84a;
+    --gold-bright: #f5d060;
+    --gold-deep: #b08820;
+    --gold-dark: #8f6f18;
+    --gold-pale: rgba(201, 160, 48, 0.12);
+    --gold-glow: rgba(201, 160, 48, 0.25);
+    --gold-glow-strong: rgba(201, 160, 48, 0.45);
+    --gold-glow-treasure: rgba(245, 208, 96, 0.55);
+
+    /* Text */
+    --text-primary: #1a1712;
+    --text-secondary: #5a5448;
+    --text-muted: #9a9080;
+
+    /* Borders */
+    --border: rgba(0, 0, 0, 0.08);
+    --border-gold: rgba(201, 160, 48, 0.35);
+
+    /* Shadows – top‑left gold glow, bottom‑right depth */
+    --shadow-sm: -2px 2px 12px rgba(201, 160, 48, 0.10), 2px 2px 12px rgba(0, 0, 0, 0.05);
+    --shadow-md: -4px 4px 20px rgba(201, 160, 48, 0.15), 4px 4px 20px rgba(0, 0, 0, 0.08);
+    --shadow-lg: -6px 6px 32px rgba(201, 160, 48, 0.20), 6px 6px 32px rgba(0, 0, 0, 0.10);
+    --shadow-gold: -6px 6px 36px rgba(201, 160, 48, 0.30), 6px 6px 36px rgba(0, 0, 0, 0.12);
+    --shadow-gold-premium: -8px 8px 44px rgba(201, 160, 48, 0.35), 8px 8px 44px rgba(0, 0, 0, 0.15);
+    --shadow-gold-treasure: -10px 10px 56px rgba(245, 208, 96, 0.45), 10px 10px 56px rgba(0, 0, 0, 0.20);
+
+    /* Accent */
+    --accent-rose: #d94f6b;
+    --accent-blue: #3a7bd5;
+    --accent-teal: #1a9e8a;
+
+    /* Typography */
+    --font-display: 'Cormorant Garamond', Georgia, serif;
+    --font-body: 'DM Sans', system-ui, sans-serif;
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ── Dark Mode (system preference) ── */
+@media (prefers-color-scheme: dark) {
+    :root {
+        /* Dark backgrounds with deep golden undertones */
+        --bg-primary: #0f0d0a;
+        --bg-secondary: #1a1712;
+        --bg-card: #1e1b16;
+        --bg-surface: #2a251e;
+        --bg-elevated: #332d24;
+        --bg-glow: rgba(232, 201, 107, 0.06);
+
+        /* Gold – brighter and more luminous */
+        --gold: #e8c96b;
+        --gold-light: #f5df8a;
+        --gold-bright: #ffea9a;
+        --gold-deep: #d4a93a;
+        --gold-dark: #b8912a;
+        --gold-pale: rgba(232, 201, 107, 0.15);
+        --gold-glow: rgba(232, 201, 107, 0.35);
+        --gold-glow-strong: rgba(232, 201, 107, 0.55);
+        --gold-glow-treasure: rgba(255, 234, 154, 0.70);
+
+        /* Text */
+        --text-primary: #f5f0e8;
+        --text-secondary: #c9c0b0;
+        --text-muted: #8a8070;
+
+        /* Borders */
+        --border: rgba(232, 201, 107, 0.15);
+        --border-gold: rgba(232, 201, 107, 0.40);
+
+        /* Shadows – enhanced gold glow */
+        --shadow-sm: -2px 2px 12px rgba(232, 201, 107, 0.12), 2px 2px 12px rgba(0, 0, 0, 0.50);
+        --shadow-md: -4px 4px 20px rgba(232, 201, 107, 0.18), 4px 4px 20px rgba(0, 0, 0, 0.60);
+        --shadow-lg: -6px 6px 32px rgba(232, 201, 107, 0.25), 6px 6px 32px rgba(0, 0, 0, 0.70);
+        --shadow-gold: -6px 6px 40px rgba(232, 201, 107, 0.35), 6px 6px 40px rgba(0, 0, 0, 0.60);
+        --shadow-gold-premium: -8px 8px 48px rgba(232, 201, 107, 0.45), 8px 8px 48px rgba(0, 0, 0, 0.70);
+        --shadow-gold-treasure: -10px 10px 60px rgba(255, 234, 154, 0.50), 10px 10px 60px rgba(0, 0, 0, 0.80);
+    }
+}

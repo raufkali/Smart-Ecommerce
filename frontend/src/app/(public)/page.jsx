@@ -77,19 +77,19 @@ const Toast = ({ message, type, onClose }) => {
 const CategoriesSection = ({ categories, loading }) => {
   const [hoveredCategory, setHoveredCategory] = useState(null);
 
-  if (loading) {
-    return (
-      <div className="categories-section">
-        <div className="container">
-          <div className="categories-loading">
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="category-skeleton" />
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // if (loading) {
+  //   return (
+  //     <div className="categories-section">
+  //       <div className="container">
+  //         <div className="categories-loading">
+  //           {[...Array(8)].map((_, i) => (
+  //             <div key={i} className="category-skeleton" />
+  //           ))}
+  //         </div>
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
   if (!categories.length) return null;
 
