@@ -1,0 +1,99 @@
+/* [project]/frontend/src/app/cormorantgaramond_611a5001.module.css [app-client] (css) */
+@font-face {
+  font-family: cormorantGaramond;
+  src: url("../media/CormorantGaramond_Light-s.p.0930915c.ttf") format("truetype");
+  font-display: swap;
+  font-weight: 300;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: cormorantGaramond;
+  src: url("../media/CormorantGaramond_LightItalic-s.p.2b360dd1.ttf") format("truetype");
+  font-display: swap;
+  font-weight: 300;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: cormorantGaramond;
+  src: url("../media/CormorantGaramond_Light-s.p.0930915c.ttf") format("truetype");
+  font-display: swap;
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: cormorantGaramond;
+  src: url("../media/CormorantGaramond_LightItalic-s.p.2b360dd1.ttf") format("truetype");
+  font-display: swap;
+  font-weight: 400;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: cormorantGaramond;
+  src: url("../media/CormorantGaramond_Light-s.p.0930915c.ttf") format("truetype");
+  font-display: swap;
+  font-weight: 500;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: cormorantGaramond;
+  src: url("../media/CormorantGaramond_LightItalic-s.p.2b360dd1.ttf") format("truetype");
+  font-display: swap;
+  font-weight: 500;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: cormorantGaramond;
+  src: url("../media/CormorantGaramond_Light-s.p.0930915c.ttf") format("truetype");
+  font-display: swap;
+  font-weight: 600;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: cormorantGaramond;
+  src: url("../media/CormorantGaramond_LightItalic-s.p.2b360dd1.ttf") format("truetype");
+  font-display: swap;
+  font-weight: 600;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: cormorantGaramond;
+  src: url("../media/CormorantGaramond_Light-s.p.0930915c.ttf") format("truetype");
+  font-display: swap;
+  font-weight: 700;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: cormorantGaramond;
+  src: url("../media/CormorantGaramond_LightItalic-s.p.2b360dd1.ttf") format("truetype");
+  font-display: swap;
+  font-weight: 700;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: cormorantGaramond Fallback;
+  src: local(Arial);
+  ascent-override: 116.85%;
+  descent-override: 36.3%;
+  line-gap-override: 0.0%;
+  size-adjust: 79.07%;
+}
+
+.cormorantgaramond_611a5001-module__mB2uja__className {
+  font-family: cormorantGaramond, cormorantGaramond Fallback;
+}
+
+.cormorantgaramond_611a5001-module__mB2uja__variable {
+  --font-display: "cormorantGaramond", "cormorantGaramond Fallback";
+}
+
+/*# sourceMappingURL=frontend_src_app_cormorantgaramond_611a5001_module_css_bad6b30c._.single.css.map*/

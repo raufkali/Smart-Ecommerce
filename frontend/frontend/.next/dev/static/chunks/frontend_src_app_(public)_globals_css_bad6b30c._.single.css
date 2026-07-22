@@ -1,0 +1,93 @@
+/* [project]/frontend/src/app/(public)/globals.css [app-client] (css) */
+*, :before, :after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  transition: background .3s, color .3s;
+  overflow-x: hidden;
+}
+
+@keyframes treasure-glow {
+  0% {
+    box-shadow: 0 0 8px var(--gold-glow), 0 0 16px var(--accent-rose);
+  }
+
+  100% {
+    box-shadow: 0 0 20px var(--gold-glow-strong), 0 0 40px var(--accent-rose);
+  }
+}
+
+@keyframes breathe-glow {
+  0% {
+    opacity: .15;
+    transform: scale(1);
+  }
+
+  100% {
+    opacity: .4;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes rotateGlow {
+  0% {
+    transform: rotate(0);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+    transform: scale(0);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse-dot {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: .4;
+    transform: scale(.65);
+  }
+}
+
+/*# sourceMappingURL=frontend_src_app_%28public%29_globals_css_bad6b30c._.single.css.map*/

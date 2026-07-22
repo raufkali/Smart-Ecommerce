@@ -210,7 +210,11 @@
     box-shadow: var(--shadow-sm) !important;
     display: flex;
     flex-direction: column;
+    animation: appear linear;
+    animation-timeline: view();
+    animation-range: entry 0% cover 30%
 }
+
 
 .product-card:hover {
     transform: translateY(-7px) !important;

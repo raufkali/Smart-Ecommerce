@@ -109,14 +109,14 @@ export default function RootLayout({ children }) {
   const navItems = [...baseNavItems, ...authNavItems];
 
   // Add cart item
-  if (isLoggedIn) {
-    navItems.push({
-      name: "Cart",
-      link: "/cart",
-      icon: "cart",
-      badge: cartCount > 0 ? cartCount : null,
-    });
-  }
+  // if (isLoggedIn) {
+  //   navItems.push({
+  //     name: "Cart",
+  //     link: "/cart",
+  //     icon: "cart",
+  //     badge: cartCount > 0 ? cartCount : null,
+  //   });
+  // }
 
   return (
     <html lang="en">

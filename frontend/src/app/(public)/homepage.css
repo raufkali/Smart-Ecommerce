@@ -164,20 +164,6 @@ button {
     animation: pulse-dot 2s ease-in-out infinite;
 }
 
-@keyframes pulse-dot {
-
-    0%,
-    100% {
-        opacity: 1;
-        transform: scale(1);
-    }
-
-    50% {
-        opacity: 0.4;
-        transform: scale(0.65);
-    }
-}
-
 .hero-title {
     font-family: var(--font-display);
     font-size: clamp(2.8rem, 6.5vw, 5.2rem);
@@ -395,7 +381,11 @@ button {
     padding: 80px 0;
     position: relative;
     overflow: hidden;
+    animation: appear linear;
+    animation-timeline: view();
+    animation-range: entry 0% cover 40%
 }
+
 
 .spotlight-section::before {
     content: '';
@@ -512,15 +502,6 @@ button {
     animation: treasure-glow 2s ease-in-out infinite alternate;
 }
 
-@keyframes treasure-glow {
-    0% {
-        box-shadow: 0 0 8px var(--gold-glow), 0 0 16px var(--accent-rose);
-    }
-
-    100% {
-        box-shadow: 0 0 20px var(--gold-glow-strong), 0 0 40px var(--accent-rose);
-    }
-}
 
 .spotlight-content {
     padding: 48px;
@@ -546,6 +527,7 @@ button {
     border-left: 3px solid var(--gold);
     padding-left: 12px;
     display: inline-block;
+
 }
 
 .spotlight-title {
@@ -918,21 +900,109 @@ button {
     }
 }
 
+/* ── Category Item with Infinite Glow Animation ── */
 .category-item {
     position: relative;
     border-radius: 16px;
     overflow: hidden;
     aspect-ratio: 1 / 1;
     background: var(--bg-surface);
-    box-shadow: var(--shadow-md);
-    transition: all 0.4s var(--ease-spring);
     border: 1px solid var(--border);
+    transition: all 0.4s var(--ease-spring);
+
+    /* Infinite glow animation on every card */
+    animation: diamond-glow 3s ease-in-out infinite;
 }
 
+/* Stagger the animations so they don't all glow at once */
+.category-item:nth-child(1) {
+    animation-delay: 0s;
+}
+
+.category-item:nth-child(2) {
+    animation-delay: 0.3s;
+}
+
+.category-item:nth-child(3) {
+    animation-delay: 0.6s;
+}
+
+.category-item:nth-child(4) {
+    animation-delay: 0.9s;
+}
+
+.category-item:nth-child(5) {
+    animation-delay: 1.2s;
+}
+
+.category-item:nth-child(6) {
+    animation-delay: 1.5s;
+}
+
+.category-item:nth-child(7) {
+    animation-delay: 1.8s;
+}
+
+.category-item:nth-child(8) {
+    animation-delay: 2.1s;
+}
+
+.category-item:nth-child(9) {
+    animation-delay: 2.4s;
+}
+
+.category-item:nth-child(10) {
+    animation-delay: 2.7s;
+}
+
+.category-item:nth-child(11) {
+    animation-delay: 3.0s;
+}
+
+.category-item:nth-child(12) {
+    animation-delay: 3.3s;
+}
+
+/* ── The Diamond Glow Animation ── */
+@keyframes diamond-glow {
+    0% {
+        box-shadow:
+            0 0 5px rgba(212, 169, 58, 0.1),
+            0 0 15px rgba(212, 169, 58, 0.05);
+        border-color: rgba(212, 169, 58, 0.1);
+        transform: scale(1);
+    }
+
+    50% {
+        box-shadow:
+            0 0 25px rgba(212, 169, 58, 0.3),
+            0 0 50px rgba(212, 169, 58, 0.15),
+            0 0 75px rgba(212, 169, 58, 0.08),
+            inset 0 0 20px rgba(212, 169, 58, 0.1);
+        border-color: rgba(212, 169, 58, 0.4);
+        transform: scale(1.02) translateY(-3px);
+    }
+
+    100% {
+        box-shadow:
+            0 0 5px rgba(212, 169, 58, 0.1),
+            0 0 15px rgba(212, 169, 58, 0.05);
+        border-color: rgba(212, 169, 58, 0.1);
+        transform: scale(1);
+    }
+}
+
+/* ── Hover - pauses animation and intensifies glow ── */
 .category-item:hover {
-    box-shadow: var(--shadow-gold-treasure);
+    animation-play-state: paused;
+    box-shadow:
+        0 0 40px rgba(212, 169, 58, 0.5),
+        0 0 80px rgba(212, 169, 58, 0.3),
+        0 0 120px rgba(212, 169, 58, 0.15),
+        inset 0 0 30px rgba(212, 169, 58, 0.2);
     border-color: var(--border-gold);
-    transform: translateY(-6px);
+    transform: translateY(-6px) scale(1.03);
+    transition: all 0.4s var(--ease-spring);
 }
 
 .category-link {
@@ -1112,11 +1182,16 @@ button {
     .category-overlay {
         padding: 16px 12px;
     }
+
+    .category-item {
+        animation-duration: 4s;
+    }
 }
 
 @media (max-width: 480px) {
     .category-item {
         border-radius: 12px;
+        animation-duration: 5s;
     }
 
     .category-name {
@@ -1155,6 +1230,9 @@ button {
     flex-direction: column;
     transition: all 0.4s var(--ease-out-expo);
     box-shadow: var(--shadow-sm);
+    animation: appear linear;
+    animation-timeline: view();
+    animation-range: entry 0% cover 40%;
 }
 
 .product-card:hover {
@@ -1444,16 +1522,6 @@ button {
     background: radial-gradient(circle, var(--gold-pale), transparent 50%);
     animation: rotateGlow 30s linear infinite;
     pointer-events: none;
-}
-
-@keyframes rotateGlow {
-    0% {
-        transform: rotate(0deg);
-    }
-
-    100% {
-        transform: rotate(360deg);
-    }
 }
 
 .cta-section::after {

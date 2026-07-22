@@ -134,11 +134,6 @@ const ProductDetailPage = () => {
     setToken(authToken);
   }, []);
 
-  const authHeaders = () => ({
-    "Content-Type": "application/json",
-    ...(token && { Authorization: `Bearer ${token}` }),
-  });
-
   // Helper function to get profile picture URL
   const getProfilePictureUrl = (profilePic) => {
     if (!profilePic) return null;
@@ -224,6 +219,9 @@ const ProductDetailPage = () => {
         averageRating: 0,
         numReviews: 0,
         createdAt: new Date().toISOString(),
+        totalProducts: 0,
+        responseRate: 98,
+        verified: false,
       });
     } catch (error) {
       console.error("Error fetching seller:", error);
@@ -234,6 +232,9 @@ const ProductDetailPage = () => {
         averageRating: 0,
         numReviews: 0,
         createdAt: new Date().toISOString(),
+        totalProducts: 0,
+        responseRate: 98,
+        verified: false,
       });
     }
   };
@@ -253,7 +254,6 @@ const ProductDetailPage = () => {
 
     setCreatingChat(true);
     try {
-      // First check if chat already exists
       const checkResponse = await fetch(`${API}/chat/seller/${seller._id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -267,7 +267,6 @@ const ProductDetailPage = () => {
         }
       }
 
-      // If no chat exists, create one
       if (!chatId) {
         const createResponse = await fetch(`${API}/chat/create-seller-chat`, {
           method: "POST",
@@ -289,15 +288,12 @@ const ProductDetailPage = () => {
       }
 
       if (chatId) {
-        // Redirect to chat page with the specific chat open
-        // Determine the correct chat route based on user role
         let chatRoute = "/chat";
         if (user?.role === "admin") {
           chatRoute = "/admin/chat";
         } else if (user?.role === "seller") {
           chatRoute = "/seller/chat";
         }
-
         router.push(`${chatRoute}?chat=${chatId}`);
       } else {
         throw new Error("Failed to create or find chat");
@@ -310,7 +306,7 @@ const ProductDetailPage = () => {
     }
   };
 
-  /* ── Fetch reviews (no auth required) ── */
+  /* ── Fetch reviews ── */
   const fetchReviews = useCallback(
     async (page = 1, append = false) => {
       if (!productId) return;
@@ -679,13 +675,36 @@ const ProductDetailPage = () => {
                 </div>
               </div>
 
-              {/* Seller & Chat Section */}
+              {/* ── Seller Section (Inline) ── */}
               <div className="product-seller-section">
                 <div className="product-seller-info">
-                  <i className="bi bi-shop" />
-                  <span>
-                    Sold by: <strong>{sellerName}</strong>
-                  </span>
+                  <span className="seller-label">Sold by:</span>
+                  <span className="seller-name-link">{sellerName}</span>
+
+                  {sellerRating > 0 && (
+                    <div className="seller-rating-mini">
+                      <div className="stars-mini">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <i
+                            key={s}
+                            className={`bi ${s <= Math.round(sellerRating) ? "bi-star-fill filled" : "bi-star"}`}
+                          />
+                        ))}
+                      </div>
+                      <span className="rating-num">
+                        {sellerRating.toFixed(1)}
+                      </span>
+                      <span className="review-count">
+                        ({sellerReviewCount})
+                      </span>
+                    </div>
+                  )}
+
+                  {sellerData?.verified && (
+                    <span className="seller-badge">
+                      <i className="bi bi-patch-check-fill" /> Verified
+                    </span>
+                  )}
                 </div>
 
                 {token && seller?._id && user?._id !== seller?._id && (
@@ -697,12 +716,12 @@ const ProductDetailPage = () => {
                     {creatingChat ? (
                       <>
                         <span className="spinner-small"></span>
-                        Starting Chat...
+                        Starting...
                       </>
                     ) : (
                       <>
-                        <i className="bi bi-chat-dots-fill"></i>
-                        Chat with Seller
+                        <i className="bi bi-chat-dots"></i>
+                        Contact Seller
                       </>
                     )}
                   </button>
@@ -727,8 +746,8 @@ const ProductDetailPage = () => {
 
           {/* ══ Sections below ══ */}
           <div className="product-sections">
-            {/* ── Seller Card with Profile Picture ── */}
-            <div className="section-card bg-white">
+            {/* ── Seller Card (Amazon-style) ── */}
+            <div className="section-card">
               <div className="section-header">
                 <div className="section-header__left">
                   <div className="section-header__icon">
@@ -736,82 +755,125 @@ const ProductDetailPage = () => {
                   </div>
                   <h2>About the Seller</h2>
                 </div>
+                {sellerReviewCount > 0 && (
+                  <span className="section-badge">
+                    {sellerReviewCount}{" "}
+                    {sellerReviewCount === 1 ? "rating" : "ratings"}
+                  </span>
+                )}
               </div>
+
               <div className="seller-card-body">
-                <div className="seller-avatar">
-                  {sellerProfilePic ? (
-                    <img
-                      src={sellerProfilePic}
-                      alt={sellerName}
-                      className="seller-avatar-img"
-                      onError={(e) => {
-                        e.target.onerror = null;
-                        e.target.style.display = "none";
-                        e.target.parentElement.innerHTML = initials(sellerName);
-                        e.target.parentElement.classList.add("avatar-fallback");
-                      }}
-                    />
-                  ) : (
-                    initials(sellerName)
-                  )}
+                {/* Avatar */}
+                <div className="seller-avatar-wrapper">
+                  <div className="seller-avatar">
+                    {sellerProfilePic ? (
+                      <img
+                        src={sellerProfilePic}
+                        alt={sellerName}
+                        className="seller-avatar-img"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.style.display = "none";
+                          e.target.parentElement.innerHTML =
+                            initials(sellerName);
+                          e.target.parentElement.classList.add(
+                            "avatar-fallback",
+                          );
+                        }}
+                      />
+                    ) : (
+                      initials(sellerName)
+                    )}
+                  </div>
+                  <span className="seller-badge-text">Verified Seller</span>
                 </div>
+
+                {/* Details */}
                 <div className="seller-details">
-                  <div className="seller-name">{sellerName}</div>
-                  <span className="seller-role">Verified Seller</span>
-                  <div className="seller-stats">
-                    <div className="seller-stat">
-                      <span className="seller-stat__val">
-                        {sellerRating.toFixed(1)}
-                      </span>
-                      <span className="seller-stat__label">Avg Rating</span>
+                  <div className="seller-details-top">
+                    <div className="seller-name-section">
+                      <h3 className="seller-name">{sellerName}</h3>
+                      <span className="seller-role-badge">Top Rated</span>
                     </div>
-                    <div className="seller-stat">
-                      <span className="seller-stat__val">
-                        {sellerReviewCount}
-                      </span>
-                      <span className="seller-stat__label">Reviews</span>
-                    </div>
-                    {sellerData?.createdAt && (
-                      <div className="seller-stat">
-                        <span className="seller-stat__val">
-                          {new Date(sellerData.createdAt).getFullYear()}
+
+                    {sellerRating > 0 && (
+                      <div className="seller-rating-row">
+                        <div className="stars">
+                          {[1, 2, 3, 4, 5].map((s) => (
+                            <i
+                              key={s}
+                              className={`bi ${s <= Math.round(sellerRating) ? "bi-star-fill filled" : "bi-star"}`}
+                            />
+                          ))}
+                        </div>
+                        <span className="rating-text">
+                          <strong>{sellerRating.toFixed(1)}</strong> average
+                          from {sellerReviewCount}{" "}
+                          {sellerReviewCount === 1 ? "rating" : "ratings"}
                         </span>
-                        <span className="seller-stat__label">Member Since</span>
                       </div>
                     )}
                   </div>
-                  {sellerRating > 0 && (
-                    <div className="seller-stars-row">
-                      <Stars rating={sellerRating} size={13} />
-                      <span>({sellerReviewCount} seller reviews)</span>
-                    </div>
-                  )}
 
-                  {token && seller?._id && user?._id !== seller?._id && (
-                    <button
-                      className="seller-chat-btn"
-                      onClick={startChatWithSeller}
-                      disabled={creatingChat}
-                    >
-                      {creatingChat ? (
-                        <>
-                          <span className="spinner-small"></span>
-                          Starting Chat...
-                        </>
-                      ) : (
-                        <>
-                          <i className="bi bi-chat-dots-fill"></i>
-                          Message Seller
-                        </>
-                      )}
-                    </button>
-                  )}
+                  {/* Stats Grid */}
+                  <div className="seller-stats-grid">
+                    <div className="seller-stat-item">
+                      <span className="stat-value">{sellerReviewCount}</span>
+                      <span className="stat-label">Total Reviews</span>
+                    </div>
+                    {sellerData?.createdAt && (
+                      <div className="seller-stat-item">
+                        <span className="stat-value">
+                          {new Date(sellerData.createdAt).getFullYear()}
+                        </span>
+                        <span className="stat-label">Member Since</span>
+                      </div>
+                    )}
+                    <div className="seller-stat-item">
+                      <span className="stat-value">
+                        {sellerData?.totalProducts ||
+                          product?.sellerProducts ||
+                          0}
+                      </span>
+                      <span className="stat-label">Products</span>
+                    </div>
+                    <div className="seller-stat-item">
+                      <span className="stat-value">
+                        {sellerData?.responseRate || 98}%
+                      </span>
+                      <span className="stat-label">Response Rate</span>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons - Only Chat */}
+                  <div className="seller-actions">
+                    {token && seller?._id && user?._id !== seller?._id && (
+                      <button
+                        className="seller-action-btn primary"
+                        onClick={startChatWithSeller}
+                        disabled={creatingChat}
+                      >
+                        {creatingChat ? (
+                          <>
+                            <span className="spinner-small"></span>
+                            Starting...
+                          </>
+                        ) : (
+                          <>
+                            <i className="bi bi-chat-dots-fill"></i>
+                            Message Seller
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* ── Reviews ── */}
-            <div className="section-card shadow-sm bg-white">
+            <div className="section-card">
               <div className="section-header">
                 <div className="section-header__left">
                   <div className="section-header__icon">
@@ -855,7 +917,7 @@ const ProductDetailPage = () => {
                     <p>No reviews yet for this product.</p>
                   </div>
                 ) : (
-                  <div className="review-list shadow-sm rounded">
+                  <div className="review-list">
                     {reviews.map((r) => {
                       const name =
                         r.reviewerId?.fullname ||
@@ -937,71 +999,6 @@ const ProductDetailPage = () => {
           </div>
         </div>
       </div>
-
-      <style jsx>{`
-        .spinner-small {
-          width: 14px;
-          height: 14px;
-          border: 2px solid rgba(0, 0, 0, 0.15);
-          border-top-color: currentColor;
-          border-radius: 50%;
-          display: inline-block;
-          animation: spin 0.6s linear infinite;
-        }
-
-        .product-seller-section {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-top: 16px;
-          padding-top: 16px;
-          border-top: 1px solid var(--border, #e5e5e5);
-        }
-
-        .chat-with-seller-btn,
-        .seller-chat-btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          padding: 8px 16px;
-          background: linear-gradient(
-            135deg,
-            var(--gold, #b8912a),
-            var(--gold-light, #d4a93a)
-          );
-          color: white;
-          border: none;
-          border-radius: 40px;
-          font-size: 12px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.3s ease;
-        }
-
-        .chat-with-seller-btn:hover:not(:disabled),
-        .seller-chat-btn:hover:not(:disabled) {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(184, 145, 42, 0.3);
-        }
-
-        .chat-with-seller-btn:disabled,
-        .seller-chat-btn:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-
-        .seller-chat-btn {
-          margin-top: 16px;
-          width: 100%;
-          justify-content: center;
-        }
-
-        @keyframes spin {
-          to {
-            transform: rotate(360deg);
-          }
-        }
-      `}</style>
     </>
   );
 };

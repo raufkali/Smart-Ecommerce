@@ -1,0 +1,163 @@
+/* [project]/frontend/src/app/dmsans_4282e313.module.css [app-client] (css) */
+@font-face {
+  font-family: dmSans;
+  src: url("../media/DMSans_Thin-s.p.de482031.ttf") format("truetype");
+  font-display: swap;
+  font-weight: 100;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: dmSans;
+  src: url("../media/DMSans_ThinItalic-s.p.ea017cc1.ttf") format("truetype");
+  font-display: swap;
+  font-weight: 100;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: dmSans;
+  src: url("../media/DMSans_Thin-s.p.de482031.ttf") format("truetype");
+  font-display: swap;
+  font-weight: 200;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: dmSans;
+  src: url("../media/DMSans_ThinItalic-s.p.ea017cc1.ttf") format("truetype");
+  font-display: swap;
+  font-weight: 200;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: dmSans;
+  src: url("../media/DMSans_Thin-s.p.de482031.ttf") format("truetype");
+  font-display: swap;
+  font-weight: 300;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: dmSans;
+  src: url("../media/DMSans_ThinItalic-s.p.ea017cc1.ttf") format("truetype");
+  font-display: swap;
+  font-weight: 300;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: dmSans;
+  src: url("../media/DMSans_Thin-s.p.de482031.ttf") format("truetype");
+  font-display: swap;
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: dmSans;
+  src: url("../media/DMSans_ThinItalic-s.p.ea017cc1.ttf") format("truetype");
+  font-display: swap;
+  font-weight: 400;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: dmSans;
+  src: url("../media/DMSans_Thin-s.p.de482031.ttf") format("truetype");
+  font-display: swap;
+  font-weight: 500;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: dmSans;
+  src: url("../media/DMSans_ThinItalic-s.p.ea017cc1.ttf") format("truetype");
+  font-display: swap;
+  font-weight: 500;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: dmSans;
+  src: url("../media/DMSans_Thin-s.p.de482031.ttf") format("truetype");
+  font-display: swap;
+  font-weight: 600;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: dmSans;
+  src: url("../media/DMSans_ThinItalic-s.p.ea017cc1.ttf") format("truetype");
+  font-display: swap;
+  font-weight: 600;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: dmSans;
+  src: url("../media/DMSans_Thin-s.p.de482031.ttf") format("truetype");
+  font-display: swap;
+  font-weight: 700;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: dmSans;
+  src: url("../media/DMSans_ThinItalic-s.p.ea017cc1.ttf") format("truetype");
+  font-display: swap;
+  font-weight: 700;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: dmSans;
+  src: url("../media/DMSans_Thin-s.p.de482031.ttf") format("truetype");
+  font-display: swap;
+  font-weight: 800;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: dmSans;
+  src: url("../media/DMSans_ThinItalic-s.p.ea017cc1.ttf") format("truetype");
+  font-display: swap;
+  font-weight: 800;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: dmSans;
+  src: url("../media/DMSans_Thin-s.p.de482031.ttf") format("truetype");
+  font-display: swap;
+  font-weight: 900;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: dmSans;
+  src: url("../media/DMSans_ThinItalic-s.p.ea017cc1.ttf") format("truetype");
+  font-display: swap;
+  font-weight: 900;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: dmSans Fallback;
+  src: local(Arial);
+  ascent-override: 93.39%;
+  descent-override: 29.18%;
+  line-gap-override: 0.0%;
+  size-adjust: 106.22%;
+}
+
+.dmsans_4282e313-module__5PveYq__className {
+  font-family: dmSans, dmSans Fallback;
+}
+
+.dmsans_4282e313-module__5PveYq__variable {
+  --font-body: "dmSans", "dmSans Fallback";
+}
+
+/*# sourceMappingURL=frontend_src_app_dmsans_4282e313_module_css_bad6b30c._.single.css.map*/

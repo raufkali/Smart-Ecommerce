@@ -20,3 +20,80 @@ body {
   overflow-x: hidden;
   transition: background 0.3s, color 0.3s;
 }
+
+@keyframes treasure-glow {
+  0% {
+    box-shadow: 0 0 8px var(--gold-glow), 0 0 16px var(--accent-rose);
+  }
+
+  100% {
+    box-shadow: 0 0 20px var(--gold-glow-strong), 0 0 40px var(--accent-rose);
+  }
+}
+
+@keyframes breathe-glow {
+  0% {
+    opacity: 0.15;
+    transform: scale(1);
+  }
+
+  100% {
+    opacity: 0.4;
+    transform: scale(1.05);
+  }
+}
+
+
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes rotateGlow {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+    transform: scale(0, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1, 1);
+
+  }
+}
+
+@keyframes pulse-dot {
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.4;
+    transform: scale(0.65);
+  }
+}

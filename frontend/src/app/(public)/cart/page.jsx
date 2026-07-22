@@ -405,7 +405,7 @@ const CartPage = () => {
 
   if (loading) {
     return (
-      <div className="container py-5 text-center">
+      <div className="container-fluid main py-5 text-center">
         <div
           className="spinner-custom mx-auto mb-3"
           style={{ width: "40px", height: "40px", borderWidth: "3px" }}
