@@ -63,7 +63,7 @@
 /* ── Categories Grid (Matches Homepage) ── */
 .categories-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 24px;
     position: relative;
     z-index: 1;
@@ -71,7 +71,7 @@
 
 @media (max-width: 768px) {
     .categories-grid {
-        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
         gap: 16px;
     }
 }
@@ -336,7 +336,7 @@
 /* ── Products Grid (Matches Homepage) ── */
 .products-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(256px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(256px, 1fr));
     gap: 22px;
 }
 
@@ -581,7 +581,7 @@
 
 .categories-loading {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 24px;
 }
 

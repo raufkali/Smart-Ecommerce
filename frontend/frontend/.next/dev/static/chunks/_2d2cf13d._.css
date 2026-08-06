@@ -1125,6 +1125,7 @@
   --bg-surface: #ede8dc;
   --bg-elevated: #e5dfd0;
   --bg-glow: #c9a03014;
+  --bg-gold-primary: #fff1d1;
   --gold: #c9a030;
   --gold-light: #e0b84a;
   --gold-bright: #f5d060;
@@ -1162,6 +1163,7 @@
     --bg-surface: #2a251e;
     --bg-elevated: #332d24;
     --bg-glow: #e8c96b0f;
+    --bg-gold-primary: #38352d;
     --gold: #e8c96b;
     --gold-light: #f5df8a;
     --gold-bright: #ffea9a;

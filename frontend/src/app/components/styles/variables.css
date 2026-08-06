@@ -11,6 +11,7 @@
     --bg-surface: #ede8dc;
     --bg-elevated: #e5dfd0;
     --bg-glow: rgba(201, 160, 48, 0.08);
+    --bg-gold-primary: #fff1d1;
 
     /* Gold – luminous and visible on light */
     --gold: #c9a030;
@@ -62,6 +63,7 @@
         --bg-surface: #2a251e;
         --bg-elevated: #332d24;
         --bg-glow: rgba(232, 201, 107, 0.06);
+        --bg-gold-primary: #38352d;
 
         /* Gold – brighter and more luminous */
         --gold: #e8c96b;

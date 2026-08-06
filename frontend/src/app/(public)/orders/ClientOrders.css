@@ -4,7 +4,7 @@
 
 /* ── Page Layout ── */
 .orders-page {
-    background: var(--bg-primary);
+    background: var(--bg-gold-primary);
     min-height: 100vh;
     padding: 40px 20px;
     font-family: var(--font-body);
@@ -634,7 +634,7 @@
 }
 
 .modal-container.modal-lg {
-    max-width: 800px;
+    max-width: 850px;
 }
 
 .modal-header {
