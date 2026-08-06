@@ -17,7 +17,7 @@ const nextConfig = {
       },
       {
         protocol: "http",
-        hostname: "192.168.10.18",
+        hostname: process.env.NEXT_PUBLIC_BACKEND_DOMAIN,
         port: "8080",
         pathname: "/**",
       },

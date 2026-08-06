@@ -5,12 +5,11 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import SellerAuthGuard from "./sellerAuthGuard";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import { cormorantGaramond, dmSans } from "@/app/fontloader";
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { NotificationProvider } from "@/app/context/NotificationContext";
+
 const navbarItems = [];
 
-// Essential seller sidebar items
 const sellerSidebarItems = [
   {
     name: "Dashboard",
@@ -36,6 +35,21 @@ const sellerSidebarItems = [
 
 export default function SellerLayout({ children }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+      if (mobile) {
+        setSidebarCollapsed(true);
+      }
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const handleSidebarToggle = (collapsed) => {
     setSidebarCollapsed(collapsed);
@@ -51,18 +65,22 @@ export default function SellerLayout({ children }) {
               brandName="SHOPNEST"
               brandLink="/seller/dashboard"
             />
-            <div className="d-flex" style={{ paddingTop: "70px" }}>
+            <div className="d-flex" style={{ paddingTop: "60px" }}>
               <Sidebar
                 sidebarItems={sellerSidebarItems}
-                header="Seller Menu"
+                defaultCollapsed={sidebarCollapsed}
                 onToggle={handleSidebarToggle}
               />
               <main
                 style={{
-                  marginLeft: sidebarCollapsed ? "70px" : "270px",
-                  width: sidebarCollapsed
-                    ? "calc(100% - 70px)"
-                    : "calc(100% - 270px)",
+                  marginLeft: isMobile
+                    ? 0
+                    : sidebarCollapsed
+                      ? "80px"
+                      : "160px",
+                  width: isMobile
+                    ? "100%"
+                    : `calc(100% - ${sidebarCollapsed ? "80px" : "160px"})`,
                   minHeight: "calc(100vh - 70px)",
                   backgroundColor: "#f8f9fa",
                   transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",

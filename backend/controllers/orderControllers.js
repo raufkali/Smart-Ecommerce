@@ -107,6 +107,7 @@ const createOrder = asyncHandler(async (req, res) => {
 
 const getMyOrders = asyncHandler(async (req, res) => {
   const orders = await Order.find({ user: req.user.id })
+    .sort({ createdAt: -1 })
     .populate("orderItems.product")
     .populate("orderItems.seller", "fullname email");
   res.status(200).json({
@@ -469,15 +470,64 @@ const cancelOrder = asyncHandler(async (req, res) => {
 });
 
 const getSellerOrders = asyncHandler(async (req, res) => {
+  const sellerId = req.user.id;
+
+  // Find orders that contain at least one item from this seller
   const orders = await Order.find({
-    orderItems: {
-      $elemMatch: { seller: req.user.id },
-    },
+    "orderItems.seller": sellerId, // Simplified query
+  });
+
+  // Filter each order to only include this seller's items
+  const filteredOrders = orders.map((order) => {
+    const orderObj = order.toObject();
+
+    // Filter to only this seller's items
+    const sellerItems = orderObj.orderItems.filter(
+      (item) => item.seller.toString() === sellerId.toString(),
+    );
+
+    // Calculate totals for seller's items
+    const itemsPrice = sellerItems.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0,
+    );
+    const shippingPrice = sellerItems.reduce(
+      (sum, item) => sum + (item.shippingFee || 0),
+      0,
+    );
+
+    return {
+      _id: orderObj._id,
+      user: orderObj.user,
+      shippingAddress: orderObj.shippingAddress,
+      paymentMethod: orderObj.paymentMethod,
+      paymentStatus: orderObj.paymentStatus,
+      escrowStatus: orderObj.escrowStatus,
+      orderStatus: orderObj.orderStatus,
+      isPaid: orderObj.isPaid,
+      paidAt: orderObj.paidAt,
+      isDelivered: orderObj.isDelivered,
+      isCancelled: orderObj.isCancelled,
+      deliveredAt: orderObj.deliveredAt,
+      refundedAt: orderObj.refundedAt,
+      releasedAt: orderObj.releasedAt,
+      createdAt: orderObj.createdAt,
+      updatedAt: orderObj.updatedAt,
+
+      // Only this seller's items
+      orderItems: sellerItems,
+
+      // Totals for this seller's items only
+      sellerItemsPrice: itemsPrice,
+      sellerShippingPrice: shippingPrice,
+      sellerTotalPrice: itemsPrice + shippingPrice,
+    };
   });
 
   res.json({
     success: true,
-    orders,
+    orders: filteredOrders,
+    count: filteredOrders.length,
   });
 });
 

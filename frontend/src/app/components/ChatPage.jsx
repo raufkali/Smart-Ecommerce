@@ -917,12 +917,12 @@ const NewChatModal = ({
                 </div>
               ))
             ) : search.length >= 2 ? (
-              <div className="empty-state" style={{ padding: "40px 20px" }}>
+              <div className="empty-state" >
                 <i className="bi bi-inbox" />
                 <p>No users found</p>
               </div>
             ) : (
-              <div className="empty-state" style={{ padding: "40px 20px" }}>
+              <div className="empty-state" >
                 <i className="bi bi-search" />
                 <p>Type at least 2 characters to search</p>
               </div>

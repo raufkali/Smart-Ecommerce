@@ -95,7 +95,7 @@ const useAuth = ()=>{
             const token = localStorage.getItem("token");
             setHasToken(!!token);
             if (token) {
-                fetch(`${("TURBOPACK compile-time value", "http://192.168.10.6:8080")}/auth/me`, {
+                fetch(`${("TURBOPACK compile-time value", "http://192.168.10.16:8080")}/auth/me`, {
                     headers: {
                         Authorization: `Bearer ${token}`
                     }
@@ -227,7 +227,7 @@ const CategoriesSection = ({ categories, loading })=>{
     // }
     if (!categories.length) return null;
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("section", {
-        className: "categories-section",
+        className: "categories-section ",
         children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
             className: "container",
             children: [
@@ -257,7 +257,7 @@ const CategoriesSection = ({ categories, loading })=>{
                     columnNumber: 9
                 }, ("TURBOPACK compile-time value", void 0)),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                    className: "categories-grid",
+                    className: "categories-grid ",
                     children: categories.map((category)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$framer$2d$motion$2f$dist$2f$es$2f$render$2f$components$2f$motion$2f$proxy$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["motion"].div, {
                             className: "category-item",
                             onHoverStart: ()=>setHoveredCategory(category._id),
@@ -401,7 +401,7 @@ const ProductCard = /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2
                         className: "product-link",
                         children: [
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$next$2f$image$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
-                                src: product.images?.[0]?.startsWith("http") ? product.images[0] : `${"TURBOPACK compile-time value", "http://192.168.10.6:8080"}${product.images?.[0] || "/placeholder.jpg"}`,
+                                src: product.images?.[0]?.startsWith("http") ? product.images[0] : `${"TURBOPACK compile-time value", "http://192.168.10.16:8080"}${product.images?.[0] || "/placeholder.jpg"}`,
                                 alt: product.name,
                                 fill: true,
                                 sizes: "(max-width: 768px) 100vw, (max-width: 1200px) 33vw, 25vw",
@@ -885,7 +885,7 @@ const FeaturedProductSpotlight = ({ products, formatPrice, onAddToCart, user, ha
                                     className: "spotlight-image-container",
                                     children: [
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$next$2f$image$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
-                                            src: product.images?.[0]?.startsWith("http") ? product.images[0] : `${"TURBOPACK compile-time value", "http://192.168.10.6:8080"}${product.images?.[0] || "/placeholder.jpg"}`,
+                                            src: product.images?.[0]?.startsWith("http") ? product.images[0] : `${"TURBOPACK compile-time value", "http://192.168.10.16:8080"}${product.images?.[0] || "/placeholder.jpg"}`,
                                             alt: product.name,
                                             width: 600,
                                             height: 600,
@@ -1415,7 +1415,7 @@ const HomePage = ()=>{
                         })
                 }["HomePage.useCallback[addToCart]"]);
                 const token = localStorage.getItem("token");
-                const res = await fetch(`${("TURBOPACK compile-time value", "http://192.168.10.6:8080")}/cart/add`, {
+                const res = await fetch(`${("TURBOPACK compile-time value", "http://192.168.10.16:8080")}/cart/add`, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
@@ -1477,8 +1477,8 @@ const HomePage = ()=>{
                     try {
                         setLoading(true);
                         const [productsRes, categoriesRes] = await Promise.all([
-                            fetch(`${("TURBOPACK compile-time value", "http://192.168.10.6:8080")}/products/?isActive=true`),
-                            fetch(`${("TURBOPACK compile-time value", "http://192.168.10.6:8080")}/category/active`)
+                            fetch(`${("TURBOPACK compile-time value", "http://192.168.10.16:8080")}/products/?isActive=true`),
+                            fetch(`${("TURBOPACK compile-time value", "http://192.168.10.16:8080")}/category/active`)
                         ]);
                         const products = productsRes.ok ? (await productsRes.json()).products || [] : [];
                         const categories = categoriesRes.ok ? (await categoriesRes.json()).categories || [] : [];

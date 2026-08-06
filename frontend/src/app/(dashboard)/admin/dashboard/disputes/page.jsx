@@ -97,7 +97,6 @@ const DisputeChat = ({ chatId, currentUserId, onClose }) => {
 
   useEffect(() => {
     fetchMessages();
-    // Poll every 5s for new messages (simple fallback if Socket.IO not set up here)
     const id = setInterval(fetchMessages, 5000);
     return () => clearInterval(id);
   }, [fetchMessages]);
@@ -274,7 +273,6 @@ const ArbitrationModal = ({ dispute, onClose, onResolved, showToast }) => {
   const { order, item } = dispute;
   const productId = (item.product?._id || item.product).toString();
   const refundAmount = item.price * item.quantity + (item.shippingFee || 0);
-  const platformFee = refundAmount * 0.1;
   const sellerAmount = refundAmount * 0.9;
   const fmt = (n) =>
     new Intl.NumberFormat("en-US", {
@@ -313,7 +311,6 @@ const ArbitrationModal = ({ dispute, onClose, onResolved, showToast }) => {
   return (
     <div className="adp-modal-overlay" onClick={onClose}>
       <div className="adp-modal" onClick={(e) => e.stopPropagation()}>
-        {/* FORM NOW WRAPS ONLY THE BODY AND FOOTER, NOT THE HEADER */}
         <form
           onSubmit={handleSubmit}
           style={{
@@ -335,7 +332,6 @@ const ArbitrationModal = ({ dispute, onClose, onResolved, showToast }) => {
           </div>
 
           <div className="adp-modal-body">
-            {/* Case Summary */}
             <div className="adp-case-summary">
               <div className="adp-case-row">
                 <span>Order</span>
@@ -357,7 +353,6 @@ const ArbitrationModal = ({ dispute, onClose, onResolved, showToast }) => {
               )}
             </div>
 
-            {/* Financial Impact */}
             <div className="adp-financial-impact">
               <h6>Financial Impact</h6>
               <div className="adp-impact-cards">
@@ -384,7 +379,6 @@ const ArbitrationModal = ({ dispute, onClose, onResolved, showToast }) => {
               </div>
             </div>
 
-            {/* Ruling Selection */}
             <div className="adp-ruling-section">
               <label className="adp-field-label">Your Ruling</label>
               <div className="adp-ruling-cards">
@@ -413,7 +407,6 @@ const ArbitrationModal = ({ dispute, onClose, onResolved, showToast }) => {
               </div>
             </div>
 
-            {/* Admin Notes (required) */}
             <div className="adp-field-group">
               <label className="adp-field-label">
                 Admin Notes <span className="adp-required">*</span>
@@ -591,9 +584,9 @@ const AdminDisputePanel = ({ adminUserId }) => {
   const [disputes, setDisputes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
-  const [activeChat, setActiveChat] = useState(null); // { chatId, disputeId }
-  const [arbitrating, setArbitrating] = useState(null); // dispute object
-  const [filter, setFilter] = useState("pending"); // pending | resolved | all
+  const [activeChat, setActiveChat] = useState(null);
+  const [arbitrating, setArbitrating] = useState(null);
+  const [filter, setFilter] = useState("pending");
   const [search, setSearch] = useState("");
 
   const showToast = useCallback((message, type = "success") => {
@@ -664,7 +657,6 @@ const AdminDisputePanel = ({ adminUserId }) => {
         />
       )}
 
-      {/* Arbitration Modal */}
       {arbitrating && (
         <ArbitrationModal
           dispute={arbitrating}
@@ -677,28 +669,27 @@ const AdminDisputePanel = ({ adminUserId }) => {
         />
       )}
 
-      {/* Layout: list + chat side by side */}
-      <div className={`adp-layout ${activeChat ? "adp-with-chat" : ""}`}>
-        {/* Left: Dispute list */}
-        <div className="adp-list-panel">
-          {/* Header */}
-          <div className="adp-panel-header">
+      {/* Flat Layout - No sticky headers */}
+      <div className="adp-container">
+        {/* Header Section */}
+        <div className="adp-header-section">
+          <div className="adp-header-content">
             <div>
-              <h2 className="adp-panel-title">
+              <h2 className="adp-title">
                 <i className="bi bi-shield-exclamation"></i>
                 Dispute Center
               </h2>
-              <p className="adp-panel-sub">
+              <p className="adp-subtitle">
                 Review escalated disputes, chat with both parties, and issue
                 rulings.
               </p>
             </div>
-            <div className="adp-header-stats">
-              <div className="adp-stat-pill pending">
+            <div className="adp-stats">
+              <div className="adp-stat pending">
                 <span>{pendingCount}</span>
                 <small>Pending</small>
               </div>
-              <div className="adp-stat-pill resolved">
+              <div className="adp-stat resolved">
                 <span>{resolvedCount}</span>
                 <small>Resolved</small>
               </div>
@@ -728,59 +719,64 @@ const AdminDisputePanel = ({ adminUserId }) => {
               ))}
             </div>
           </div>
+        </div>
 
-          {/* Dispute Cards */}
-          {loading ? (
-            <div className="adp-state-center">
-              <div className="adp-spinner adp-spinner-lg"></div>
-              <p>Loading disputes…</p>
-            </div>
-          ) : filteredDisputes.length === 0 ? (
-            <div className="adp-state-center">
-              <i className="bi bi-check-circle adp-empty-icon"></i>
-              <h5>
-                {filter === "pending"
-                  ? "No pending disputes"
-                  : "No disputes found"}
-              </h5>
-              <p>
-                {filter === "pending"
-                  ? "All disputes have been resolved."
-                  : "Try adjusting your search or filter."}
-              </p>
-            </div>
-          ) : (
-            <div className="adp-cards-grid">
-              {filteredDisputes.map((dispute, idx) => (
-                <DisputeCard
-                  key={`${dispute.order._id}-${idx}`}
-                  dispute={dispute}
-                  isActive={
-                    activeChat?.chatId ===
-                    dispute.item.disputeChatId?.toString()
-                  }
-                  onOpenChat={openChat}
-                  onOpenArbitration={setArbitrating}
-                />
-              ))}
+        {/* Content Section */}
+        <div className={`adp-content ${activeChat ? "with-chat" : ""}`}>
+          {/* Disputes List */}
+          <div className="adp-list">
+            {loading ? (
+              <div className="adp-state-center">
+                <div className="adp-spinner adp-spinner-lg"></div>
+                <p>Loading disputes…</p>
+              </div>
+            ) : filteredDisputes.length === 0 ? (
+              <div className="adp-state-center">
+                <i className="bi bi-check-circle adp-empty-icon"></i>
+                <h5>
+                  {filter === "pending"
+                    ? "No pending disputes"
+                    : "No disputes found"}
+                </h5>
+                <p>
+                  {filter === "pending"
+                    ? "All disputes have been resolved."
+                    : "Try adjusting your search or filter."}
+                </p>
+              </div>
+            ) : (
+              <div className="adp-cards">
+                {filteredDisputes.map((dispute, idx) => (
+                  <DisputeCard
+                    key={`${dispute.order._id}-${idx}`}
+                    dispute={dispute}
+                    isActive={
+                      activeChat?.chatId ===
+                      dispute.item.disputeChatId?.toString()
+                    }
+                    onOpenChat={openChat}
+                    onOpenArbitration={setArbitrating}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Chat Panel */}
+          {activeChat && (
+            <div className="adp-chat-wrapper">
+              <div className="adp-chat-label">
+                <i className="bi bi-shield-exclamation"></i>
+                <span>{activeChat.disputeLabel}</span>
+              </div>
+              <DisputeChat
+                chatId={activeChat.chatId}
+                currentUserId={adminUserId}
+                onClose={() => setActiveChat(null)}
+              />
             </div>
           )}
         </div>
-
-        {/* Right: Chat panel (slides in) */}
-        {activeChat && (
-          <div className="adp-chat-column">
-            <div className="adp-chat-label">
-              <i className="bi bi-shield-exclamation"></i>
-              <span>{activeChat.disputeLabel}</span>
-            </div>
-            <DisputeChat
-              chatId={activeChat.chatId}
-              currentUserId={adminUserId}
-              onClose={() => setActiveChat(null)}
-            />
-          </div>
-        )}
       </div>
     </div>
   );

@@ -6,10 +6,10 @@ import "./AdminCategories.css";
 
 const API_URL = `${process.env.NEXT_PUBLIC_BACKEND_URL}/admin`;
 
-// Toast Component
+// ─── Toast Component ──────────────────────────────────────────────────────────
 const Toast = ({ message, type, onClose }) => {
   useEffect(() => {
-    const timer = setTimeout(onClose, 3000);
+    const timer = setTimeout(onClose, 5000);
     return () => clearTimeout(timer);
   }, [onClose]);
 
@@ -31,7 +31,7 @@ const Toast = ({ message, type, onClose }) => {
   );
 };
 
-// Stat Card Component
+// ─── Stat Card Component ─────────────────────────────────────────────────────
 const StatCard = ({ title, value, icon, color }) => {
   return (
     <div className={`stat-card-premium stat-${color}`}>
@@ -50,7 +50,93 @@ const StatCard = ({ title, value, icon, color }) => {
   );
 };
 
-// Category Row Component
+// ─── Upload Progress Component ──────────────────────────────────────────────
+const UploadProgress = ({ progress, fileName, fileSize, status }) => {
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
+
+  const getStatusColor = () => {
+    switch (status) {
+      case "success":
+        return "#0f9e8a";
+      case "error":
+        return "#d94f6b";
+      case "uploading":
+        return "#d4af37";
+      default:
+        return "#d4af37";
+    }
+  };
+
+  return (
+    <div className="upload-progress-container">
+      <div className="upload-progress-header">
+        <div className="upload-file-info">
+          <i className="bi bi-file-image"></i>
+          <span className="upload-file-name">{fileName || "Uploading..."}</span>
+        </div>
+        <span className="upload-file-size">{formatFileSize(fileSize)}</span>
+      </div>
+
+      <div className="upload-progress-bar-wrapper">
+        <div
+          className="upload-progress-bar"
+          style={{
+            width: `${Math.min(progress, 100)}%`,
+            backgroundColor: getStatusColor(),
+            transition: "width 0.3s ease",
+          }}
+        >
+          <span className="upload-progress-text">
+            {Math.min(progress, 100)}%
+          </span>
+        </div>
+      </div>
+
+      <div className="upload-progress-status">
+        <span
+          className="upload-status-text"
+          style={{ color: getStatusColor() }}
+        >
+          {status === "uploading" && (
+            <i className="bi bi-arrow-repeat spinning"></i>
+          )}
+          {status === "success" && <i className="bi bi-check-circle-fill"></i>}
+          {status === "error" && (
+            <i className="bi bi-exclamation-circle-fill"></i>
+          )}
+          {status === "idle" && <i className="bi bi-cloud-upload"></i>}
+          {status === "uploading"
+            ? "Uploading..."
+            : status === "success"
+              ? "Upload Complete!"
+              : status === "error"
+                ? "Upload Failed"
+                : "Ready to Upload"}
+        </span>
+        {status === "uploading" && (
+          <span className="upload-time-estimate">
+            <i className="bi bi-clock"></i>
+            {progress < 30
+              ? "Calculating..."
+              : progress < 60
+                ? "Almost there..."
+                : progress < 90
+                  ? "Finalizing..."
+                  : "Completing..."}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ─── Category Row Component ──────────────────────────────────────────────────
 const CategoryRow = ({
   category,
   index,
@@ -59,13 +145,13 @@ const CategoryRow = ({
   onToggleStatus,
   backendUrl,
 }) => {
-  const categoryId = category._id || category.id;
-
-  // Get image URL
   const getImageUrl = () => {
     if (!category.image) return null;
     if (category.image.startsWith("http")) return category.image;
-    return `${category.image}`;
+    if (category.image.startsWith("/uploads")) {
+      return `${backendUrl}${category.image}`;
+    }
+    return `${backendUrl}/uploads/categories/${category.image}`;
   };
 
   return (
@@ -81,6 +167,12 @@ const CategoryRow = ({
                 width={40}
                 height={40}
                 className="category-avatar-img"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.style.display = "none";
+                  e.target.parentElement.innerHTML =
+                    '<i class="bi bi-tag-fill"></i>';
+                }}
               />
             ) : (
               <div className="category-avatar-placeholder">
@@ -132,45 +224,103 @@ const CategoryRow = ({
     </tr>
   );
 };
-// Image Upload Component
+
+// ─── Image Upload Component with Progress ──────────────────────────────────
 const ImageUpload = ({
   imagePreview,
   onImageChange,
   onRemoveImage,
   loading,
+  error,
+  uploadProgress,
+  uploadStatus,
+  fileName,
+  fileSize,
 }) => {
   const fileInputRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [fileError, setFileError] = useState(null);
+
+  const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+  const ALLOWED_TYPES = [
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+    "image/jpg",
+  ];
+
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
+
+  const validateFile = (file) => {
+    // Check file type
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setFileError(
+        `Please upload a valid image (${ALLOWED_TYPES.map((t) => t.split("/")[1].toUpperCase()).join(", ")})`,
+      );
+      return false;
+    }
+
+    // Check file size
+    if (file.size > MAX_FILE_SIZE) {
+      setFileError(
+        `File is too large. Maximum size is ${formatFileSize(MAX_FILE_SIZE)}. Your file is ${formatFileSize(file.size)}`,
+      );
+      return false;
+    }
+
+    setFileError(null);
+    return true;
+  };
 
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      // Validate file size (20MB max)
-      if (file.size > 20 * 1024 * 1024) {
-        alert("File is too large. Maximum size is 20MB.");
-        return;
-      }
+    if (file && validateFile(file)) {
       onImageChange(file);
     }
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
+    setIsDragging(false);
     const file = e.dataTransfer.files[0];
-    if (file) {
-      if (file.size > 20 * 1024 * 1024) {
-        alert("File is too large. Maximum size is 20MB.");
-        return;
-      }
+    if (file && validateFile(file)) {
       onImageChange(file);
     }
   };
 
   const handleDragOver = (e) => {
     e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
   };
 
   return (
     <div className="image-upload-container">
+      <div className="upload-limits-info">
+        <div className="limit-item">
+          <i className="bi bi-file-earmark-image"></i>
+          <span>
+            Formats:{" "}
+            {ALLOWED_TYPES.map((t) => t.split("/")[1].toUpperCase()).join(", ")}
+          </span>
+        </div>
+        <div className="limit-item">
+          <i className="bi bi-weight"></i>
+          <span>Max: {formatFileSize(MAX_FILE_SIZE)}</span>
+        </div>
+      </div>
+
       {imagePreview ? (
         <div className="image-preview-wrapper">
           <div className="image-preview">
@@ -180,6 +330,11 @@ const ImageUpload = ({
               width={200}
               height={200}
               className="preview-image"
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.style.display = "none";
+                setFileError("Failed to load image preview");
+              }}
             />
             <button
               type="button"
@@ -190,13 +345,24 @@ const ImageUpload = ({
               <i className="bi bi-x-lg"></i>
             </button>
           </div>
+          <p className="image-filename">
+            <i className="bi bi-file-image"></i>
+            {fileName || "Image uploaded"}
+          </p>
+          {fileSize > 0 && (
+            <p className="image-filesize">
+              <i className="bi bi-weight"></i>
+              {formatFileSize(fileSize)}
+            </p>
+          )}
         </div>
       ) : (
         <div
-          className="image-drop-zone"
-          onClick={() => fileInputRef.current?.click()}
+          className={`image-drop-zone ${isDragging ? "dragging" : ""} ${loading ? "loading" : ""}`}
+          onClick={() => !loading && fileInputRef.current?.click()}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
         >
           <input
             type="file"
@@ -204,17 +370,48 @@ const ImageUpload = ({
             onChange={handleFileSelect}
             accept="image/*"
             style={{ display: "none" }}
+            disabled={loading}
           />
-          <i className="bi bi-cloud-upload"></i>
-          <h4>Upload Category Image</h4>
-          <p>Drag & drop or click to select</p>
-          <span className="file-types">JPG, PNG, GIF, WEBP (Max 20MB)</span>
+          {loading && uploadStatus === "uploading" ? (
+            <UploadProgress
+              progress={uploadProgress}
+              fileName={fileName}
+              fileSize={fileSize}
+              status={uploadStatus}
+            />
+          ) : (
+            <>
+              <i className="bi bi-cloud-upload"></i>
+              <h4>Upload Category Image</h4>
+              <p>Drag & drop or click to select</p>
+              <span className="file-types">
+                {ALLOWED_TYPES.map((t) => t.split("/")[1].toUpperCase()).join(
+                  ", ",
+                )}{" "}
+                (Max {formatFileSize(MAX_FILE_SIZE)})
+              </span>
+            </>
+          )}
+        </div>
+      )}
+
+      {fileError && (
+        <div className="image-error">
+          <i className="bi bi-exclamation-circle-fill"></i>
+          {fileError}
+        </div>
+      )}
+      {error && !fileError && (
+        <div className="image-error">
+          <i className="bi bi-exclamation-circle-fill"></i>
+          {error}
         </div>
       )}
     </div>
   );
 };
 
+// ─── Main AdminCategories Component ──────────────────────────────────────────
 const AdminCategories = () => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -229,6 +426,10 @@ const AdminCategories = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatus, setUploadStatus] = useState("idle");
+  const [fileName, setFileName] = useState("");
+  const [fileSize, setFileSize] = useState(0);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -240,7 +441,7 @@ const AdminCategories = () => {
 
   const showToast = (message, type = "success") => {
     setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
+    setTimeout(() => setToast(null), 5000);
   };
 
   useEffect(() => {
@@ -262,7 +463,6 @@ const AdminCategories = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      // Handle different response structures
       let categoriesData = [];
       if (response.data && response.data.categories) {
         categoriesData = response.data.categories;
@@ -272,7 +472,6 @@ const AdminCategories = () => {
         categoriesData = response.data.data;
       }
 
-      // Ensure isActive is properly set (default to true if missing)
       categoriesData = categoriesData.map((cat) => ({
         ...cat,
         isActive: cat.isActive !== undefined ? cat.isActive : true,
@@ -298,6 +497,11 @@ const AdminCategories = () => {
 
   const handleImageChange = (file) => {
     setImageFile(file);
+    setFileName(file.name);
+    setFileSize(file.size);
+    setUploadStatus("idle");
+    setUploadProgress(0);
+
     const reader = new FileReader();
     reader.onloadend = () => {
       setImagePreview(reader.result);
@@ -308,6 +512,10 @@ const AdminCategories = () => {
   const handleRemoveImage = () => {
     setImageFile(null);
     setImagePreview(null);
+    setFileName("");
+    setFileSize(0);
+    setUploadProgress(0);
+    setUploadStatus("idle");
   };
 
   const resetModal = () => {
@@ -321,6 +529,10 @@ const AdminCategories = () => {
     setError("");
     setImageFile(null);
     setImagePreview(null);
+    setFileName("");
+    setFileSize(0);
+    setUploadProgress(0);
+    setUploadStatus("idle");
     setShowModal(false);
   };
 
@@ -330,6 +542,10 @@ const AdminCategories = () => {
     setError("");
     setImageFile(null);
     setImagePreview(null);
+    setFileName("");
+    setFileSize(0);
+    setUploadProgress(0);
+    setUploadStatus("idle");
     setShowModal(true);
   };
 
@@ -341,63 +557,115 @@ const AdminCategories = () => {
       isActive: category.isActive !== undefined ? category.isActive : true,
     });
 
-    // Set existing image preview
     if (category.image) {
-      const imageUrl = category.image.startsWith("http")
-        ? category.image
-        : `${backendUrl}${category.image}`;
+      let imageUrl;
+      if (category.image.startsWith("http")) {
+        imageUrl = category.image;
+      } else if (category.image.startsWith("/uploads")) {
+        imageUrl = `${backendUrl}${category.image}`;
+      } else {
+        imageUrl = `${backendUrl}/uploads/categories/${category.image}`;
+      }
       setImagePreview(imageUrl);
+      setFileName(category.image.split("/").pop() || "existing-image");
+      setFileSize(0);
     } else {
       setImagePreview(null);
+      setFileName("");
+      setFileSize(0);
     }
     setImageFile(null);
+    setUploadProgress(0);
+    setUploadStatus("idle");
     setModalMode("edit");
     setError("");
     setShowModal(true);
   };
 
+  // ─── Handle Create with Progress ──────────────────────────────────────────
   const handleCreate = async (e) => {
     e.preventDefault();
     setActionLoading(true);
     setError("");
+    setUploadStatus("uploading");
+    setUploadProgress(0);
 
     try {
       const token = tokenRef.current;
       const formDataToSend = new FormData();
       formDataToSend.append("name", formData.name);
       formDataToSend.append("description", formData.description);
-      formDataToSend.append("isActive", formData.isActive);
+      formDataToSend.append("isActive", formData.isActive ? "true" : "false");
 
-      if (imageFile) {
+      if (imageFile && imageFile instanceof File) {
         formDataToSend.append("image", imageFile);
       }
 
-      await axios.post(`${backendUrl}/category/create`, formDataToSend, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data",
+      // Simulate progress for better UX
+      const progressInterval = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev < 90) {
+            return prev + Math.random() * 10;
+          }
+          return prev;
+        });
+      }, 200);
+
+      const response = await axios.post(
+        `${backendUrl}/category/create`,
+        formDataToSend,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
+          onUploadProgress: (progressEvent) => {
+            const percentCompleted = Math.round(
+              (progressEvent.loaded * 100) / progressEvent.total,
+            );
+            setUploadProgress(percentCompleted);
+          },
+          timeout: 120000, // 2 minutes for large uploads
         },
-      });
+      );
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+      setUploadStatus("success");
 
       await fetchCategories();
-      resetModal();
-      showToast("Category created successfully", "success");
+      setTimeout(() => {
+        resetModal();
+        showToast("Category created successfully", "success");
+      }, 500);
     } catch (err) {
       console.error("Error creating category:", err);
-      const msg = err.response?.data?.message || "Failed to create category";
-      setError(msg);
-      showToast(msg, "error");
+      setUploadStatus("error");
+
+      let errorMessage = "Failed to create category";
+      if (err.code === "ECONNABORTED") {
+        errorMessage =
+          "Upload timed out. Please try again with a smaller image.";
+      } else if (err.response) {
+        errorMessage = err.response?.data?.message || errorMessage;
+      }
+
+      setError(errorMessage);
+      showToast(errorMessage, "error");
     } finally {
       setActionLoading(false);
     }
   };
 
+  // ─── Handle Update with Progress ──────────────────────────────────────────
   const handleUpdate = async (e) => {
     e.preventDefault();
     if (!selectedCategory) return;
 
     setActionLoading(true);
     setError("");
+    setUploadStatus("uploading");
+    setUploadProgress(0);
 
     const categoryId = selectedCategory._id || selectedCategory.id;
 
@@ -406,13 +674,23 @@ const AdminCategories = () => {
       const formDataToSend = new FormData();
       formDataToSend.append("name", formData.name);
       formDataToSend.append("description", formData.description);
-      formDataToSend.append("isActive", formData.isActive);
+      formDataToSend.append("isActive", formData.isActive ? "true" : "false");
 
-      if (imageFile) {
+      if (imageFile && imageFile instanceof File) {
         formDataToSend.append("image", imageFile);
       }
 
-      await axios.put(
+      // Simulate progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev < 90) {
+            return prev + Math.random() * 10;
+          }
+          return prev;
+        });
+      }, 200);
+
+      const response = await axios.put(
         `${backendUrl}/category/update/${categoryId}`,
         formDataToSend,
         {
@@ -420,17 +698,42 @@ const AdminCategories = () => {
             Authorization: `Bearer ${token}`,
             "Content-Type": "multipart/form-data",
           },
+          onUploadProgress: (progressEvent) => {
+            const percentCompleted = Math.round(
+              (progressEvent.loaded * 100) / progressEvent.total,
+            );
+            setUploadProgress(percentCompleted);
+          },
+          timeout: 120000,
         },
       );
 
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+      setUploadStatus("success");
+
       await fetchCategories();
-      resetModal();
-      showToast("Category updated successfully", "success");
+      setTimeout(() => {
+        resetModal();
+        showToast("Category updated successfully", "success");
+      }, 500);
     } catch (err) {
       console.error("Error updating category:", err);
-      const msg = err.response?.data?.message || "Failed to update category";
-      setError(msg);
-      showToast(msg, "error");
+      setUploadStatus("error");
+
+      let errorMessage = "Failed to update category";
+      if (err.code === "ECONNABORTED") {
+        errorMessage =
+          "Upload timed out. Please try again with a smaller image.";
+      } else if (err.response) {
+        errorMessage = err.response?.data?.message || errorMessage;
+      } else if (err.message === "Network Error") {
+        errorMessage =
+          "Network error. Please check your connection and try again.";
+      }
+
+      setError(errorMessage);
+      showToast(errorMessage, "error");
     } finally {
       setActionLoading(false);
     }
@@ -470,7 +773,7 @@ const AdminCategories = () => {
       const formDataToSend = new FormData();
       formDataToSend.append("name", category.name);
       formDataToSend.append("description", category.description || "");
-      formDataToSend.append("isActive", newStatus);
+      formDataToSend.append("isActive", newStatus ? "true" : "false");
 
       await axios.put(
         `${backendUrl}/category/update/${categoryId}`,
@@ -540,7 +843,6 @@ const AdminCategories = () => {
       )}
 
       <div className="categories-container">
-        {/* Header */}
         <div className="page-header">
           <div>
             <div className="header-badge">
@@ -558,7 +860,6 @@ const AdminCategories = () => {
           </button>
         </div>
 
-        {/* Statistics Cards */}
         <div className="stats-grid-premium">
           <StatCard
             title="Total Categories"
@@ -589,7 +890,6 @@ const AdminCategories = () => {
           />
         </div>
 
-        {/* Filters */}
         <div className="filters-bar">
           <div className="search-box">
             <i className="bi bi-search"></i>
@@ -615,7 +915,6 @@ const AdminCategories = () => {
           </button>
         </div>
 
-        {/* Categories Table */}
         <div className="categories-card">
           {error ? (
             <div className="error-container">
@@ -670,7 +969,7 @@ const AdminCategories = () => {
         </div>
       </div>
 
-      {/* Create/Edit Modal */}
+      {/* ─── Modal ──────────────────────────────────────────────────────────────── */}
       {showModal && (
         <div className="modal-overlay" onClick={resetModal}>
           <div className="modal-container" onClick={(e) => e.stopPropagation()}>
@@ -727,6 +1026,11 @@ const AdminCategories = () => {
                     onImageChange={handleImageChange}
                     onRemoveImage={handleRemoveImage}
                     loading={actionLoading}
+                    error={error}
+                    uploadProgress={uploadProgress}
+                    uploadStatus={uploadStatus}
+                    fileName={fileName}
+                    fileSize={fileSize}
                   />
                 </div>
 
@@ -750,6 +1054,7 @@ const AdminCategories = () => {
                   type="button"
                   className="btn-secondary"
                   onClick={resetModal}
+                  disabled={actionLoading}
                 >
                   Cancel
                 </button>
@@ -759,7 +1064,12 @@ const AdminCategories = () => {
                   disabled={actionLoading}
                 >
                   {actionLoading ? (
-                    <span className="spinner"></span>
+                    <>
+                      <span className="spinner"></span>
+                      {uploadStatus === "uploading"
+                        ? `Uploading ${Math.round(uploadProgress)}%`
+                        : "Processing..."}
+                    </>
                   ) : modalMode === "create" ? (
                     "Create Category"
                   ) : (

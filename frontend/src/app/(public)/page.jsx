@@ -94,14 +94,14 @@ const CategoriesSection = ({ categories, loading }) => {
   if (!categories.length) return null;
 
   return (
-    <section className="categories-section">
+    <section className="categories-section ">
       <div className="container">
         <div className="categories-header">
           <h2 className="categories-title">Shop by Category</h2>
           <p className="categories-subtitle">Explore our curated collections</p>
         </div>
 
-        <div className="categories-grid">
+        <div className="categories-grid ">
           {categories.map((category) => (
             <motion.div
               key={category._id}

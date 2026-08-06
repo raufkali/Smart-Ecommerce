@@ -228,28 +228,12 @@
     overflow: hidden;
     box-shadow: var(--shadow-sm);
     transition: all 0.3s var(--ease-out-expo);
-    animation: appear linear;
-    animation-timeline: view();
-    animation-range: entry 0% cover 30%;
 }
 
-@keyframes appear {
-    from {
-        opacity: 0;
-        transform: scale(0.4, 0.4);
-    }
-
-    to {
-        opacity: 1;
-        transform: scale(1, 1);
-
-    }
-}
 
 .order-card:hover {
     box-shadow: var(--shadow-lg);
-    transform: scale(1.1, 1.1);
-    margin: 20px;
+    transform: scale(1.01, 1.01);
 }
 
 /* Card Header */
@@ -1440,19 +1424,6 @@
     max-width: 450px;
     box-shadow: var(--shadow-lg);
     font-family: var(--font-body);
-    animation: slideIn 0.3s ease forwards;
-}
-
-@keyframes slideIn {
-    from {
-        transform: translateX(100%);
-        opacity: 0;
-    }
-
-    to {
-        transform: translateX(0);
-        opacity: 1;
-    }
 }
 
 .toast-success {

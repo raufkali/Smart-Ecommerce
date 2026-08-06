@@ -5,10 +5,9 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import AdminAuthGuard from "./adminAuthGuard";
 import { useState, useEffect } from "react";
-import "./admin-layout.css"; // Import the CSS file
+import "./admin-layout.css";
 import { cormorantGaramond, dmSans } from "@/app/fontloader";
 
-const header = "Admin Panel";
 const sidebarItems = [
   {
     name: "Dashboard",
@@ -38,7 +37,7 @@ const sidebarItems = [
   {
     name: "Disputes",
     link: "/admin/dashboard/disputes",
-    icon: "analytics",
+    icon: "disputes",
   },
 ];
 
@@ -50,8 +49,9 @@ export default function RootLayout({ children }) {
 
   useEffect(() => {
     const handleResize = () => {
-      setIsMobile(window.innerWidth <= 768);
-      if (window.innerWidth <= 768) {
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+      if (mobile) {
         setSidebarCollapsed(true);
       }
     };
@@ -72,19 +72,19 @@ export default function RootLayout({ children }) {
           <div className="admin-layout">
             <Sidebar
               sidebarItems={sidebarItems}
-              header={header}
               defaultCollapsed={sidebarCollapsed}
               onToggle={handleSidebarToggle}
             />
 
             <div
-              className="main-content "
+              className="main-content"
               style={{
-                marginTop: isMobile ? "56px" : "80px",
-                marginLeft: isMobile ? 0 : sidebarCollapsed ? "80px" : "280px",
+                marginTop: isMobile ? "56px" : "60px",
+                marginLeft: isMobile ? 0 : sidebarCollapsed ? "80px" : "180px",
                 width: isMobile
                   ? "100%"
-                  : `calc(100% - ${sidebarCollapsed ? "80px" : "280px"})`,
+                  : `calc(100% - ${sidebarCollapsed ? "80px" : "180px"})`,
+                transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
               }}
             >
               <Navbar

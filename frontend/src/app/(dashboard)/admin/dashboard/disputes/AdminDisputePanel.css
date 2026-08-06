@@ -1,46 +1,30 @@
 /* ═══════════════════════════════════════════════════════════════
-   ADMIN DISPUTES PANEL — ShopNest Light Luxury Theme
+   ADMIN DISPUTES PANEL — Flat Layout
    ═══════════════════════════════════════════════════════════════ */
 :root {
-    /* Page backgrounds */
     --bg: #faf8f4;
     --bg-alt: #f4f1eb;
     --bg-card: #ffffff;
     --bg-surface: #f0ece2;
-
-    /* Gold system */
     --gold: #b8912a;
     --gold-light: #d4a93a;
     --gold-deep: #9a7820;
-    --gold-darkdeep: #695421;
     --gold-pale: rgba(184, 145, 42, 0.10);
     --gold-glow: rgba(184, 145, 42, 0.22);
-
-    /* Text */
     --text-primary: #1a1712;
     --text-secondary: #5a5448;
     --text-muted: #9a9080;
-
-    /* Borders */
     --border: rgba(0, 0, 0, 0.08);
     --border-gold: rgba(184, 145, 42, 0.28);
-
-    /* Shadows */
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, .06);
     --shadow-md: 0 6px 24px rgba(0, 0, 0, .08);
     --shadow-lg: 0 16px 48px rgba(0, 0, 0, .10);
     --shadow-gold: 0 8px 32px rgba(184, 145, 42, .18);
-
-    /* Accent colors */
     --accent-rose: #d94f6b;
     --accent-blue: #2f6fbf;
     --accent-teal: #0f9e8a;
-
-    /* Typography */
     --font-display: 'Cormorant Garamond', Georgia, serif;
     --font-body: 'DM Sans', system-ui, sans-serif;
-
-    /* Motion */
     --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
     --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -51,75 +35,34 @@
     background: var(--bg);
     color: var(--text-primary);
     font-family: var(--font-body);
-    position: relative;
     -webkit-font-smoothing: antialiased;
+    padding: 0;
+    margin: 0;
 }
 
-/* ── Layout ──────────────────────────────────────────────────────────────── */
-.adp-layout {
-    display: flex;
-    height: 100vh;
-    overflow: hidden;
+/* ── Main Container ──────────────────────────────────────────────────────── */
+.adp-container {
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 24px 32px 40px;
+    width: 100%;
 }
 
-.adp-list-panel {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    transition: flex 0.4s var(--ease-out-expo);
+/* ── Header Section ──────────────────────────────────────────────────────── */
+.adp-header-section {
+    margin-bottom: 28px;
 }
 
-.adp-with-chat .adp-list-panel {
-    flex: 0 0 42%;
-}
-
-.adp-chat-column {
-    flex: 0 0 58%;
-    display: flex;
-    flex-direction: column;
-    border-left: 1px solid var(--border);
-    background: var(--bg-card);
-    animation: adpSlideInRight 0.35s var(--ease-out-expo);
-}
-
-@keyframes adpSlideInRight {
-    from {
-        opacity: 0;
-        transform: translateX(30px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
-}
-
-.adp-chat-label {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 16px 24px;
-    background: var(--bg-alt);
-    border-bottom: 1px solid var(--border);
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--gold-deep);
-    font-family: var(--font-body);
-    letter-spacing: 0.02em;
-    flex-shrink: 0;
-}
-
-/* ── Panel Header ────────────────────────────────────────────────────────── */
-.adp-panel-header {
+.adp-header-content {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    padding: 32px 32px 0;
-    flex-shrink: 0;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 20px;
 }
 
-.adp-panel-title {
+.adp-title {
     font-family: var(--font-display);
     font-size: 2rem;
     font-weight: 400;
@@ -131,46 +74,49 @@
     letter-spacing: -0.01em;
 }
 
-.adp-panel-title i {
+.adp-title i {
     color: var(--accent-rose);
     font-size: 1.8rem;
 }
 
-.adp-panel-sub {
-    font-size: 13px;
+.adp-subtitle {
+    font-size: 14px;
     color: var(--text-muted);
     margin: 0;
     font-weight: 300;
     letter-spacing: 0.02em;
 }
 
-.adp-header-stats {
+/* ── Stats ────────────────────────────────────────────────────────────────── */
+.adp-stats {
     display: flex;
     gap: 12px;
+    flex-shrink: 0;
 }
 
-.adp-stat-pill {
+.adp-stat {
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 12px 20px;
+    padding: 10px 20px;
     border-radius: 12px;
     gap: 4px;
     transition: transform 0.3s var(--ease-out-expo);
+    min-width: 70px;
 }
 
-.adp-stat-pill:hover {
+.adp-stat:hover {
     transform: translateY(-2px);
 }
 
-.adp-stat-pill span {
+.adp-stat span {
     font-family: var(--font-display);
-    font-size: 1.8rem;
+    font-size: 1.6rem;
     font-weight: 600;
     line-height: 1;
 }
 
-.adp-stat-pill small {
+.adp-stat small {
     font-size: 10px;
     font-weight: 600;
     text-transform: uppercase;
@@ -178,31 +124,31 @@
     opacity: 0.8;
 }
 
-.adp-stat-pill.pending {
+.adp-stat.pending {
     background: rgba(217, 79, 107, 0.08);
     color: var(--accent-rose);
     border: 1px solid rgba(217, 79, 107, 0.15);
 }
 
-.adp-stat-pill.resolved {
+.adp-stat.resolved {
     background: rgba(15, 158, 138, 0.08);
     color: var(--accent-teal);
     border: 1px solid rgba(15, 158, 138, 0.15);
 }
 
-/* ── Filters ─────────────────────────────────────────────────────────────── */
+/* ── Filters ────────────────────────────────────────────────────────────────── */
 .adp-filters {
-    padding: 20px 32px;
     display: flex;
     gap: 12px;
     align-items: center;
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
+    flex-wrap: wrap;
+    padding: 0;
 }
 
 .adp-search {
     flex: 1;
     position: relative;
+    min-width: 200px;
 }
 
 .adp-search i {
@@ -240,10 +186,11 @@
     padding: 3px;
     gap: 2px;
     border: 1px solid var(--border);
+    flex-shrink: 0;
 }
 
 .adp-filter-tab {
-    padding: 7px 16px;
+    padding: 8px 18px;
     border: none;
     background: transparent;
     color: var(--text-secondary);
@@ -269,41 +216,63 @@
     color: var(--gold-deep);
 }
 
-/* ── Cards Grid ──────────────────────────────────────────────────────────── */
-.adp-cards-grid {
-    flex: 1;
-    overflow-y: auto;
-    padding: 24px 32px;
+/* ── Content Layout ────────────────────────────────────────────────────────── */
+.adp-content {
     display: flex;
-    flex-direction: column;
-    gap: 16px;
+    gap: 24px;
+    align-items: flex-start;
 }
 
-.adp-cards-grid::-webkit-scrollbar {
+.adp-content.with-chat .adp-list {
+    flex: 0 0 42%;
+    max-height: calc(100vh - 280px);
+    overflow-y: auto;
+}
+
+.adp-content.with-chat .adp-chat-wrapper {
+    flex: 0 0 58%;
+}
+
+/* ── List Panel ────────────────────────────────────────────────────────────── */
+.adp-list {
+    flex: 1;
+    min-width: 0;
+    padding: 20px;
+    background-color: var(--bg-alt);
+    border-radius: 20px;
+}
+
+.adp-list::-webkit-scrollbar {
     width: 5px;
 }
 
-.adp-cards-grid::-webkit-scrollbar-track {
+.adp-list::-webkit-scrollbar-track {
     background: var(--bg);
 }
 
-.adp-cards-grid::-webkit-scrollbar-thumb {
+.adp-list::-webkit-scrollbar-thumb {
     background: #d4c9b4;
     border-radius: 3px;
 }
 
-.adp-cards-grid::-webkit-scrollbar-thumb:hover {
+.adp-list::-webkit-scrollbar-thumb:hover {
     background: var(--gold);
 }
 
-/* ── Dispute Card ────────────────────────────────────────────────────────── */
+/* ── Cards ──────────────────────────────────────────────────────────────────── */
+.adp-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+/* ── Dispute Card ───────────────────────────────────────────────────────────── */
 .adp-dispute-card {
     background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 20px;
+    border: 2px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 18px;
     transition: all 0.3s var(--ease-out-expo);
-    box-shadow: var(--shadow-sm);
 }
 
 .adp-dispute-card:hover {
@@ -312,26 +281,32 @@
     transform: translateY(-1px);
 }
 
-.adp-card-active {
+.adp-dispute-card.adp-card-open {
+    border-left: 4px solid var(--gold);
+}
+
+.adp-dispute-card.adp-card-active {
     border-color: var(--gold) !important;
     box-shadow: 0 0 0 3px var(--gold-pale), var(--shadow-md) !important;
     background: linear-gradient(135deg, #fff 0%, #fefcf8 100%);
 }
 
-.adp-card-resolved {
-    opacity: 0.55;
+.adp-dispute-card.adp-card-resolved {
+    opacity: 0.6;
     background: var(--bg-alt);
 }
 
-.adp-card-resolved:hover {
-    opacity: 0.75;
+.adp-dispute-card.adp-card-resolved:hover {
+    opacity: 0.8;
 }
 
 .adp-card-top {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 14px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 
 .adp-card-id {
@@ -340,7 +315,7 @@
     color: var(--text-secondary);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     font-family: var(--font-body);
     letter-spacing: 0.03em;
 }
@@ -349,7 +324,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
 }
 
 .adp-card-product i {
@@ -361,13 +336,13 @@
     flex: 1;
     color: var(--text-primary);
     font-family: var(--font-display);
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     font-weight: 500;
 }
 
 .adp-card-amount {
     font-family: var(--font-display);
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     font-weight: 600;
     color: var(--accent-teal);
 }
@@ -375,11 +350,11 @@
 .adp-card-parties {
     display: flex;
     align-items: center;
-    gap: 14px;
-    margin-bottom: 14px;
-    padding: 14px;
+    gap: 12px;
+    margin-bottom: 10px;
+    padding: 10px 14px;
     background: var(--bg-alt);
-    border-radius: 12px;
+    border-radius: 10px;
     border: 1px solid var(--border);
 }
 
@@ -388,10 +363,12 @@
     align-items: center;
     gap: 10px;
     flex: 1;
+    min-width: 0;
 }
 
 .adp-party i {
-    font-size: 22px;
+    font-size: 20px;
+    flex-shrink: 0;
 }
 
 .adp-party.buyer i {
@@ -416,6 +393,9 @@
     font-size: 13px;
     color: var(--text-primary);
     font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .adp-vs {
@@ -423,24 +403,25 @@
     font-weight: 700;
     color: var(--accent-rose);
     background: rgba(217, 79, 107, 0.08);
-    padding: 5px 10px;
+    padding: 4px 10px;
     border-radius: 6px;
     letter-spacing: 0.05em;
     border: 1px solid rgba(217, 79, 107, 0.15);
+    flex-shrink: 0;
 }
 
 .adp-card-reason {
     font-size: 12px;
     color: var(--text-secondary);
     font-style: italic;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
     padding: 10px 14px;
     background: var(--bg);
     border-left: 3px solid var(--gold);
     border-radius: 0 8px 8px 0;
     display: flex;
     gap: 10px;
-    line-height: 1.6;
+    line-height: 1.5;
     font-weight: 300;
 }
 
@@ -450,7 +431,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
     font-weight: 400;
 }
 
@@ -464,7 +445,7 @@
     background: var(--gold-pale);
     padding: 4px 10px;
     border-radius: 6px;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
     border: 1px solid var(--border-gold);
 }
 
@@ -474,10 +455,11 @@
     flex-wrap: wrap;
 }
 
+/* ── Buttons ────────────────────────────────────────────────────────────────── */
 .adp-btn-chat {
     flex: 1;
-    padding: 10px 16px;
-    border-radius: 10px;
+    padding: 8px 14px;
+    border-radius: 8px;
     border: 1px solid var(--border);
     background: var(--bg-card);
     color: var(--text-secondary);
@@ -488,9 +470,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
     transition: all 0.25s var(--ease-out-expo);
     letter-spacing: 0.02em;
+    min-height: 38px;
 }
 
 .adp-btn-chat:hover {
@@ -507,8 +490,8 @@
 
 .adp-btn-rule {
     flex: 1;
-    padding: 10px 16px;
-    border-radius: 10px;
+    padding: 8px 14px;
+    border-radius: 8px;
     border: none;
     background: var(--gold-light);
     color: #1a1712;
@@ -519,11 +502,12 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
     transition: all 0.25s var(--ease-out-expo);
     letter-spacing: 0.05em;
     text-transform: uppercase;
     box-shadow: 0 2px 10px var(--gold-glow);
+    min-height: 38px;
 }
 
 .adp-btn-rule:hover {
@@ -537,7 +521,7 @@
     color: var(--accent-teal);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     font-weight: 600;
     letter-spacing: 0.02em;
 }
@@ -551,11 +535,11 @@
     font-weight: 400;
 }
 
-/* ── Badges ──────────────────────────────────────────────────────────────── */
+/* ── Badges ──────────────────────────────────────────────────────────────────── */
 .adp-badge {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    gap: 4px;
     padding: 4px 10px;
     border-radius: 20px;
     font-size: 10px;
@@ -595,98 +579,68 @@
     border: 1px solid rgba(47, 111, 191, 0.2);
 }
 
-/* ── Toast ───────────────────────────────────────────────────────────────── */
-.adp-toast {
-    position: fixed;
-    top: 24px;
-    right: 24px;
-    z-index: 9999;
+/* ── Chat Panel ─────────────────────────────────────────────────────────────── */
+.adp-chat-wrapper {
+    flex: 1;
+    min-width: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 240px);
+}
+
+.adp-chat-label {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     padding: 14px 20px;
-    border-radius: 12px;
-    font-size: 14px;
-    font-weight: 500;
+    background: var(--bg-alt);
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gold-deep);
     font-family: var(--font-body);
-    letter-spacing: 0.01em;
-    box-shadow: var(--shadow-lg);
-    animation: adpSlideInRight 0.3s var(--ease-out-expo);
-    min-width: 280px;
-    max-width: 400px;
+    letter-spacing: 0.02em;
+    flex-shrink: 0;
+    min-height: 48px;
 }
 
-.adp-toast button {
-    margin-left: auto;
-    background: rgba(255, 255, 255, 0.2);
-    border: none;
-    color: inherit;
-    border-radius: 50%;
-    width: 24px;
-    height: 24px;
-    font-size: 16px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.2s;
-}
-
-.adp-toast button:hover {
-    background: rgba(255, 255, 255, 0.35);
-}
-
-.adp-toast-success {
-    background: var(--accent-teal);
-    color: #fff;
-}
-
-.adp-toast-error {
-    background: var(--accent-rose);
-    color: #fff;
-}
-
-.adp-toast-warning {
-    background: #b45309;
-    color: #fff;
-}
-
-.adp-toast-info {
-    background: var(--accent-blue);
-    color: #fff;
-}
-
-/* ── Chat Panel ──────────────────────────────────────────────────────────── */
 .adp-chat-panel {
     flex: 1;
     display: flex;
     flex-direction: column;
     background: var(--bg-card);
     overflow: hidden;
+    min-height: 300px;
 }
 
 .adp-chat-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 20px;
+    padding: 12px 16px;
     background: var(--bg-alt);
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
+    min-height: 44px;
 }
 
 .adp-chat-title {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     font-weight: 600;
-    font-size: 14px;
+    font-size: 13px;
     color: var(--text-primary);
     font-family: var(--font-body);
 }
 
 .adp-chat-live {
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 700;
     color: var(--accent-teal);
     text-transform: uppercase;
@@ -699,8 +653,8 @@
     color: var(--text-muted);
     cursor: pointer;
     font-size: 18px;
-    padding: 6px;
-    border-radius: 8px;
+    padding: 4px 6px;
+    border-radius: 6px;
     transition: all 0.2s;
 }
 
@@ -711,21 +665,22 @@
 
 .adp-chat-participants {
     display: flex;
-    gap: 10px;
-    padding: 10px 20px;
+    gap: 8px;
+    padding: 8px 16px;
     background: var(--bg);
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
+    flex-wrap: wrap;
 }
 
 .adp-participant {
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: 11px;
+    gap: 4px;
+    font-size: 10px;
     font-weight: 600;
-    padding: 4px 12px;
-    border-radius: 20px;
+    padding: 3px 10px;
+    border-radius: 16px;
     letter-spacing: 0.03em;
 }
 
@@ -750,10 +705,10 @@
 .adp-chat-messages {
     flex: 1;
     overflow-y: auto;
-    padding: 20px;
+    padding: 16px;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 12px;
 }
 
 .adp-chat-messages::-webkit-scrollbar {
@@ -771,14 +726,14 @@
 
 .adp-chat-empty {
     text-align: center;
-    padding: 60px 20px;
+    padding: 40px 20px;
     color: var(--text-muted);
 }
 
 .adp-chat-empty i {
-    font-size: 40px;
+    font-size: 32px;
     display: block;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
     color: var(--gold);
     opacity: 0.5;
 }
@@ -788,10 +743,10 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 200px;
-    gap: 14px;
+    height: 160px;
+    gap: 12px;
     color: var(--text-muted);
-    font-size: 13px;
+    font-size: 12px;
 }
 
 .adp-msg {
@@ -805,8 +760,8 @@
 }
 
 .adp-msg-avatar {
-    width: 34px;
-    height: 34px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -831,7 +786,7 @@
 .adp-msg-meta {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 .adp-msg-name {
@@ -853,10 +808,10 @@
 .adp-msg-bubble {
     background: var(--bg-alt);
     border: 1px solid var(--border);
-    border-radius: 14px 14px 14px 4px;
-    padding: 12px 16px;
+    border-radius: 12px 12px 12px 4px;
+    padding: 10px 14px;
     font-size: 13px;
-    line-height: 1.6;
+    line-height: 1.5;
     color: var(--text-primary);
     white-space: pre-wrap;
     word-break: break-word;
@@ -866,7 +821,7 @@
 .adp-bubble-mine {
     background: var(--bg-surface);
     border-color: var(--border-gold);
-    border-radius: 14px 14px 4px 14px;
+    border-radius: 12px 12px 4px 12px;
 }
 
 .adp-msg-time {
@@ -879,7 +834,7 @@
 .adp-chat-input-area {
     display: flex;
     gap: 10px;
-    padding: 14px 18px;
+    padding: 12px 16px;
     background: var(--bg-alt);
     border-top: 1px solid var(--border);
     flex-shrink: 0;
@@ -889,11 +844,11 @@
     flex: 1;
     background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 10px;
     color: var(--text-primary);
     font-size: 13px;
     font-family: var(--font-body);
-    padding: 12px 16px;
+    padding: 10px 14px;
     resize: none;
     outline: none;
     line-height: 1.5;
@@ -906,9 +861,10 @@
 }
 
 .adp-chat-send {
-    width: 46px;
+    width: 44px;
+    min-height: 44px;
     border: none;
-    border-radius: 12px;
+    border-radius: 10px;
     background: var(--gold-light);
     color: #fff;
     font-size: 16px;
@@ -932,7 +888,7 @@
     cursor: not-allowed;
 }
 
-/* ── Modal ───────────────────────────────────────────────────────────────── */
+/* ── Modal ──────────────────────────────────────────────────────────────────── */
 .adp-modal-overlay {
     position: fixed;
     inset: 0;
@@ -944,24 +900,20 @@
     padding: 20px;
     backdrop-filter: blur(6px);
     overflow-y: auto;
-    /* Allow overlay to scroll on small screens */
 }
 
 .adp-modal {
     background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: 20px;
+    border-radius: 18px;
     width: 100%;
-    max-width: 580px;
+    max-width: 540px;
     max-height: calc(100vh - 40px);
-    /* Account for padding */
     display: flex;
     flex-direction: column;
     overflow: hidden;
     box-shadow: var(--shadow-lg);
     animation: adpModalIn 0.25s var(--ease-out-expo);
-    position: relative;
-    /* Establish stacking context */
 }
 
 @keyframes adpModalIn {
@@ -980,7 +932,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 20px 28px;
+    padding: 16px 24px;
     border-bottom: 1px solid var(--border);
     background: var(--bg-alt);
     flex-shrink: 0;
@@ -989,25 +941,24 @@
 .adp-modal-header h5 {
     margin: 0;
     font-family: var(--font-display);
-    font-size: 1.4rem;
+    font-size: 1.2rem;
     font-weight: 500;
     color: var(--text-primary);
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
 }
 
 .adp-modal-close {
     background: none;
     border: none;
     color: var(--text-muted);
-    font-size: 24px;
+    font-size: 22px;
     cursor: pointer;
     line-height: 1;
     padding: 4px;
-    border-radius: 8px;
+    border-radius: 6px;
     transition: all 0.2s;
-    flex-shrink: 0;
 }
 
 .adp-modal-close:hover {
@@ -1016,19 +967,14 @@
 }
 
 .adp-modal-body {
-    padding: 24px 28px;
+    padding: 20px 24px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 20px;
-    flex: 1 1 auto;
-    min-height: 0;
-    /* Force GPU acceleration for smoother scrolling */
-    -webkit-overflow-scrolling: touch;
-    will-change: scroll-position;
+    gap: 16px;
+    flex: 1;
 }
 
-/* Custom scrollbar for modal body */
 .adp-modal-body::-webkit-scrollbar {
     width: 5px;
 }
@@ -1047,36 +993,37 @@
 }
 
 .adp-modal-footer {
-    padding: 18px 28px;
+    padding: 14px 24px;
     border-top: 1px solid var(--border);
     display: flex;
-    gap: 12px;
+    gap: 10px;
     justify-content: flex-end;
     background: var(--bg-alt);
     flex-shrink: 0;
+    flex-wrap: wrap;
 }
 
-/* ── Case Summary ────────────────────────────────────────────────────────── */
+/* ── Modal Content ────────────────────────────────────────────────────────── */
 .adp-case-summary {
     background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 16px 20px;
+    border-radius: 10px;
+    padding: 14px 16px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
 }
 
 .adp-case-row {
     display: flex;
-    gap: 12px;
+    gap: 10px;
     font-size: 13px;
     align-items: baseline;
 }
 
 .adp-case-row span:first-child {
     color: var(--text-muted);
-    min-width: 110px;
+    min-width: 100px;
     flex-shrink: 0;
     font-weight: 500;
     font-size: 12px;
@@ -1089,7 +1036,6 @@
     font-style: normal;
 }
 
-/* ── Financial Impact ────────────────────────────────────────────────────── */
 .adp-financial-impact h6 {
     font-family: var(--font-body);
     font-size: 11px;
@@ -1097,20 +1043,20 @@
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    margin: 0 0 12px;
+    margin: 0 0 10px;
 }
 
 .adp-impact-cards {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    gap: 10px;
 }
 
 .adp-impact-card {
     background: var(--bg);
     border: 2px solid var(--border);
-    border-radius: 12px;
-    padding: 16px;
+    border-radius: 10px;
+    padding: 12px;
     text-align: center;
     transition: all 0.3s var(--ease-out-expo);
 }
@@ -1121,16 +1067,16 @@
 }
 
 .adp-impact-label {
-    font-size: 11px;
+    font-size: 10px;
     color: var(--text-muted);
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     font-weight: 500;
     letter-spacing: 0.04em;
 }
 
 .adp-impact-amount {
     font-family: var(--font-display);
-    font-size: 1.6rem;
+    font-size: 1.4rem;
     font-weight: 600;
 }
 
@@ -1143,13 +1089,17 @@
 }
 
 .adp-impact-sub {
-    font-size: 10px;
+    font-size: 9px;
     color: var(--text-muted);
-    margin-top: 6px;
+    margin-top: 4px;
     font-weight: 400;
 }
 
-/* ── Ruling Cards ────────────────────────────────────────────────────────── */
+.adp-ruling-section {
+    display: flex;
+    flex-direction: column;
+}
+
 .adp-field-label {
     display: block;
     font-family: var(--font-body);
@@ -1158,7 +1108,7 @@
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
 }
 
 .adp-field-hint {
@@ -1173,39 +1123,39 @@
 .adp-ruling-cards {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    gap: 10px;
 }
 
 .adp-ruling-card {
     border: 2px solid var(--border);
-    border-radius: 14px;
-    padding: 20px 16px;
+    border-radius: 12px;
+    padding: 14px 12px;
     cursor: pointer;
     text-align: center;
     transition: all 0.3s var(--ease-out-expo);
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
     align-items: center;
     background: var(--bg-card);
 }
 
 .adp-ruling-card i {
-    font-size: 28px;
+    font-size: 24px;
     color: var(--text-muted);
     transition: color 0.3s;
 }
 
 .adp-ruling-card strong {
-    font-size: 14px;
+    font-size: 13px;
     color: var(--text-secondary);
     font-family: var(--font-body);
 }
 
 .adp-ruling-card small {
-    font-size: 11px;
+    font-size: 10px;
     color: var(--text-muted);
-    line-height: 1.5;
+    line-height: 1.4;
     font-weight: 300;
 }
 
@@ -1241,7 +1191,6 @@
     color: var(--accent-teal);
 }
 
-/* ── Fields ──────────────────────────────────────────────────────────────── */
 .adp-field-group {
     display: flex;
     flex-direction: column;
@@ -1250,14 +1199,14 @@
 .adp-textarea {
     background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: 8px;
     color: var(--text-primary);
     font-size: 13px;
     font-family: var(--font-body);
-    padding: 14px;
+    padding: 10px 12px;
     resize: vertical;
     outline: none;
-    line-height: 1.6;
+    line-height: 1.5;
     transition: all 0.2s var(--ease-out-expo);
 }
 
@@ -1267,9 +1216,9 @@
 }
 
 .adp-char-count {
-    font-size: 11px;
+    font-size: 10px;
     color: var(--text-muted);
-    margin-top: 6px;
+    margin-top: 4px;
     font-weight: 400;
 }
 
@@ -1277,15 +1226,14 @@
     color: var(--accent-rose);
 }
 
-/* ── Warning ─────────────────────────────────────────────────────────────── */
 .adp-ruling-warning {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     align-items: flex-start;
-    padding: 14px 16px;
+    padding: 10px 14px;
     background: rgba(217, 79, 107, 0.06);
     border: 1px solid rgba(217, 79, 107, 0.2);
-    border-radius: 10px;
+    border-radius: 8px;
     font-size: 12px;
     color: var(--accent-rose);
 }
@@ -1293,21 +1241,21 @@
 .adp-ruling-warning i {
     color: var(--accent-rose);
     flex-shrink: 0;
-    margin-top: 1px;
+    margin-top: 2px;
 }
 
 .adp-ruling-warning p {
     margin: 0;
-    line-height: 1.5;
+    line-height: 1.4;
 }
 
-/* ── Buttons ─────────────────────────────────────────────────────────────── */
+/* ── Modal Buttons ────────────────────────────────────────────────────────── */
 .adp-btn-secondary {
-    padding: 10px 22px;
+    padding: 9px 20px;
     border: 1px solid var(--border);
     background: var(--bg-card);
     color: var(--text-secondary);
-    border-radius: 10px;
+    border-radius: 8px;
     font-size: 12px;
     font-weight: 600;
     font-family: var(--font-body);
@@ -1323,16 +1271,16 @@
 }
 
 .adp-btn-ruling {
-    padding: 11px 24px;
+    padding: 9px 20px;
     border: none;
-    border-radius: 10px;
+    border-radius: 8px;
     font-size: 12px;
     font-weight: 700;
     font-family: var(--font-body);
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     transition: all 0.25s var(--ease-out-expo);
     letter-spacing: 0.05em;
     text-transform: uppercase;
@@ -1367,7 +1315,80 @@
     box-shadow: 0 6px 20px rgba(15, 158, 138, 0.35);
 }
 
-/* ── Spinners ────────────────────────────────────────────────────────────── */
+/* ── Toast ──────────────────────────────────────────────────────────────────── */
+.adp-toast {
+    position: fixed;
+    top: 80px;
+    right: 24px;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 18px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: var(--font-body);
+    letter-spacing: 0.01em;
+    box-shadow: var(--shadow-lg);
+    animation: adpSlideInRight 0.3s var(--ease-out-expo);
+    min-width: 240px;
+    max-width: 380px;
+}
+
+.adp-toast button {
+    margin-left: auto;
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: inherit;
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.adp-toast button:hover {
+    background: rgba(255, 255, 255, 0.35);
+}
+
+.adp-toast-success {
+    background: var(--accent-teal);
+    color: #fff;
+}
+
+.adp-toast-error {
+    background: var(--accent-rose);
+    color: #fff;
+}
+
+.adp-toast-warning {
+    background: #b45309;
+    color: #fff;
+}
+
+.adp-toast-info {
+    background: var(--accent-blue);
+    color: #fff;
+}
+
+@keyframes adpSlideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* ── Spinners ────────────────────────────────────────────────────────────────── */
 .adp-spinner {
     width: 20px;
     height: 20px;
@@ -1395,30 +1416,30 @@
     }
 }
 
-/* ── Empty / Center State ────────────────────────────────────────────────── */
+/* ── Empty / Center State ──────────────────────────────────────────────────── */
 .adp-state-center {
-    flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 80px 20px;
+    padding: 60px 20px;
     text-align: center;
     color: var(--text-muted);
+    min-height: 300px;
 }
 
 .adp-empty-icon {
-    font-size: 56px;
-    margin-bottom: 20px;
+    font-size: 48px;
+    margin-bottom: 16px;
     color: var(--accent-teal);
     opacity: 0.6;
 }
 
 .adp-state-center h5 {
     font-family: var(--font-display);
-    font-size: 1.4rem;
+    font-size: 1.2rem;
     color: var(--text-secondary);
-    margin: 0 0 10px;
+    margin: 0 0 8px;
 }
 
 .adp-state-center p {
@@ -1427,36 +1448,205 @@
     font-weight: 300;
 }
 
-/* ── Responsive ──────────────────────────────────────────────────────────── */
-@media (max-width: 900px) {
-    .adp-with-chat .adp-list-panel {
-        display: none;
+/* ── Responsive ──────────────────────────────────────────────────────────────── */
+@media (max-width: 1200px) {
+    .adp-container {
+        padding: 20px 24px 32px;
+    }
+}
+
+@media (max-width: 1024px) {
+    .adp-content.with-chat .adp-list {
+        flex: 0 0 45%;
     }
 
-    .adp-chat-column {
-        flex: 1;
+    .adp-content.with-chat .adp-chat-wrapper {
+        flex: 0 0 55%;
+    }
+}
+
+@media (max-width: 768px) {
+    .adp-container {
+        padding: 16px 16px 24px;
     }
 
-    .adp-panel-header {
-        padding: 24px 20px 0;
+    .adp-header-content {
         flex-direction: column;
-        gap: 16px;
+        gap: 12px;
     }
 
-    .adp-header-stats {
+    .adp-title {
+        font-size: 1.5rem;
+    }
+
+    .adp-stats {
         width: 100%;
     }
 
-    .adp-stat-pill {
+    .adp-stat {
         flex: 1;
+        padding: 8px 12px;
+    }
+
+    .adp-stat span {
+        font-size: 1.2rem;
     }
 
     .adp-filters {
-        padding: 16px 20px;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .adp-search {
+        width: 100%;
+        min-width: auto;
+    }
+
+    .adp-filter-tabs {
+        width: 100%;
+    }
+
+    .adp-filter-tab {
+        flex: 1;
+        text-align: center;
+        font-size: 11px;
+        padding: 6px 12px;
+    }
+
+    .adp-content {
+        flex-direction: column;
+    }
+
+    .adp-content.with-chat .adp-list {
+        flex: none;
+        width: 100%;
+        max-height: 400px;
+    }
+
+    .adp-content.with-chat .adp-chat-wrapper {
+        flex: none;
+        width: 100%;
+        max-height: 500px;
+    }
+
+    .adp-list {
+        max-height: 400px;
+    }
+
+    .adp-chat-wrapper {
+        max-height: 500px;
+    }
+
+    .adp-dispute-card {
+        padding: 12px 14px;
+    }
+
+    .adp-card-parties {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .adp-party {
+        flex: 1;
+        min-width: 80px;
+    }
+
+    .adp-card-actions {
+        flex-direction: column;
+    }
+
+    .adp-btn-chat,
+    .adp-btn-rule {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .adp-impact-cards,
+    .adp-ruling-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .adp-case-row {
         flex-wrap: wrap;
     }
 
-    .adp-cards-grid {
-        padding: 16px 20px;
+    .adp-case-row span:first-child {
+        min-width: 80px;
+    }
+
+    .adp-modal {
+        max-width: 100%;
+        margin: 10px;
+        max-height: calc(100vh - 20px);
+    }
+
+    .adp-modal-body {
+        padding: 16px;
+    }
+
+    .adp-modal-footer {
+        flex-direction: column;
+    }
+
+    .adp-modal-footer button {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .adp-toast {
+        top: 70px;
+        right: 12px;
+        left: 12px;
+        min-width: auto;
+        max-width: none;
+        font-size: 12px;
+        padding: 10px 14px;
+    }
+
+    .adp-msg-body {
+        max-width: 85%;
+    }
+
+    .adp-chat-messages {
+        padding: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .adp-container {
+        padding: 12px 12px 20px;
+    }
+
+    .adp-title {
+        font-size: 1.2rem;
+    }
+
+    .adp-title i {
+        font-size: 1.2rem;
+    }
+
+    .adp-card-product strong {
+        font-size: 0.9rem;
+    }
+
+    .adp-chat-participants {
+        gap: 4px;
+        padding: 6px 12px;
+    }
+
+    .adp-participant {
+        font-size: 9px;
+        padding: 2px 8px;
+    }
+
+    .adp-chat-input {
+        font-size: 12px;
+        padding: 8px 12px;
+    }
+
+    .adp-chat-send {
+        width: 40px;
+        min-height: 40px;
+        font-size: 14px;
     }
 }

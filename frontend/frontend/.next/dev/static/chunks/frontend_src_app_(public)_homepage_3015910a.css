@@ -371,9 +371,6 @@ button {
 .spotlight-section {
   background: radial-gradient(ellipse at 30% 20%, var(--bg-glow), transparent 70%), var(--bg-primary);
   padding: 80px 0;
-  animation: linear appear;
-  animation-timeline: view();
-  animation-range: entry cover 40%;
   position: relative;
   overflow: hidden;
 }
@@ -867,7 +864,9 @@ button {
 
 .categories-grid {
   z-index: 1;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  justify-content: center;
+  align-items: center;
   gap: 24px;
   display: grid;
   position: relative;
@@ -875,7 +874,7 @@ button {
 
 @media (max-width: 768px) {
   .categories-grid {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     gap: 16px;
   }
 }
@@ -1190,9 +1189,6 @@ button {
   box-shadow: var(--shadow-sm);
   border-radius: 16px;
   flex-direction: column;
-  animation: linear appear;
-  animation-timeline: view();
-  animation-range: entry cover 40%;
   display: flex;
   overflow: hidden;
 }

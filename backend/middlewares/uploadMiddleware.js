@@ -1,5 +1,4 @@
 // middlewares/uploadMiddleware.js - Add category storage
-
 const multer = require("multer");
 const path = require("path");
 const cloudinary = require("../config/cloudinary");
@@ -67,26 +66,26 @@ const fileFilter = (req, file, cb) => {
 // Multer instances
 const uploadProductImage = multer({
   storage: productStorage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  limits: { fileSize: 20 * 1024 * 1024 }, // 5MB
   fileFilter,
 });
 
 const uploadProfileImage = multer({
   storage: profileStorage,
-  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
+  limits: { fileSize: 20 * 1024 * 1024 }, // 2MB
   fileFilter,
 });
 
 // Chat image upload
 const uploadChatImage = multer({
   storage: chatStorage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  limits: { fileSize: 20 * 1024 * 1024 }, // 10MB
   fileFilter,
 });
 
 const uploadCategoryImage = multer({
   storage: categoryStorage,
-  limits: { fileSize: 20 * 1024 * 1024 }, // 10MB
+  limits: { fileSize: 30 * 1024 * 1024 }, // 10MB
   fileFilter,
 });
 

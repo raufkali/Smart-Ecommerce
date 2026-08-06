@@ -99,7 +99,6 @@ const SellerReviewModal = ({
     try {
       const productId = item.product?._id || item.product;
 
-      // Check pending reviews to see if buyer review is already done
       const res = await fetch(
         `${BACKEND}/reviews/pending/${order._id}/${productId}`,
         { headers: { Authorization: `Bearer ${token()}` } },
@@ -218,7 +217,6 @@ const SellerReviewModal = ({
         </div>
 
         <div className="modal-body">
-          {/* Buyer Info */}
           <div className="buyer-info-card">
             <div className="buyer-avatar">
               <i className="bi bi-person-circle fs-1"></i>
@@ -389,7 +387,6 @@ const DisputeBadge = ({ item, onRespond, orderId }) => {
           Respond
         </button>
       )}
-      {/* NEW: Show chat link when escalated */}
       {cfg.hasChat && item.disputeChatId && (
         <a
           href={`/chat?chatId=${item.disputeChatId}`}
@@ -571,10 +568,8 @@ const DisputeModal = ({ order, item, onClose, onResolved, showToast }) => {
   );
 };
 
-// Order Details Modal
-const OrderDetailsModal = ({
-  show,
-  onClose,
+// Order Details Dropdown Component
+const OrderDropdown = ({
   order,
   onUpdateStatus,
   showToast,
@@ -583,13 +578,15 @@ const OrderDetailsModal = ({
 }) => {
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
-  if (!show || !order) return null;
+  if (!order) return null;
 
-  const formatCurrency = (v) =>
-    new Intl.NumberFormat("en-US", {
+  const formatCurrency = (v) => {
+    if (v === undefined || v === null || isNaN(v)) return "$0.00";
+    return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
     }).format(v);
+  };
 
   const formatDate = (d) => new Date(d).toLocaleString();
 
@@ -615,11 +612,11 @@ const OrderDetailsModal = ({
     partial_refunded: { label: "Partial Refund", color: "warning" },
   };
 
-  const sellerItems =
-    order.orderItems?.filter(
-      (item) =>
-        item.seller === order.sellerId || item.seller?._id === order.sellerId,
-    ) || [];
+  // Get seller items from order - use sellerItemsPrice and sellerShippingPrice
+  const sellerItems = order.orderItems || [];
+  const sellerItemsPrice = order.sellerItemsPrice || 0;
+  const sellerShippingPrice = order.sellerShippingPrice || 0;
+  const sellerTotalPrice = order.sellerTotalPrice || 0;
 
   const nextStatuses = (current) =>
     ({
@@ -657,7 +654,10 @@ const OrderDetailsModal = ({
             ? "Item marked as shipped. 10-day buyer review period started."
             : `Status updated to ${newStatus}`;
       showToast(msg, "success");
-      onUpdateStatus();
+      // Immediately update the UI by calling the parent's update function
+      if (onUpdateStatus) {
+        await onUpdateStatus();
+      }
     } catch (err) {
       showToast(err.message, "error");
     } finally {
@@ -666,271 +666,253 @@ const OrderDetailsModal = ({
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div
-        className="modal-container order-modal"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="modal-header">
-          <h5 className="modal-title">
-            <i className="bi bi-receipt"></i>
-            Order #{order._id?.slice(-8).toUpperCase()}
-          </h5>
-          <button className="modal-close" onClick={onClose}>
-            <i className="bi bi-x-lg"></i>
-          </button>
+    <div className="order-dropdown">
+      <div className="dropdown-header">
+        <h5>
+          <i className="bi bi-receipt"></i>
+          Order #{order._id?.slice(-8).toUpperCase()}
+        </h5>
+        <span className={`order-status-badge ${order.orderStatus}`}>
+          {order.orderStatus}
+        </span>
+      </div>
+
+      <div className="dropdown-body">
+        {/* Customer & Shipping */}
+        <div className="info-grid">
+          <div className="info-card">
+            <h6>
+              <i className="bi bi-person"></i> Customer
+            </h6>
+            <p>
+              <strong>Name:</strong>{" "}
+              {order.user?.fullname || order.shippingAddress?.fullName}
+            </p>
+            <p>
+              <strong>Email:</strong> {order.user?.email}
+            </p>
+            <p>
+              <strong>Phone:</strong> {order.shippingAddress?.phone}
+            </p>
+          </div>
+          <div className="info-card">
+            <h6>
+              <i className="bi bi-geo-alt"></i> Shipping Address
+            </h6>
+            <p>{order.shippingAddress?.address}</p>
+            <p>
+              {order.shippingAddress?.city}, {order.shippingAddress?.postalCode}
+            </p>
+            <p>{order.shippingAddress?.country}</p>
+          </div>
         </div>
 
-        <div className="modal-body">
-          {/* Customer & Shipping */}
-          <div className="info-grid">
-            <div className="info-card">
-              <h6>
-                <i className="bi bi-person"></i> Customer
-              </h6>
+        {/* Order Summary */}
+        <div className="summary-grid">
+          <div className="summary-item">
+            <small>Order Date</small>
+            <strong>{formatDate(order.createdAt)}</strong>
+          </div>
+          <div className="summary-item">
+            <small>Payment Method</small>
+            <strong className="capitalize">{order.paymentMethod}</strong>
+          </div>
+          <div className="summary-item">
+            <small>Payment Status</small>
+            <span
+              className={`status-badge ${paymentConfig[order.paymentStatus]?.color || "secondary"}`}
+            >
+              {paymentConfig[order.paymentStatus]?.label || order.paymentStatus}
+            </span>
+          </div>
+          <div className="summary-item">
+            <small>Your Earnings</small>
+            <strong className="gold-text">
+              {formatCurrency(sellerTotalPrice)}
+            </strong>
+          </div>
+        </div>
+
+        {/* Escrow Notice */}
+        {order.paymentStatus === "requires_capture" && (
+          <div className="info-alert info">
+            <i className="bi bi-shield-lock-fill"></i>
+            <div>
+              <strong>Funds held in escrow</strong>
               <p>
-                <strong>Name:</strong>{" "}
-                {order.user?.fullname || order.shippingAddress?.fullName}
+                Payment of {formatCurrency(order.totalPrice)} is securely held.
+                Funds release when the buyer confirms delivery or the 10-day
+                review window closes.
               </p>
-              <p>
-                <strong>Email:</strong> {order.user?.email}
-              </p>
-              <p>
-                <strong>Phone:</strong> {order.shippingAddress?.phone}
-              </p>
-            </div>
-            <div className="info-card">
-              <h6>
-                <i className="bi bi-geo-alt"></i> Shipping Address
-              </h6>
-              <p>{order.shippingAddress?.address}</p>
-              <p>
-                {order.shippingAddress?.city},{" "}
-                {order.shippingAddress?.postalCode}
-              </p>
-              <p>{order.shippingAddress?.country}</p>
             </div>
           </div>
+        )}
 
-          {/* Order Summary */}
-          <div className="summary-grid">
-            <div className="summary-item">
-              <small>Order Date</small>
-              <strong>{formatDate(order.createdAt)}</strong>
+        {order.paymentStatus === "captured" && (
+          <div className="info-alert success">
+            <i className="bi bi-check-circle-fill"></i>
+            <div>
+              <strong>Payment released</strong>
+              <p>Funds have been transferred to your wallet.</p>
             </div>
-            <div className="summary-item">
-              <small>Payment Method</small>
-              <strong className="capitalize">{order.paymentMethod}</strong>
+          </div>
+        )}
+
+        {/* Products Table */}
+        <h6 className="section-title">
+          <i className="bi bi-grid"></i> Your Products
+        </h6>
+        <div className="orders-table-container">
+          <table className="orders-table">
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Price</th>
+                <th>Qty</th>
+                <th>Total</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sellerItems.map((item, idx) => {
+                const productId = (
+                  item.product?._id || item.product
+                )?.toString();
+                const nexts = nextStatuses(item.orderStatus);
+                const hasOpenDispute = item.disputeStatus === "open";
+                const status = statusConfig[item.orderStatus] || {
+                  color: "secondary",
+                  icon: "bi-question",
+                };
+                const isDelivered =
+                  item.orderStatus === "delivered" &&
+                  item.escrowStatus === "released";
+
+                return (
+                  <tr key={idx}>
+                    <td className="product-cell">
+                      {item.product?.images?.[0] && (
+                        <img
+                          src={`${BACKEND}${item.product.images[0]}`}
+                          alt={item.name}
+                          className="product-thumb"
+                        />
+                      )}
+                      <span>{item.name}</span>
+                    </td>
+                    <td>{formatCurrency(item.price)}</td>
+                    <td>{item.quantity}</td>
+                    <td className="gold-text">
+                      {formatCurrency(item.price * item.quantity)}
+                    </td>
+                    <td>
+                      <span className={`status-badge ${status.color}`}>
+                        <i className={`bi ${status.icon}`}></i>
+                        {item.orderStatus}
+                      </span>
+                      <DisputeBadge
+                        item={item}
+                        onRespond={() => onOpenDispute(order, item)}
+                      />
+                      {item.orderStatus === "shipped" && item.autoReleaseAt && (
+                        <AutoReleaseCountdown
+                          autoReleaseAt={item.autoReleaseAt}
+                        />
+                      )}
+                    </td>
+                    <td>
+                      <div className="action-buttons">
+                        {hasOpenDispute ? (
+                          <span className="blocked-message">
+                            <i className="bi bi-lock-fill"></i>
+                            Dispute pending
+                          </span>
+                        ) : (
+                          <>
+                            {nexts.map((status) => (
+                              <button
+                                key={status}
+                                className={`action-btn ${status}`}
+                                onClick={() =>
+                                  handleStatusUpdate(productId, status)
+                                }
+                                disabled={updatingStatus}
+                              >
+                                {status === "cancelled" && (
+                                  <i className="bi bi-x-circle"></i>
+                                )}
+                                {status === "shipped" && (
+                                  <i className="bi bi-truck"></i>
+                                )}
+                                {status !== "cancelled" &&
+                                  status !== "shipped" &&
+                                  status}
+                                {status === "cancelled" && "Cancel"}
+                                {status === "shipped" && "Ship"}
+                              </button>
+                            ))}
+                            {/* Review Buyer Button - shown for delivered items */}
+                            {isDelivered && (
+                              <button
+                                className="action-btn review"
+                                onClick={() => onOpenReview(order, item)}
+                              >
+                                <i className="bi bi-star"></i>
+                                Review Buyer
+                              </button>
+                            )}
+                          </>
+                        )}
+                        {nexts.length === 0 &&
+                          item.orderStatus !== "shipped" &&
+                          !isDelivered && (
+                            <span className="text-muted small">No actions</span>
+                          )}
+                      </div>
+                      {item.orderStatus === "cancelled" && (
+                        <small className="refunded-text">
+                          <i className="bi bi-arrow-repeat"></i>
+                          Refunded to buyer
+                        </small>
+                      )}
+                      {item.orderStatus === "delivered" && (
+                        <small className="released-text">
+                          <i className="bi bi-check-circle"></i>
+                          Payment released
+                        </small>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Order Totals */}
+        <div className="totals-section">
+          <div className="totals-card">
+            <div className="total-row">
+              <span>Subtotal:</span>
+              <strong>{formatCurrency(sellerItemsPrice)}</strong>
             </div>
-            <div className="summary-item">
-              <small>Payment Status</small>
-              <span
-                className={`status-badge ${paymentConfig[order.paymentStatus]?.color || "secondary"}`}
-              >
-                {paymentConfig[order.paymentStatus]?.label ||
-                  order.paymentStatus}
-              </span>
+            <div className="total-row">
+              <span>Shipping:</span>
+              <strong>{formatCurrency(sellerShippingPrice)}</strong>
             </div>
-            <div className="summary-item">
-              <small>Your Earnings</small>
+            <div className="total-row">
+              <span>Tax:</span>
+              <strong>{formatCurrency(order.taxPrice || 0)}</strong>
+            </div>
+            <hr />
+            <div className="total-row grand">
+              <span>Total:</span>
               <strong className="gold-text">
-                {formatCurrency(
-                  sellerItems.reduce((s, i) => s + i.price * i.quantity, 0),
-                )}
+                {formatCurrency(sellerTotalPrice)}
               </strong>
             </div>
           </div>
-
-          {/* Escrow Notice */}
-          {order.paymentStatus === "requires_capture" && (
-            <div className="info-alert info">
-              <i className="bi bi-shield-lock-fill"></i>
-              <div>
-                <strong>Funds held in escrow</strong>
-                <p>
-                  Payment of {formatCurrency(order.totalPrice)} is securely
-                  held. Funds release when the buyer confirms delivery or the
-                  10-day review window closes.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {order.paymentStatus === "captured" && (
-            <div className="info-alert success">
-              <i className="bi bi-check-circle-fill"></i>
-              <div>
-                <strong>Payment released</strong>
-                <p>Funds have been transferred to your wallet.</p>
-              </div>
-            </div>
-          )}
-
-          {/* Products Table */}
-          <h6 className="section-title">
-            <i className="bi bi-grid"></i> Your Products
-          </h6>
-          <div className="orders-table-container">
-            <table className="orders-table">
-              <thead>
-                <tr>
-                  <th>Product</th>
-                  <th>Price</th>
-                  <th>Qty</th>
-                  <th>Total</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sellerItems.map((item, idx) => {
-                  const productId = (
-                    item.product._id || item.product
-                  ).toString();
-                  const nexts = nextStatuses(item.orderStatus);
-                  const hasOpenDispute = item.disputeStatus === "open";
-                  const status = statusConfig[item.orderStatus] || {
-                    color: "secondary",
-                    icon: "bi-question",
-                  };
-                  const isDelivered =
-                    item.orderStatus === "delivered" &&
-                    item.escrowStatus === "released";
-
-                  return (
-                    <tr key={idx}>
-                      <td className="product-cell">
-                        {item.product?.images?.[0] && (
-                          <img
-                            src={`${BACKEND}${item.product.images[0]}`}
-                            alt={item.name}
-                            className="product-thumb"
-                          />
-                        )}
-                        <span>{item.name}</span>
-                      </td>
-                      <td>{formatCurrency(item.price)}</td>
-                      <td>{item.quantity}</td>
-                      <td className="gold-text">
-                        {formatCurrency(item.price * item.quantity)}
-                      </td>
-                      <td>
-                        <span className={`status-badge ${status.color}`}>
-                          <i className={`bi ${status.icon}`}></i>
-                          {item.orderStatus}
-                        </span>
-                        <DisputeBadge
-                          item={item}
-                          onRespond={() => onOpenDispute(order, item)}
-                        />
-                        {item.orderStatus === "shipped" &&
-                          item.autoReleaseAt && (
-                            <AutoReleaseCountdown
-                              autoReleaseAt={item.autoReleaseAt}
-                            />
-                          )}
-                      </td>
-                      <td>
-                        <div className="action-buttons">
-                          {hasOpenDispute ? (
-                            <span className="blocked-message">
-                              <i className="bi bi-lock-fill"></i>
-                              Dispute pending
-                            </span>
-                          ) : (
-                            <>
-                              {nexts.map((status) => (
-                                <button
-                                  key={status}
-                                  className={`action-btn ${status}`}
-                                  onClick={() =>
-                                    handleStatusUpdate(productId, status)
-                                  }
-                                  disabled={updatingStatus}
-                                >
-                                  {status === "cancelled" && (
-                                    <i className="bi bi-x-circle"></i>
-                                  )}
-                                  {status === "shipped" && (
-                                    <i className="bi bi-truck"></i>
-                                  )}
-                                  {status !== "cancelled" &&
-                                    status !== "shipped" &&
-                                    status}
-                                  {status === "cancelled" && "Cancel"}
-                                  {status === "shipped" && "Ship"}
-                                </button>
-                              ))}
-                              {/* Review Buyer Button - shown for delivered items */}
-                              {isDelivered && (
-                                <button
-                                  className="action-btn review"
-                                  onClick={() => onOpenReview(order, item)}
-                                >
-                                  <i className="bi bi-star"></i>
-                                  Review Buyer
-                                </button>
-                              )}
-                            </>
-                          )}
-                          {nexts.length === 0 &&
-                            item.orderStatus !== "shipped" &&
-                            !isDelivered && (
-                              <span className="text-muted small">
-                                No actions
-                              </span>
-                            )}
-                        </div>
-                        {item.orderStatus === "cancelled" && (
-                          <small className="refunded-text">
-                            <i className="bi bi-arrow-repeat"></i>
-                            Refunded to buyer
-                          </small>
-                        )}
-                        {item.orderStatus === "delivered" && (
-                          <small className="released-text">
-                            <i className="bi bi-check-circle"></i>
-                            Payment released
-                          </small>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Order Totals */}
-          <div className="totals-section">
-            <div className="totals-card">
-              <div className="total-row">
-                <span>Subtotal:</span>
-                <strong>{formatCurrency(order.itemsPrice)}</strong>
-              </div>
-              <div className="total-row">
-                <span>Shipping:</span>
-                <strong>{formatCurrency(order.shippingPrice)}</strong>
-              </div>
-              <div className="total-row">
-                <span>Tax:</span>
-                <strong>{formatCurrency(order.taxPrice)}</strong>
-              </div>
-              <hr />
-              <div className="total-row grand">
-                <span>Total:</span>
-                <strong className="gold-text">
-                  {formatCurrency(order.totalPrice)}
-                </strong>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="modal-footer">
-          <button className="btn-secondary" onClick={onClose}>
-            Close
-          </button>
         </div>
       </div>
     </div>
@@ -942,8 +924,7 @@ const SellerOrders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [expandedOrder, setExpandedOrder] = useState(null);
   const [disputeOrder, setDisputeOrder] = useState(null);
   const [disputeItem, setDisputeItem] = useState(null);
   const [showDisputeModal, setShowDisputeModal] = useState(false);
@@ -978,24 +959,30 @@ const SellerOrders = () => {
   }, []);
 
   const openDispute = (order, item) => {
-    setShowDetailsModal(false);
+    setExpandedOrder(null);
     setDisputeOrder(order);
     setDisputeItem(item);
     setShowDisputeModal(true);
   };
 
   const openReview = (order, item) => {
-    setShowDetailsModal(false);
+    setExpandedOrder(null);
     setReviewOrder(order);
     setReviewItem(item);
     setShowReviewModal(true);
   };
 
-  const formatCurrency = (v) =>
-    new Intl.NumberFormat("en-US", {
+  const toggleOrder = (orderId) => {
+    setExpandedOrder(expandedOrder === orderId ? null : orderId);
+  };
+
+  const formatCurrency = (v) => {
+    if (v === undefined || v === null || isNaN(v)) return "$0.00";
+    return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
     }).format(v);
+  };
 
   const formatDate = (d) => new Date(d).toLocaleDateString();
 
@@ -1035,11 +1022,7 @@ const SellerOrders = () => {
     inEscrow: orders.filter((o) => o.paymentStatus === "requires_capture")
       .length,
     revenue: orders.reduce((sum, o) => {
-      const items =
-        o.orderItems?.filter(
-          (i) => i.seller === o.sellerId || i.seller?._id === o.sellerId,
-        ) || [];
-      return sum + items.reduce((s, i) => s + i.price * i.quantity, 0);
+      return sum + (o.sellerTotalPrice || 0);
     }, 0),
   };
 
@@ -1085,22 +1068,6 @@ const SellerOrders = () => {
           onClose={() => setToast(null)}
         />
       )}
-
-      <OrderDetailsModal
-        show={showDetailsModal}
-        onClose={() => {
-          setShowDetailsModal(false);
-          setSelectedOrder(null);
-        }}
-        order={selectedOrder}
-        onUpdateStatus={() => {
-          fetchOrders();
-          showToast("Order status updated", "success");
-        }}
-        showToast={showToast}
-        onOpenDispute={openDispute}
-        onOpenReview={openReview}
-      />
 
       {showDisputeModal && (
         <DisputeModal
@@ -1299,16 +1266,8 @@ const SellerOrders = () => {
                 </thead>
                 <tbody>
                   {filteredOrders.map((order) => {
-                    const sellerItems =
-                      order.orderItems?.filter(
-                        (i) =>
-                          i.seller === order.sellerId ||
-                          i.seller?._id === order.sellerId,
-                      ) || [];
-                    const sellerTotal = sellerItems.reduce(
-                      (s, i) => s + i.price * i.quantity,
-                      0,
-                    );
+                    const sellerItems = order.orderItems || [];
+                    const sellerTotal = order.sellerTotalPrice || 0;
                     const statuses = [
                       ...new Set(sellerItems.map((i) => i.orderStatus)),
                     ];
@@ -1336,130 +1295,153 @@ const SellerOrders = () => {
                           )[0]
                       : null;
 
+                    const isExpanded = expandedOrder === order._id;
+
                     return (
-                      <tr
-                        key={order._id}
-                        className={hasOpenDispute ? "dispute-row" : ""}
-                      >
-                        <td className="order-id">
-                          <a
-                            href="#"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              setSelectedOrder(order);
-                              setShowDetailsModal(true);
-                            }}
-                          >
-                            #{order._id.slice(-8).toUpperCase()}
-                          </a>
-                        </td>
-                        <td>
-                          {order.user?.fullname ||
-                            order.shippingAddress?.fullName}
-                        </td>
-                        <td>{formatDate(order.createdAt)}</td>
-                        <td className="products-cell">
-                          <div className="products-info">
-                            <span className="item-count">
-                              {sellerItems.length} item(s)
-                            </span>
-                            <span className="product-names">
-                              {sellerItems
-                                .map((i) => i.name)
-                                .join(", ")
-                                .substring(0, 40)}
-                              ...
-                            </span>
-                            {hasOpenDispute && (
-                              <span className="dispute-tag">
-                                <i className="bi bi-exclamation-triangle-fill"></i>
-                                Refund requested
-                              </span>
-                            )}
-                            {hasDelivered && (
-                              <span className="review-tag">
-                                <i className="bi bi-star-fill"></i>
-                                Ready for review
-                              </span>
-                            )}
-                            {soonest && (
-                              <AutoReleaseCountdown
-                                autoReleaseAt={soonest.autoReleaseAt}
-                              />
-                            )}
-                          </div>
-                        </td>
-                        <td className="gold-text fw-bold">
-                          {formatCurrency(sellerTotal)}
-                        </td>
-                        <td>
-                          <div className="status-tags">
-                            {statuses.map((s, i) => (
-                              <span
-                                key={i}
-                                className={`status-badge ${statusConfig[s] || "secondary"}`}
-                              >
-                                {s}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-                        <td>
-                          <span
-                            className={`payment-badge ${paymentConfig[order.paymentStatus]?.color || "secondary"}`}
-                          >
-                            {paymentConfig[order.paymentStatus]?.label ||
-                              order.paymentStatus}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="action-buttons">
-                            <button
-                              className="icon-btn view"
-                              onClick={() => {
-                                setSelectedOrder(order);
-                                setShowDetailsModal(true);
+                      <React.Fragment key={order._id}>
+                        <tr
+                          className={hasOpenDispute ? "dispute-row" : ""}
+                          onClick={() => toggleOrder(order._id)}
+                          style={{ cursor: "pointer" }}
+                        >
+                          <td className="order-id">
+                            <a
+                              href="#"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                toggleOrder(order._id);
                               }}
-                              title="View Details"
                             >
-                              <i className="bi bi-eye"></i>
-                            </button>
-                            {hasOpenDispute &&
-                              (() => {
-                                const disputedItem = sellerItems.find(
-                                  (i) => i.disputeStatus === "open",
-                                );
-                                return disputedItem ? (
-                                  <button
-                                    className="icon-btn respond"
-                                    onClick={() =>
-                                      openDispute(order, disputedItem)
-                                    }
-                                    title="Respond to refund request"
-                                  >
-                                    <i className="bi bi-reply-fill"></i>
-                                  </button>
-                                ) : null;
-                              })()}
-                            {hasDelivered && (
+                              #{order._id.slice(-8).toUpperCase()}
+                            </a>
+                          </td>
+                          <td>
+                            {order.user?.fullname ||
+                              order.shippingAddress?.fullName}
+                          </td>
+                          <td>{formatDate(order.createdAt)}</td>
+                          <td className="products-cell">
+                            <div className="products-info">
+                              <span className="item-count">
+                                {sellerItems.length} item(s)
+                              </span>
+                              <span className="product-names">
+                                {sellerItems
+                                  .map((i) => i.name)
+                                  .join(", ")
+                                  .substring(0, 40)}
+                                ...
+                              </span>
+                              {hasOpenDispute && (
+                                <span className="dispute-tag">
+                                  <i className="bi bi-exclamation-triangle-fill"></i>
+                                  Refund requested
+                                </span>
+                              )}
+                              {hasDelivered && (
+                                <span className="review-tag">
+                                  <i className="bi bi-star-fill"></i>
+                                  Ready for review
+                                </span>
+                              )}
+                              {soonest && (
+                                <AutoReleaseCountdown
+                                  autoReleaseAt={soonest.autoReleaseAt}
+                                />
+                              )}
+                            </div>
+                          </td>
+                          <td className="gold-text fw-bold">
+                            {formatCurrency(sellerTotal)}
+                          </td>
+                          <td>
+                            <div className="status-tags">
+                              {statuses.map((s, i) => (
+                                <span
+                                  key={i}
+                                  className={`status-badge ${statusConfig[s] || "secondary"}`}
+                                >
+                                  {s}
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                          <td>
+                            <span
+                              className={`payment-badge ${paymentConfig[order.paymentStatus]?.color || "secondary"}`}
+                            >
+                              {paymentConfig[order.paymentStatus]?.label ||
+                                order.paymentStatus}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="action-buttons">
                               <button
-                                className="icon-btn review"
-                                onClick={() => {
-                                  const deliveredItem = sellerItems.find(
-                                    (i) => i.orderStatus === "delivered",
-                                  );
-                                  if (deliveredItem) {
-                                    openReview(order, deliveredItem);
-                                  }
+                                className="icon-btn view"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleOrder(order._id);
                                 }}
-                                title="Review Buyer"
+                                title={
+                                  isExpanded ? "Hide Details" : "View Details"
+                                }
                               >
-                                <i className="bi bi-star-fill"></i>
+                                <i
+                                  className={`bi ${isExpanded ? "bi-chevron-up" : "bi-chevron-down"}`}
+                                ></i>
                               </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
+                              {hasOpenDispute &&
+                                (() => {
+                                  const disputedItem = sellerItems.find(
+                                    (i) => i.disputeStatus === "open",
+                                  );
+                                  return disputedItem ? (
+                                    <button
+                                      className="icon-btn respond"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        openDispute(order, disputedItem);
+                                      }}
+                                      title="Respond to refund request"
+                                    >
+                                      <i className="bi bi-reply-fill"></i>
+                                    </button>
+                                  ) : null;
+                                })()}
+                              {hasDelivered && (
+                                <button
+                                  className="icon-btn review"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const deliveredItem = sellerItems.find(
+                                      (i) => i.orderStatus === "delivered",
+                                    );
+                                    if (deliveredItem) {
+                                      openReview(order, deliveredItem);
+                                    }
+                                  }}
+                                  title="Review Buyer"
+                                >
+                                  <i className="bi bi-star-fill"></i>
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <tr>
+                            <td colSpan="8">
+                              <OrderDropdown
+                                order={order}
+                                onUpdateStatus={fetchOrders}
+                                showToast={showToast}
+                                onOpenDispute={openDispute}
+                                onOpenReview={openReview}
+                              />
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
                     );
                   })}
                 </tbody>

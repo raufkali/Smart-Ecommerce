@@ -4,12 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import "./Sidebar.css";
 
-const Sidebar = ({
-  sidebarItems = [],
-  header = "Menu",
-  onToggle,
-  defaultCollapsed = false,
-}) => {
+const Sidebar = ({ sidebarItems = [], onToggle, defaultCollapsed = false }) => {
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [user, setUser] = useState(null);
@@ -46,7 +41,6 @@ const Sidebar = ({
       }
 
       try {
-        // First get basic auth info
         const authResponse = await fetch(
           `${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/me`,
           {
@@ -61,7 +55,6 @@ const Sidebar = ({
           const basicUser = authData.user || authData;
           setUser(basicUser);
 
-          // Then fetch full profile data from profile endpoint
           const profileResponse = await fetch(
             `${process.env.NEXT_PUBLIC_BACKEND_URL}/profile/`,
             {
@@ -76,7 +69,6 @@ const Sidebar = ({
             const fullProfile = profileData.user || profileData;
             setFullUserData(fullProfile);
           } else {
-            // If profile endpoint fails, use basic user data
             setFullUserData(basicUser);
           }
         } else {
@@ -93,7 +85,6 @@ const Sidebar = ({
 
     fetchUserData();
 
-    // Listen for auth changes
     const handleAuthChange = () => {
       fetchUserData();
     };
@@ -113,28 +104,22 @@ const Sidebar = ({
     setIsMobileOpen(!isMobileOpen);
   };
 
-  // Helper function to get profile picture URL
   const getProfilePictureUrl = () => {
-    // Use fullUserData which has complete profile info
     const userData = fullUserData || user;
     if (!userData) return null;
 
-    // Check for profile picture in different possible fields
     const profilePic =
       userData.profilePicture || userData.profileImage || userData.avatar;
 
     if (profilePic) {
-      // If it's a full URL, use it directly
       if (profilePic.startsWith("http")) {
         return profilePic;
       }
-      // Otherwise, construct the full URL
       return `${process.env.NEXT_PUBLIC_BACKEND_URL}/uploads/profiles/${profilePic}`;
     }
     return null;
   };
 
-  // Helper function to get user's display name
   const getDisplayName = () => {
     const userData = fullUserData || user;
     if (!userData) return "Guest";
@@ -147,17 +132,14 @@ const Sidebar = ({
     );
   };
 
-  // Helper function to get user's role
   const getUserRole = () => {
     const userData = fullUserData || user;
     const role = userData?.role || "user";
-    // Format role for display
-    if (role === "admin") return "Administrator";
+    if (role === "admin") return "Admin";
     if (role === "seller") return "Seller";
-    return "Customer";
+    return "User";
   };
 
-  // Get icon component based on icon name
   const getIcon = (iconName) => {
     const icons = {
       dashboard: <i className="bi bi-speedometer2"></i>,
@@ -175,12 +157,31 @@ const Sidebar = ({
       reports: <i className="bi bi-file-text"></i>,
       coupons: <i className="bi bi-ticket-perforated"></i>,
       reviews: <i className="bi bi-star"></i>,
+      disputes: <i className="bi bi-exclamation-triangle"></i>,
       default: <i className="bi bi-circle"></i>,
     };
     return icons[iconName] || icons.default;
   };
 
   const isLoggedIn = !!user;
+
+  // FIX: Dashboard links must match EXACTLY. Previously "startsWith" made
+  // "/admin/dashboard" match every sub-page too (e.g. /admin/dashboard/users),
+  // so Dashboard stayed highlighted alongside whatever tab you were actually on.
+  const isLinkActive = (item) => {
+    if (item.link === "/") {
+      return pathname === "/";
+    }
+
+    // Dashboard is a sibling of the other sections, not their parent route —
+    // only highlight it on an exact match.
+    if (item.link === "/admin/dashboard" || item.link === "/seller/dashboard") {
+      return pathname === item.link;
+    }
+
+    // For other links: exact match or a real nested child route
+    return pathname === item.link || pathname?.startsWith(item.link + "/");
+  };
 
   return (
     <>
@@ -191,7 +192,7 @@ const Sidebar = ({
 
       {/* Mobile Toggle Button */}
       <button
-        className="sidebar-mobile-toggle btn d-md-none"
+        className="sidebar-mobile-toggle d-md-none"
         onClick={toggleMobileSidebar}
         aria-label="Toggle sidebar"
       >
@@ -202,41 +203,20 @@ const Sidebar = ({
       <div
         className={`sidebar ${isCollapsed ? "collapsed" : ""} ${isMobileOpen ? "mobile-open" : ""}`}
       >
-        {/* Sidebar Header */}
-        <div className="sidebar-header">
-          {!isCollapsed ? (
-            <h4 className="sidebar-title">{header}</h4>
-          ) : (
-            <h4 className="sidebar-title-collapsed">{header.charAt(0)}</h4>
-          )}
-
-          {/* Toggle Button (Desktop) */}
-          <button
-            className="sidebar-toggle d-none d-md-block"
-            onClick={toggleSidebar}
-            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            <i
-              className={`bi bi-chevron-${isCollapsed ? "right" : "left"}`}
-            ></i>
-          </button>
-
-          {/* Close Button (Mobile) */}
-          <button
-            className="sidebar-close d-md-none"
-            onClick={toggleMobileSidebar}
-            aria-label="Close sidebar"
-          >
-            <i className="bi bi-x-lg"></i>
-          </button>
-        </div>
+        {/* Toggle Button - Centered with Golden Border */}
+        <button
+          className="sidebar-toggle-btn"
+          onClick={toggleSidebar}
+          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          <i className={`bi bi-chevron-${isCollapsed ? "right" : "left"}`}></i>
+        </button>
 
         {/* Navigation Menu */}
         <nav className="sidebar-nav">
           <ul className="sidebar-menu">
             {sidebarItems.map((item, index) => {
-              const isActive =
-                pathname === item.link || pathname?.startsWith(item.link + "/");
+              const isActive = isLinkActive(item);
 
               return (
                 <li
@@ -291,7 +271,7 @@ const Sidebar = ({
 
             {!isCollapsed && (
               <div className="user-info">
-                <div className="user-name text-white">{getDisplayName()}</div>
+                <div className="user-name">{getDisplayName()}</div>
                 <div className="user-role">{getUserRole()}</div>
               </div>
             )}
@@ -336,9 +316,6 @@ const Sidebar = ({
                 <span>Logout</span>
               </button>
             )}
-            <div className="sidebar-version">
-              <small>SHOPNEST v1.0</small>
-            </div>
           </div>
         )}
       </div>
