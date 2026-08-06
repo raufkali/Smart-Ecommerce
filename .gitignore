@@ -1,3 +1,4 @@
 node_modules
 public/
 /backend/.env
+/frontend/frontend/*

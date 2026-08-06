@@ -10,7 +10,7 @@
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
-
+/frontend/*
 # testing
 /coverage
 
@@ -40,3 +40,58 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+# Next.js build output
+.next/
+out/
+build/
+dist/
+
+# Production build files
+*.next
+*.build
+
+# Next.js environment files
+.env*.local
+.env*.development
+.env*.production
+
+# Next.js cache
+.next/cache/
+.next/build/
+.next/server/
+.next/standalone/
+.next/static/
+
+# Generated files
+.next/telemetry/
+.next/trace
+.next/diagnostics
+
+# TypeScript generated files
+*.tsbuildinfo
+next-env.d.ts
+
+# Development files
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
