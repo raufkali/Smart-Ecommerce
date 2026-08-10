@@ -55,7 +55,7 @@ const addWalletTransaction = async (wallet, transactionData) => {
 const calcItemAmounts = (item) => {
   const productAmount = item.price * item.quantity;
   const totalAmount = productAmount + (item.shippingFee || 0);
-  const platformFee = Math.round(totalAmount * 0.1 * 100) / 100;
+  const platformFee = Math.round(totalAmount * 0.01 * 100) / 100;
   const sellerAmount = Math.round((totalAmount - platformFee) * 100) / 100;
   return { productAmount, totalAmount, platformFee, sellerAmount };
 };
@@ -754,112 +754,219 @@ const _processRefundForItem = async (order, item) => {
 // @desc  Withdraw funds to connected Stripe account
 // @route POST /api/payment/withdraw
 // @access Private (Seller)
+
+// ─────────────────────────────────────────────
+// @desc  Withdraw funds to connected Stripe account
+// @route POST /api/payment/withdraw
+// @access Private (Seller)
 // ─────────────────────────────────────────────
 const withdrawFunds = expressAsyncHandler(async (req, res) => {
   const { amount } = req.body;
   const sellerId = req.user.id;
 
-  if (!amount || amount <= 0) {
+  const withdrawalAmount = Number(amount);
+
+  if (!Number.isFinite(withdrawalAmount) || withdrawalAmount <= 0) {
     res.status(400);
-    throw new Error("Please provide a valid amount");
+    throw new Error("Please provide a valid withdrawal amount");
   }
 
-  const wallet = await Wallet.findOne({ user: sellerId });
-  const seller = await User.findById(sellerId);
+  // Avoid floating-point money problems
+  const amountInCents = Math.round(withdrawalAmount * 100);
+
+  if (amountInCents < 100) {
+    res.status(400);
+    throw new Error("Minimum withdrawal amount is $1.00");
+  }
+
+  // Find seller and wallet
+  const [wallet, seller] = await Promise.all([
+    Wallet.findOne({ user: sellerId }),
+    User.findById(sellerId),
+  ]);
+
+  if (!seller) {
+    res.status(404);
+    throw new Error("Seller not found");
+  }
 
   if (!wallet) {
     res.status(404);
     throw new Error("Wallet not found");
   }
 
-  if (wallet.availableBalance < amount) {
+  // Check internal wallet balance
+  const availableBalanceCents = Math.round(
+    Number(wallet.availableBalance || 0) * 100,
+  );
+
+  if (availableBalanceCents < amountInCents) {
     res.status(400);
-    throw new Error("Insufficient available balance");
+    throw new Error(
+      `Insufficient available balance. Available: $${(
+        availableBalanceCents / 100
+      ).toFixed(2)}`,
+    );
   }
 
+  // Check Stripe Connect account
   if (!seller.stripeAccountId) {
     res.status(400);
-    throw new Error("Please connect your Stripe account first");
-  }
-
-  // Verify Stripe account is ready
-  try {
-    const stripeAccount = await stripe.accounts.retrieve(
-      seller.stripeAccountId,
+    throw new Error(
+      "Please connect your Stripe account before withdrawing funds",
     );
-    if (!stripeAccount.charges_enabled || !stripeAccount.payouts_enabled) {
-      res.status(400);
-      throw new Error(
-        "Your Stripe account is not fully set up to receive payments",
-      );
-    }
-  } catch (stripeError) {
-    if (stripeError.isAxiosError || stripeError.type) {
-      res.status(400);
-      throw new Error("Stripe account verification failed");
-    }
-    throw stripeError;
   }
 
-  let transfer;
+  let stripeAccount;
+
   try {
-    transfer = await stripe.transfers.create({
-      amount: Math.round(amount * 100),
-      currency: "usd",
-      destination: seller.stripeAccountId,
-      transfer_group: `withdrawal_${Date.now()}`,
-      metadata: {
-        sellerId: sellerId,
-        withdrawalType: "seller_withdrawal",
-      },
-    });
+    stripeAccount = await stripe.accounts.retrieve(seller.stripeAccountId);
   } catch (stripeError) {
-    res.status(500);
-    throw new Error(`Stripe error: ${stripeError.message}`);
+    console.error("Stripe account retrieval error:", stripeError.message);
+    res.status(400);
+    throw new Error("Unable to verify your Stripe account");
   }
 
-  wallet.availableBalance -= amount;
-  wallet.pendingWithdrawal += amount;
-  wallet.totalWithdrawn += amount;
+  // Verify account can receive payouts
+  if (!stripeAccount.payouts_enabled) {
+    res.status(400);
+    throw new Error(
+      "Your Stripe account is not currently enabled to receive payouts. Please complete your account setup.",
+    );
+  }
+
+  if (!stripeAccount.charges_enabled) {
+    console.warn(
+      `Stripe account ${seller.stripeAccountId} has charges disabled`,
+    );
+  }
+
+  // Reserve the money in our wallet FIRST
+  wallet.availableBalance = Number(
+    (availableBalanceCents - amountInCents) / 100,
+  );
+
+  wallet.pendingWithdrawal =
+    Number(wallet.pendingWithdrawal || 0) + Number(withdrawalAmount);
+
+  wallet.totalWithdrawn =
+    Number(wallet.totalWithdrawn || 0) + Number(withdrawalAmount);
+
   wallet.lastWithdrawalAt = new Date();
+
+  // Create a PENDING transaction
+  const withdrawalReference = `withdrawal_${sellerId}_${Date.now()}`;
 
   await addWalletTransaction(wallet, {
     sender: sellerId,
     receiver: "stripe_connect",
     type: "withdrawal",
-    amount: -amount,
+    amount: -withdrawalAmount,
     status: "pending",
-    description: `Withdrawal to connected Stripe account`,
-    stripePayoutId: transfer.id,
+    description: "Withdrawal to connected Stripe account",
+    reference: withdrawalReference,
   });
 
   await wallet.save();
 
+  const transaction = wallet.transactions[wallet.transactions.length - 1];
+
+  // Transfer funds from PLATFORM → CONNECTED ACCOUNT
+  let transfer;
+
+  try {
+    transfer = await stripe.transfers.create({
+      amount: amountInCents,
+      currency: "usd",
+      destination: seller.stripeAccountId,
+      transfer_group: `withdrawal_${sellerId}_${Date.now()}`,
+      metadata: {
+        sellerId,
+        withdrawalReference,
+        withdrawalType: "seller_withdrawal",
+      },
+    });
+
+    console.log(
+      `✅ Transfer created: ${transfer.id} for $${withdrawalAmount.toFixed(2)} to seller ${sellerId}`,
+    );
+  } catch (stripeError) {
+    console.error("Stripe transfer error:", stripeError.message);
+
+    // Restore our internal wallet because the transfer never happened
+    wallet.availableBalance =
+      Number(wallet.availableBalance || 0) + withdrawalAmount;
+
+    wallet.pendingWithdrawal = Math.max(
+      0,
+      Number(wallet.pendingWithdrawal || 0) - withdrawalAmount,
+    );
+
+    wallet.totalWithdrawn = Math.max(
+      0,
+      Number(wallet.totalWithdrawn || 0) - withdrawalAmount,
+    );
+
+    // Update the transaction status
+    transaction.status = "failed";
+    transaction.description = `Withdrawal failed: ${stripeError.message}`;
+
+    await wallet.save();
+
+    res.status(500);
+    throw new Error(`Stripe transfer failed: ${stripeError.message}`);
+  }
+
+  // Transfer succeeded - update transaction
+  transaction.stripeTransferId = transfer.id;
+  transaction.status = "completed";
+  transaction.description =
+    "Withdrawal to connected Stripe account - funds will arrive in bank account according to payout schedule";
+
+  // Clear pending withdrawal since transfer is complete
+  wallet.pendingWithdrawal = Math.max(
+    0,
+    Number(wallet.pendingWithdrawal || 0) - Number(withdrawalAmount),
+  );
+
+  await wallet.save();
+
+  // Notify seller of successful withdrawal
   await notify(sellerId, {
-    title: "Withdrawal initiated",
-    message: `$${amount.toFixed(2)} withdrawal initiated. Funds will arrive in 2-7 business days.`,
-    type: "info",
+    title: "Withdrawal successful",
+    message: `$${withdrawalAmount.toFixed(
+      2,
+    )} has been sent to your connected Stripe account. Funds will arrive in your bank account according to your payout schedule.`,
+    type: "success",
     link: "/seller/profile",
   });
 
-  res.json({
+  // Send success response
+  res.status(200).json({
     success: true,
     message:
-      "Withdrawal initiated successfully. Funds will be transferred to your Stripe account.",
-    transaction: wallet.transactions[wallet.transactions.length - 1],
+      "Withdrawal successful! Funds will arrive in your bank account according to your payout schedule.",
+    transaction: {
+      _id: transaction._id,
+      type: transaction.type,
+      amount: transaction.amount,
+      status: transaction.status,
+      reference: transaction.reference,
+      stripeTransferId: transfer.id,
+    },
     transfer: {
       id: transfer.id,
       amount: transfer.amount / 100,
-      status: transfer.status,
+      status: transfer.status || "succeeded",
     },
     newBalance: {
-      available: wallet.availableBalance,
-      pending: wallet.pendingWithdrawal,
-      locked: wallet.lockedBalance,
+      available: Number(wallet.availableBalance.toFixed(2)),
+      pending: Number(wallet.pendingWithdrawal.toFixed(2)),
+      locked: Number((wallet.lockedBalance || 0).toFixed(2)),
+      totalWithdrawn: Number(wallet.totalWithdrawn.toFixed(2)),
     },
   });
 });
-
 // ─────────────────────────────────────────────
 // @desc  Admin: refund full order
 // @route POST /api/payment/refund/:orderId

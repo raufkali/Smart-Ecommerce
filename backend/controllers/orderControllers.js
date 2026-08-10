@@ -51,7 +51,7 @@ const createOrder = asyncHandler(async (req, res) => {
       quantity: item.quantity,
       orderStatus: "pending",
       escrowStatus: "held",
-      shippingFee: 200, // Each seller charges their own shipping fee
+      shippingFee: 10,
     });
 
     // reducing stock

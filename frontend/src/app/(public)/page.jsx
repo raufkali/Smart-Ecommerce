@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import "./homepage.css";
 import BackendImage from "@/app/components/BackendImage";
 import ReactMarkDown from "react-markdown";
+import Toast from "@/app/components/Toast";
 // ── Custom Hooks ────────────────────────────────────────────────────────────
 const useToast = () => {
   const [toast, setToast] = useState(null);
@@ -48,31 +49,6 @@ const useAuth = () => {
   return { user, hasToken };
 };
 
-// ── Toast Component ─────────────────────────────────────────────────────────
-const Toast = ({ message, type, onClose }) => {
-  const config = {
-    success: { bg: "#10b981", icon: "✅" },
-    error: { bg: "#ef4444", icon: "❌" },
-    warning: { bg: "#f59e0b", icon: "⚠️" },
-    info: { bg: "#3b82f6", icon: "ℹ️" },
-  }[type] || { bg: "#6b7280", icon: "🔔" };
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: 100 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 100 }}
-      className="toast-container"
-      style={{ background: config.bg }}
-    >
-      <span style={{ fontSize: 18 }}>{config.icon}</span>
-      <span>{message}</span>
-      <button onClick={onClose} className="toast-close">
-        ×
-      </button>
-    </motion.div>
-  );
-};
 // ── Categories Section with Images ─────────────────────────────────────────
 const CategoriesSection = ({ categories, loading }) => {
   const [hoveredCategory, setHoveredCategory] = useState(null);

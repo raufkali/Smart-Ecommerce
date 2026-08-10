@@ -88,7 +88,6 @@ const getActiveCategories = asyncHandler(async (req, res) => {
   });
 });
 
-// ✅ FIXED: updateCategory controller
 const updateCategory = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -104,7 +103,6 @@ const updateCategory = asyncHandler(async (req, res) => {
     throw new Error("Category not found");
   }
 
-  // ✅ FIX: Prepare update data with proper field handling
   const updateData = {};
 
   // Handle name - check for duplicates
@@ -125,7 +123,6 @@ const updateCategory = asyncHandler(async (req, res) => {
     updateData.description = req.body.description.trim() || "";
   }
 
-  // ✅ FIX: Handle isActive properly - convert from string to boolean
   if (req.body.isActive !== undefined) {
     // Check if it's a string from FormData or a boolean
     if (typeof req.body.isActive === "string") {
@@ -137,7 +134,6 @@ const updateCategory = asyncHandler(async (req, res) => {
     }
   }
 
-  // ✅ Handle image upload - delete old image if new one uploaded
   if (req.file) {
     // If using Cloudinary, delete old image
     if (category.image) {
@@ -155,7 +151,6 @@ const updateCategory = asyncHandler(async (req, res) => {
     updateData.image = req.file.path;
   }
 
-  // ✅ Log what we're updating for debugging
   console.log("Updating category:", {
     id,
     updateData,
@@ -167,7 +162,6 @@ const updateCategory = asyncHandler(async (req, res) => {
     },
   });
 
-  // ✅ Update the category
   const updatedCategory = await Category.findByIdAndUpdate(id, updateData, {
     new: true,
     runValidators: true,
@@ -201,7 +195,6 @@ const deleteCategory = asyncHandler(async (req, res) => {
     throw new Error("Category not found");
   }
 
-  // ✅ Delete image from Cloudinary if it exists
   if (category.image) {
     try {
       const publicId = category.image.split("/").pop()?.split(".")[0];

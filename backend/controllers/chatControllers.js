@@ -625,7 +625,7 @@ const sendMessage = asyncHandler(async (req, res) => {
 
   // Update chat's last message
   const displayContent = attachment
-    ? `📷 Image attached: ${content.trim().substring(0, 80)}`
+    ? `Image attached: ${content.trim().substring(0, 80)}`
     : content.trim().substring(0, 100);
   chat.lastMessage = {
     content: displayContent,
