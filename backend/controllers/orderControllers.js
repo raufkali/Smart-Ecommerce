@@ -53,7 +53,6 @@ const createOrder = asyncHandler(async (req, res) => {
       escrowStatus: "held",
       shippingFee: 10,
     });
-
     // reducing stock
     product.stock -= item.quantity;
     await product.save();
@@ -94,6 +93,22 @@ const createOrder = asyncHandler(async (req, res) => {
     escrowStatus: "held",
   });
 
+  // notify seller
+  // ── Notify all sellers about new order ──────────────────────────────────
+  for (const [sellerId, items] of sellerItemsMap) {
+    const sellerItems = items.map((item) => item.name).join(", ");
+    const sellerTotal = items.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0,
+    );
+
+    await notify(sellerId, {
+      title: "New Order Received! 🎉",
+      message: `You have a new order for: ${sellerItems}. Total: $${sellerTotal.toFixed(2)}. Order #${order._id.toString().slice(-8).toUpperCase()}`,
+      type: "success",
+      link: "/seller/orders",
+    });
+  }
   // clear cart
   cart.items = [];
   await cart.save();

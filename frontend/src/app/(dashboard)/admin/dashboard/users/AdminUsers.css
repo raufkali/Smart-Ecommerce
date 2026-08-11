@@ -1,34 +1,5 @@
 /* Admin Users - SHOPNEST Theme with Glass Effects */
-
-:root {
-    --gold: #b8912a;
-    --gold-light: #d4a93a;
-    --gold-deep: #9a7820;
-    --gold-pale: rgba(184, 145, 42, 0.08);
-    --gold-glow: rgba(184, 145, 42, 0.15);
-
-    --bg-page: #faf8f4;
-    --bg-card: #ffffff;
-    --bg-surface: #f4f1eb;
-    --bg-hover: #fefaf0;
-
-    --text-primary: #1a1712;
-    --text-secondary: #5a5448;
-    --text-muted: #9a9080;
-
-    --border: #e8e4dc;
-    --border-gold: rgba(184, 145, 42, 0.3);
-
-    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
-    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.06);
-    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.08);
-    --shadow-gold: 0 4px 20px rgba(184, 145, 42, 0.12);
-
-    --font-display: 'Cormorant Garamond', Georgia, serif;
-    --font-body: 'DM Sans', system-ui, sans-serif;
-
-    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
-}
+@import "@/app/components/styles/variables.css";
 
 /* Page Container */
 .admin-users {

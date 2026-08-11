@@ -76,11 +76,11 @@ export default function SellerLayout({ children }) {
                   marginLeft: isMobile
                     ? 0
                     : sidebarCollapsed
-                      ? "80px"
-                      : "160px",
+                      ? "55px"
+                      : "150px",
                   width: isMobile
                     ? "100%"
-                    : `calc(100% - ${sidebarCollapsed ? "80px" : "160px"})`,
+                    : `calc(100% - ${sidebarCollapsed ? "0px" : "0px"})`,
                   minHeight: "calc(100vh - 70px)",
                   backgroundColor: "#f8f9fa",
                   transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",

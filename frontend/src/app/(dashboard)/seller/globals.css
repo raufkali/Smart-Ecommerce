@@ -1,4 +1,10 @@
+@import "@/app/components/styles/variables.css";
+/* 
 .form-control,
 .form-select {
   background-color: rgb(246, 246, 246) !important;
+} */
+
+html {
+  background-color: var(--bg-primary);
 }

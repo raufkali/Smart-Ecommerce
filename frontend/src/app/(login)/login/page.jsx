@@ -1,11 +1,15 @@
 "use client";
 import Login from "@/app/components/Login";
-import "../globals.css";
 const LoginPage = () => {
   return (
     <div
-      className="container-fluid align-items-center justify-content-center bg-light"
-      style={{ minHeight: "100vh" }}
+      className="p-0 m-0 align-items-center justify-content-center bg-light"
+      style={{
+        minHeight: "100vh",
+        minWidth: "100vw",
+        position: "absolute",
+        top: "0",
+      }}
     >
       <Login />
     </div>

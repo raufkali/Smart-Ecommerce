@@ -120,7 +120,7 @@ const Login = () => {
   }, [error, success]);
 
   return (
-    <div className="auth-page">
+    <div className="auth-page ">
       {/* Form panel */}
       <div className="auth-right">
         {/* Back to home button */}

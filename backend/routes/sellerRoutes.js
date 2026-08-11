@@ -65,7 +65,6 @@ router.post(
         }
       }
 
-      // ✅ WORKING VERSION - No business_profile needed for test mode
       const account = await stripe.accounts.create({
         type: "express",
         country: country,
