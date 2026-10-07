@@ -402,7 +402,7 @@ const ChatWindow = ({
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`${apiUrl}/chat/${chat._id}/messages?limit=100`, {
+      const res = await fetch(`${apiUrl}/chat/${chat._id}/messages`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {

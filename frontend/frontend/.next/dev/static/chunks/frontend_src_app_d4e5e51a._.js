@@ -9,7 +9,7 @@ __turbopack_context__.s([
 var __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$next$2f$dist$2f$build$2f$polyfills$2f$process$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = /*#__PURE__*/ __turbopack_context__.i("[project]/frontend/node_modules/next/dist/build/polyfills/process.js [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$socket$2e$io$2d$client$2f$build$2f$esm$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__ = __turbopack_context__.i("[project]/frontend/node_modules/socket.io-client/build/esm/index.js [app-client] (ecmascript) <locals>");
 ;
-const socket = (0, __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$socket$2e$io$2d$client$2f$build$2f$esm$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["io"])(("TURBOPACK compile-time value", "http://192.168.10.16:8080") || "http://localhost:8080", {
+const socket = (0, __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$socket$2e$io$2d$client$2f$build$2f$esm$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["io"])(("TURBOPACK compile-time value", "http://localhost:8080") || "http://localhost:8080", {
     autoConnect: false
 });
 if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
@@ -45,7 +45,7 @@ const NotificationProvider = ({ children })=>{
     const [notifications, setNotifications] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])([]);
     const [unreadCount, setUnreadCount] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(0);
     const [loading, setLoading] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$frontend$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(true);
-    const API = ("TURBOPACK compile-time value", "http://192.168.10.16:8080") || "http://localhost:8080";
+    const API = ("TURBOPACK compile-time value", "http://localhost:8080") || "http://localhost:8080";
     const authHeaders = ()=>({
             "Content-Type": "application/json",
             Authorization: `Bearer ${localStorage.getItem("token")}`
@@ -691,7 +691,7 @@ const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" })=>{
             return;
         }
         //get user role
-        const userRes = await fetch(`${("TURBOPACK compile-time value", "http://192.168.10.16:8080")}/auth/me`, {
+        const userRes = await fetch(`${("TURBOPACK compile-time value", "http://localhost:8080")}/auth/me`, {
             headers: {
                 Authorization: `Bearer ${token}`
             }
@@ -703,7 +703,7 @@ const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" })=>{
                 setCartCount(0);
                 return;
             } else {
-                const res = await fetch(`${("TURBOPACK compile-time value", "http://192.168.10.16:8080")}/cart/count`, {
+                const res = await fetch(`${("TURBOPACK compile-time value", "http://localhost:8080")}/cart/count`, {
                     headers: {
                         Authorization: `Bearer ${token}`
                     }
@@ -727,7 +727,7 @@ const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" })=>{
             return;
         }
         try {
-            const res = await fetch(`${("TURBOPACK compile-time value", "http://192.168.10.16:8080")}/chat/unread-count`, {
+            const res = await fetch(`${("TURBOPACK compile-time value", "http://localhost:8080")}/chat/unread-count`, {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
@@ -780,7 +780,7 @@ const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" })=>{
                         return;
                     }
                     try {
-                        const authRes = await fetch(`${("TURBOPACK compile-time value", "http://192.168.10.16:8080")}/auth/me`, {
+                        const authRes = await fetch(`${("TURBOPACK compile-time value", "http://localhost:8080")}/auth/me`, {
                             headers: {
                                 Authorization: `Bearer ${token}`
                             }
@@ -788,7 +788,7 @@ const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" })=>{
                         if (!authRes.ok) throw new Error();
                         const { user: basic } = await authRes.json();
                         setUser(basic);
-                        const profRes = await fetch(`${("TURBOPACK compile-time value", "http://192.168.10.16:8080")}/profile/`, {
+                        const profRes = await fetch(`${("TURBOPACK compile-time value", "http://localhost:8080")}/profile/`, {
                             headers: {
                                 Authorization: `Bearer ${token}`
                             }
@@ -834,7 +834,7 @@ const Navbar = ({ items = [], brandName = "SHOPNEST", brandLink = "/" })=>{
     const avatarUrl = (()=>{
         const pic = ud?.profilePicture || ud?.profileImage || ud?.avatar;
         if (!pic) return null;
-        return pic.startsWith("http") ? pic : `${"TURBOPACK compile-time value", "http://192.168.10.16:8080"}/uploads/profiles/${pic}`;
+        return pic.startsWith("http") ? pic : `${"TURBOPACK compile-time value", "http://localhost:8080"}/uploads/profiles/${pic}`;
     })();
     const iconMap = {
         house: "bi-house-fill",

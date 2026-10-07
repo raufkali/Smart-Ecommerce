@@ -2858,7 +2858,7 @@ const configEnv = ("TURBOPACK compile-time value", {
         }),
         ("TURBOPACK compile-time value", {
             "protocol": ("TURBOPACK compile-time value", "http"),
-            "hostname": ("TURBOPACK compile-time value", "192.168.10.26"),
+            "hostname": ("TURBOPACK compile-time value", "localhost"),
             "port": ("TURBOPACK compile-time value", "8080"),
             "pathname": ("TURBOPACK compile-time value", "/**")
         }),
@@ -3255,7 +3255,7 @@ function getImageProps(imgProps) {
                 }),
                 ("TURBOPACK compile-time value", {
                     "protocol": ("TURBOPACK compile-time value", "http"),
-                    "hostname": ("TURBOPACK compile-time value", "192.168.10.26"),
+                    "hostname": ("TURBOPACK compile-time value", "localhost"),
                     "port": ("TURBOPACK compile-time value", "8080"),
                     "pathname": ("TURBOPACK compile-time value", "/**")
                 }),

@@ -61,7 +61,7 @@ const uploadChatImage = asyncHandler(async (req, res) => {
     width: file.width || null,
     height: file.height || null,
     uploadedAt: new Date(),
-    deleteAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
+    deleteAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 5 days from now
   };
 
   // Create message with image
@@ -615,7 +615,7 @@ const sendMessage = asyncHandler(async (req, res) => {
         size: attachment.size || 0,
         mimeType: attachment.mimeType || "image/jpeg",
         uploadedAt: new Date(),
-        deleteAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+        deleteAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       },
     ];
   }
